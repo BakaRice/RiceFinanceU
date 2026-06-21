@@ -17,6 +17,12 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   HKD: 'HK$',
 }
 
+export type ExchangeRates = {
+  USD: number  // 1 USD = ? CNY
+  HKD: number  // 1 HKD = ? CNY
+  updatedAt: string
+}
+
 export type Asset = {
   id: string
   name: string

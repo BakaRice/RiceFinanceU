@@ -1,7 +1,20 @@
 // src/domain/snapshots.ts
-import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput } from '../types/finance'
+import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput, ExchangeRates } from '../types/finance'
 import { isInvestmentType, ASSET_TYPE_LABELS } from './assets'
 import { roundMoney } from './money'
+
+// ——— Currency conversion ———
+
+const DEFAULT_RATES: ExchangeRates = { USD: 7.2, HKD: 0.92, updatedAt: '' }
+
+export function convertToCNY(amount: number, currency: string, rates?: ExchangeRates): number {
+  const r = rates || DEFAULT_RATES
+  switch (currency) {
+    case 'USD': return roundMoney(amount * r.USD)
+    case 'HKD': return roundMoney(amount * r.HKD)
+    default: return amount
+  }
+}
 
 // ——— Partial update completion ———
 
@@ -50,43 +63,82 @@ export function completeSnapshotValues(
 
 // ——— Aggregation ———
 
+export interface CurrencyBreakdown {
+  currency: string
+  amount: number
+  count: number
+}
+
 export interface SnapshotTotal {
   totalAmount: number
+  totalAmountCNY: number
   investmentAmount: number
+  investmentAmountCNY: number
   balanceAmount: number
+  balanceAmountCNY: number
   totalProfit: number
+  totalProfitCNY: number
   valueCount: number
+  byCurrency: CurrencyBreakdown[]
 }
 
 export function calculateSnapshotTotal(
   values: SnapshotValue[],
-  assets: Asset[]
+  assets: Asset[],
+  rates?: ExchangeRates
 ): SnapshotTotal {
   const assetMap = new Map(assets.map((a) => [a.id, a]))
   let totalAmount = 0
+  let totalAmountCNY = 0
   let investmentAmount = 0
+  let investmentAmountCNY = 0
   let balanceAmount = 0
+  let balanceAmountCNY = 0
   let totalProfit = 0
+  let totalProfitCNY = 0
+
+  const currencyAmounts: Record<string, { amount: number; count: number }> = {}
 
   for (const v of values) {
-    totalAmount += v.amount
     const asset = assetMap.get(v.assetId)
+    const currency = asset?.currency || 'CNY'
+    const factor = currency === 'USD' ? (rates?.USD || DEFAULT_RATES.USD) : currency === 'HKD' ? (rates?.HKD || DEFAULT_RATES.HKD) : 1
+
+    if (!currencyAmounts[currency]) currencyAmounts[currency] = { amount: 0, count: 0 }
+    currencyAmounts[currency].amount += v.amount
+    currencyAmounts[currency].count++
+
+    totalAmount += v.amount
+    totalAmountCNY += roundMoney(v.amount * factor)
+
     if (asset && isInvestmentType(asset.type)) {
       investmentAmount += v.amount
+      investmentAmountCNY += roundMoney(v.amount * factor)
       if (v.profit !== undefined && Number.isFinite(v.profit)) {
         totalProfit += v.profit
+        totalProfitCNY += roundMoney(v.profit * factor)
       }
     } else {
       balanceAmount += v.amount
+      balanceAmountCNY += roundMoney(v.amount * factor)
     }
   }
 
+  const byCurrency: CurrencyBreakdown[] = Object.entries(currencyAmounts)
+    .map(([currency, data]) => ({ currency, amount: roundMoney(data.amount), count: data.count }))
+    .sort((a, b) => b.amount - a.amount)
+
   return {
     totalAmount: roundMoney(totalAmount),
+    totalAmountCNY: roundMoney(totalAmountCNY),
     investmentAmount: roundMoney(investmentAmount),
+    investmentAmountCNY: roundMoney(investmentAmountCNY),
     balanceAmount: roundMoney(balanceAmount),
+    balanceAmountCNY: roundMoney(balanceAmountCNY),
     totalProfit: roundMoney(totalProfit),
+    totalProfitCNY: roundMoney(totalProfitCNY),
     valueCount: values.length,
+    byCurrency,
   }
 }
 
@@ -101,7 +153,8 @@ export interface AllocationItem {
 
 export function calculateAllocation(
   values: SnapshotValue[],
-  assets: Asset[]
+  assets: Asset[],
+  rates?: ExchangeRates
 ): AllocationItem[] {
   const assetMap = new Map(assets.map((a) => [a.id, a]))
   const typeAmounts: Record<string, number> = {}
@@ -109,9 +162,12 @@ export function calculateAllocation(
 
   for (const v of values) {
     const asset = assetMap.get(v.assetId)
+    const currency = asset?.currency || 'CNY'
+    const factor = currency === 'USD' ? (rates?.USD || DEFAULT_RATES.USD) : currency === 'HKD' ? (rates?.HKD || DEFAULT_RATES.HKD) : 1
+    const amountCNY = roundMoney(v.amount * factor)
     const type = asset?.type || 'other'
-    typeAmounts[type] = (typeAmounts[type] || 0) + v.amount
-    totalAmount += v.amount
+    typeAmounts[type] = (typeAmounts[type] || 0) + amountCNY
+    totalAmount += amountCNY
   }
 
   const items: AllocationItem[] = Object.entries(typeAmounts)
@@ -222,18 +278,19 @@ export interface TotalAssetPoint {
 export function buildTotalAssetSeries(
   snapshots: Snapshot[],
   valuesBySnapshot: Map<string, SnapshotValue[]>,
-  assets: Asset[]
+  assets: Asset[],
+  rates?: ExchangeRates
 ): TotalAssetPoint[] {
   const sorted = [...snapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
   return sorted.map((snap) => {
     const values = valuesBySnapshot.get(snap.id) || []
-    const total = calculateSnapshotTotal(values, assets)
+    const total = calculateSnapshotTotal(values, assets, rates)
     return {
       recordedAt: snap.recordedAt,
-      totalAmount: total.totalAmount,
-      investmentAmount: total.investmentAmount,
-      balanceAmount: total.balanceAmount,
-      totalProfit: total.totalProfit,
+      totalAmount: total.totalAmountCNY,
+      investmentAmount: total.investmentAmountCNY,
+      balanceAmount: total.balanceAmountCNY,
+      totalProfit: total.totalProfitCNY,
     }
   })
 }

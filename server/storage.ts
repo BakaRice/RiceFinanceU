@@ -2,7 +2,7 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Asset, Snapshot, SnapshotValue } from '../src/types/finance'
+import type { Asset, Snapshot, SnapshotValue, ExchangeRates } from '../src/types/finance'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,6 +25,11 @@ export function ensureDataDir(): void {
   if (!fs.existsSync(metaPath)) {
     const meta = { schemaVersion: 2, updatedAt: new Date().toISOString() }
     fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf-8')
+  }
+  const ratesPath = path.join(DATA_DIR, 'rates.json')
+  if (!fs.existsSync(ratesPath)) {
+    const rates: ExchangeRates = { USD: 7.2, HKD: 0.92, updatedAt: new Date().toISOString() }
+    fs.writeFileSync(ratesPath, JSON.stringify(rates, null, 2), 'utf-8')
   }
 }
 
@@ -96,3 +101,17 @@ export function readSnapshots(): Snapshot[] { return readCollection<Snapshot>('s
 export function writeSnapshots(data: Snapshot[]): void { writeCollection('snapshots', data); updateMetaTimestamp() }
 export function readSnapshotValues(): SnapshotValue[] { return readCollection<SnapshotValue>('snapshot-values') }
 export function writeSnapshotValues(data: SnapshotValue[]): void { writeCollection('snapshot-values', data); updateMetaTimestamp() }
+
+// Rates
+const RATES_PATH = path.join(DATA_DIR, 'rates.json')
+export function readRates(): ExchangeRates {
+  if (!fs.existsSync(RATES_PATH)) {
+    ensureDataDir()
+    return { USD: 7.2, HKD: 0.92, updatedAt: '' }
+  }
+  return JSON.parse(fs.readFileSync(RATES_PATH, 'utf-8'))
+}
+export function writeRates(rates: ExchangeRates): void {
+  rates.updatedAt = new Date().toISOString()
+  fs.writeFileSync(RATES_PATH, JSON.stringify(rates, null, 2), 'utf-8')
+}

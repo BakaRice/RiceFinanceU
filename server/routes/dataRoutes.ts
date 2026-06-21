@@ -5,9 +5,9 @@ import {
   readAssets, writeAssets,
   readSnapshots, writeSnapshots,
   readSnapshotValues, writeSnapshotValues,
-  readMeta, writeMeta,
+  readRates, writeRates,
 } from '../storage'
-import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput } from '../../src/types/finance'
+import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput, ExchangeRates } from '../../src/types/finance'
 import { isInvestmentType } from '../../src/domain/assets'
 import { completeSnapshotValues } from '../../src/domain/snapshots'
 
@@ -234,4 +234,21 @@ dataRoutes.post('/snapshots', (req: Request, res: Response) => {
 
 dataRoutes.get('/snapshot-values', (_req: Request, res: Response) => {
   try { res.json(readSnapshotValues()) } catch (e: any) { res.status(500).json({ error: e.message }) }
+})
+
+// ——— Exchange Rates ———
+
+dataRoutes.get('/rates', (_req: Request, res: Response) => {
+  try { res.json(readRates()) } catch (e: any) { res.status(500).json({ error: e.message }) }
+})
+
+dataRoutes.post('/rates', (req: Request, res: Response) => {
+  try {
+    const { USD, HKD } = req.body
+    const rates = readRates()
+    if (USD !== undefined && Number.isFinite(Number(USD)) && Number(USD) > 0) rates.USD = Number(USD)
+    if (HKD !== undefined && Number.isFinite(Number(HKD)) && Number(HKD) > 0) rates.HKD = Number(HKD)
+    writeRates(rates)
+    res.json(rates)
+  } catch (e: any) { res.status(500).json({ error: e.message }) }
 })

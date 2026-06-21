@@ -35,6 +35,11 @@
 .page-loading, .page-error { display:flex; flex-direction:column; align-items:center; padding:60px 0; color:#888; }
 .page-error button { margin-top:12px; padding:8px 20px; border:1px solid #ccc; border-radius:6px; background:#fff; cursor:pointer; }
 
+.dash-card-sub { display:flex; gap:12px; margin-top:6px; font-size:12px; color:#888; flex-wrap:wrap; }
+.rates-bar { background:#fff; border-radius:10px; padding:10px 20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); font-size:13px; color:#666; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.rates-bar label { font-size:13px; display:inline-flex; align-items:center; gap:4px; }
+.rates-bar input { padding:4px 8px; border:1px solid #ddd; border-radius:4px; font-size:13px; }
+
 /* Snapshot history */
 .history-list { display:flex; flex-direction:column; gap:4px; }
 .history-item { border:1px solid #f0f0f0; border-radius:8px; overflow:hidden; transition:border-color 0.2s; }

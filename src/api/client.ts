@@ -1,5 +1,5 @@
 // src/api/client.ts
-import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData } from '../types/finance'
+import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates } from '../types/finance'
 
 const BASE = '/api'
 
@@ -33,6 +33,10 @@ export const api = {
     request<{ snapshot: Snapshot; values: SnapshotValue[] }>('/snapshots', { method: 'POST', body: JSON.stringify(data) }),
   deleteSnapshot: (id: string) => request<{ success: boolean }>(`/snapshots/${id}`, { method: 'DELETE' }),
   getSnapshotValues: () => request<SnapshotValue[]>('/snapshot-values'),
+
+  // Rates
+  getRates: () => request<ExchangeRates>('/rates'),
+  updateRates: (data: Partial<ExchangeRates>) => request<ExchangeRates>('/rates', { method: 'POST', body: JSON.stringify(data) }),
 
   // Import/Export
   exportData: () => request<ExportData>('/export'),

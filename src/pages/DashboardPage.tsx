@@ -10,7 +10,8 @@ import type { SnapshotTotal, AllocationItem, SnapshotComparison as SnapshotCompa
 import { formatMoney } from '../domain/money'
 import { ASSET_TYPE_LABELS } from '../domain/assets'
 import SnapshotComparison from '../components/SnapshotComparison'
-import type { Asset, Snapshot, SnapshotValue } from '../types/finance'
+import type { Asset, Snapshot, SnapshotValue, ExchangeRates } from '../types/finance'
+import { CURRENCY_SYMBOLS } from '../types/finance'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -30,18 +31,27 @@ export default function DashboardPage() {
   const [allAssets, setAllAssets] = useState<Asset[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [rates, setRates] = useState<ExchangeRates>({ USD: 7.2, HKD: 0.92, updatedAt: '' })
+  const [editingRates, setEditingRates] = useState(false)
+  const [usdRate, setUsdRate] = useState('7.2')
+  const [hkdRate, setHkdRate] = useState('0.92')
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true); setError(null)
     try {
-      const [assets, latestData, snapshots, values] = await Promise.all([
+      const [assets, latestData, snapshots, values, ratesData] = await Promise.all([
         api.getAssets(),
         api.getLatestSnapshot(),
         api.getSnapshots(),
         api.getSnapshotValues(),
+        api.getRates(),
       ])
+
+      setRates(ratesData)
+      setUsdRate(String(ratesData.USD))
+      setHkdRate(String(ratesData.HKD))
 
       setAllSnapshots(snapshots)
       setAllValues(values)
@@ -56,8 +66,8 @@ export default function DashboardPage() {
       setHasSnapshots(true)
       const activeAssets = assets.filter((a) => a.isActive)
 
-      setTotal(calculateSnapshotTotal(latestData.values, activeAssets))
-      setAllocation(calculateAllocation(latestData.values, activeAssets))
+      setTotal(calculateSnapshotTotal(latestData.values, activeAssets, ratesData))
+      setAllocation(calculateAllocation(latestData.values, activeAssets, ratesData))
 
       const sortedSnapshots = [...snapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
       const valuesBySnapshot = new Map<string, SnapshotValue[]>()
@@ -66,7 +76,7 @@ export default function DashboardPage() {
         list.push(v)
         valuesBySnapshot.set(v.snapshotId, list)
       }
-      setChartData(buildTotalAssetSeries(sortedSnapshots, valuesBySnapshot, activeAssets))
+      setChartData(buildTotalAssetSeries(sortedSnapshots, valuesBySnapshot, activeAssets, ratesData))
 
       if (sortedSnapshots.length >= 2) {
         const latest = sortedSnapshots[sortedSnapshots.length - 1]
@@ -133,23 +143,51 @@ export default function DashboardPage() {
 
       <div className="dashboard-cards">
         <div className="dash-card">
-          <div className="dash-card-label">总资产</div>
-          <div className="dash-card-value">{total ? formatMoney(total.totalAmount) : '-'}</div>
+          <div className="dash-card-label">总资产 (折合CNY)</div>
+          <div className="dash-card-value">{total ? formatMoney(total.totalAmountCNY) : '-'}</div>
+          {total && total.byCurrency.length > 1 && (
+            <div className="dash-card-sub">
+              {total.byCurrency.map((bc) => (
+                <span key={bc.currency}>{CURRENCY_SYMBOLS[bc.currency as keyof typeof CURRENCY_SYMBOLS] || bc.currency}{formatMoney(bc.amount)}</span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="dash-card">
-          <div className="dash-card-label">投资类资产</div>
-          <div className="dash-card-value">{total ? formatMoney(total.investmentAmount) : '-'}</div>
+          <div className="dash-card-label">投资类 (折合CNY)</div>
+          <div className="dash-card-value">{total ? formatMoney(total.investmentAmountCNY) : '-'}</div>
         </div>
         <div className="dash-card">
-          <div className="dash-card-label">余额类资产</div>
-          <div className="dash-card-value">{total ? formatMoney(total.balanceAmount) : '-'}</div>
+          <div className="dash-card-label">余额类 (折合CNY)</div>
+          <div className="dash-card-value">{total ? formatMoney(total.balanceAmountCNY) : '-'}</div>
         </div>
         <div className="dash-card">
-          <div className="dash-card-label">投资类当前收益</div>
-          <div className={`dash-card-value ${(total?.totalProfit || 0) >= 0 ? 'profit' : 'loss'}`}>
-            {total ? ((total.totalProfit >= 0 ? '+' : '') + formatMoney(total.totalProfit)) : '-'}
+          <div className="dash-card-label">投资收益 (折合CNY)</div>
+          <div className={`dash-card-value ${(total?.totalProfitCNY || 0) >= 0 ? 'profit' : 'loss'}`}>
+            {total ? ((total.totalProfitCNY >= 0 ? '+' : '') + formatMoney(total.totalProfitCNY)) : '-'}
           </div>
         </div>
+      </div>
+
+      {/* Exchange rates */}
+      <div className="rates-bar">
+        {editingRates ? (
+          <>
+            <span>汇率: </span>
+            <label>USD <input type="number" step="0.01" value={usdRate} onChange={(e) => setUsdRate(e.target.value)} style={{width:70}} /></label>
+            <label>HKD <input type="number" step="0.01" value={hkdRate} onChange={(e) => setHkdRate(e.target.value)} style={{width:70}} /></label>
+            <button className="btn-link" onClick={async () => {
+              await api.updateRates({ USD: Number(usdRate), HKD: Number(hkdRate) })
+              setEditingRates(false)
+              load()
+            }}>保存</button>
+            <button className="btn-link" onClick={() => setEditingRates(false)}>取消</button>
+          </>
+        ) : (
+          <span onClick={() => setEditingRates(true)} style={{cursor:'pointer'}}>
+            汇率: USD {rates.USD} | HKD {rates.HKD} <span style={{color:'#4a90d9',fontSize:12}}>修改</span>
+          </span>
+        )}
       </div>
 
       <div className="dashboard-grid">
