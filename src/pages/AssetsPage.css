@@ -8,7 +8,11 @@
 .inactive-row { opacity:0.5; }
 
 .assets-table { width:100%; border-collapse:collapse; }
-.assets-table th { text-align:left; padding:8px 12px; font-size:13px; color:#888; border-bottom:1px solid #f0f0f0; }
+.assets-table th { text-align:left; padding:8px 12px; font-size:13px; color:#888; border-bottom:1px solid #f0f0f0; user-select:none; }
+.assets-table th.sortable { cursor:pointer; }
+.assets-table th.sortable:hover { color:#4a90d9; }
+.sort-icon { font-size:10px; color:#ccc; margin-left:2px; }
+.sort-icon.active { color:#4a90d9; }
 .assets-table td { padding:10px 12px; font-size:14px; border-bottom:1px solid #f9f9f9; }
 .assets-table tr:last-child td { border-bottom:none; }
 .asset-name { font-weight:500; }

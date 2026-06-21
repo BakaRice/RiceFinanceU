@@ -6,6 +6,8 @@ import { ASSET_TYPE_LABELS, isInvestmentType } from '../domain/assets'
 import { formatMoney } from '../domain/money'
 import './AssetsPage.css'
 
+type SortKey = 'name' | 'type' | 'currency' | 'amount' | 'profit' | 'profitRate' | 'institution'
+
 export default function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [latestValues, setLatestValues] = useState<Map<string, SnapshotValue>>(new Map())
@@ -18,6 +20,8 @@ export default function AssetsPage() {
   const [currency, setCurrency] = useState<Currency>('CNY')
   const [institution, setInstitution] = useState('')
   const [note, setNote] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('type')
+  const [sortDir, setSortDir] = useState<1 | -1>(1)
 
   useEffect(() => { load() }, [])
 
@@ -72,22 +76,55 @@ export default function AssetsPage() {
   if (loading) return <div className="page-loading">加载中...</div>
   if (error) return <div className="page-error"><p>{error}</p><button onClick={load}>重试</button></div>
 
-  const activeAssets = assets.filter((a) => a.isActive)
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) { setSortDir(sortDir === 1 ? -1 : 1) }
+    else { setSortKey(key); setSortDir(1) }
+  }
+
+  function sortIcon(key: SortKey) {
+    if (sortKey !== key) return <span className="sort-icon">⇅</span>
+    return <span className="sort-icon active">{sortDir === 1 ? '↑' : '↓'}</span>
+  }
+
+  function sortAssets(list: Asset[]): Asset[] {
+    return [...list].sort((a, b) => {
+      const va = latestValues.get(a.id)
+      const vb = latestValues.get(b.id)
+      let cmp = 0
+      switch (sortKey) {
+        case 'name': cmp = a.name.localeCompare(b.name, 'zh'); break
+        case 'type': cmp = a.type.localeCompare(b.type); break
+        case 'currency': cmp = a.currency.localeCompare(b.currency); break
+        case 'institution': cmp = (a.institution || '').localeCompare(b.institution || '', 'zh'); break
+        case 'amount': cmp = (va?.amount || 0) - (vb?.amount || 0); break
+        case 'profit': cmp = (va?.profit || 0) - (vb?.profit || 0); break
+        case 'profitRate': cmp = (va?.profitRate || 0) - (vb?.profitRate || 0); break
+      }
+      return cmp * sortDir
+    })
+  }
+
+  const hasInvestmentCol = assets.some((a) => isInvestmentType(a.type))
+
+  const activeAssets = sortAssets(assets.filter((a) => a.isActive))
   const inactiveAssets = assets.filter((a) => !a.isActive)
 
   function renderTable(assetList: Asset[], isInactive: boolean) {
     return (
       <table className="assets-table">
         <thead><tr>
-          <th>名称</th><th>类型</th><th>币种</th><th>平台/机构</th>
-          <th>最新金额</th>
-          {assetList.some((a) => isInvestmentType(a.type)) && <><th>收益</th><th>收益率</th></>}
+          <th className="sortable" onClick={() => toggleSort('name')}>名称 {sortIcon('name')}</th>
+          <th className="sortable" onClick={() => toggleSort('type')}>类型 {sortIcon('type')}</th>
+          <th className="sortable" onClick={() => toggleSort('currency')}>币种 {sortIcon('currency')}</th>
+          <th className="sortable" onClick={() => toggleSort('institution')}>平台/机构 {sortIcon('institution')}</th>
+          <th className="sortable" onClick={() => toggleSort('amount')}>最新金额 {sortIcon('amount')}</th>
+          {hasInvestmentCol && <><th className="sortable" onClick={() => toggleSort('profit')}>收益 {sortIcon('profit')}</th>
+          <th className="sortable" onClick={() => toggleSort('profitRate')}>收益率 {sortIcon('profitRate')}</th></>}
           <th>备注</th><th>操作</th>
         </tr></thead>
         <tbody>
           {assetList.map((a) => {
             const lv = latestValues.get(a.id)
-            const hasInvestmentCol = assetList.some((x) => isInvestmentType(x.type))
             const sym = CURRENCY_SYMBOLS[a.currency] || '¥'
             return (
               <tr key={a.id} className={isInactive ? 'inactive-row' : ''}>
