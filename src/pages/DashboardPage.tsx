@@ -8,8 +8,9 @@ import {
 } from '../domain/snapshots'
 import type { SnapshotTotal, AllocationItem, SnapshotComparison as SnapshotComparisonType, TotalAssetPoint } from '../domain/snapshots'
 import { formatMoney } from '../domain/money'
+import { ASSET_TYPE_LABELS } from '../domain/assets'
 import SnapshotComparison from '../components/SnapshotComparison'
-import type { SnapshotValue } from '../types/finance'
+import type { Asset, Snapshot, SnapshotValue } from '../types/finance'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -23,18 +24,28 @@ export default function DashboardPage() {
   const [comparison, setComparison] = useState<SnapshotComparisonType | null>(null)
   const [chartData, setChartData] = useState<TotalAssetPoint[]>([])
   const [hasSnapshots, setHasSnapshots] = useState(false)
+  // History
+  const [allSnapshots, setAllSnapshots] = useState<Snapshot[]>([])
+  const [allValues, setAllValues] = useState<SnapshotValue[]>([])
+  const [allAssets, setAllAssets] = useState<Asset[]>([])
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true); setError(null)
     try {
-      const [assets, latestData, allSnapshots, allValues] = await Promise.all([
+      const [assets, latestData, snapshots, values] = await Promise.all([
         api.getAssets(),
         api.getLatestSnapshot(),
         api.getSnapshots(),
         api.getSnapshotValues(),
       ])
+
+      setAllSnapshots(snapshots)
+      setAllValues(values)
+      setAllAssets(assets)
 
       if (!latestData || latestData.values.length === 0) {
         setHasSnapshots(false)
@@ -45,21 +56,18 @@ export default function DashboardPage() {
       setHasSnapshots(true)
       const activeAssets = assets.filter((a) => a.isActive)
 
-      // Total and allocation from latest snapshot
       setTotal(calculateSnapshotTotal(latestData.values, activeAssets))
       setAllocation(calculateAllocation(latestData.values, activeAssets))
 
-      // Build time series
-      const sortedSnapshots = [...allSnapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+      const sortedSnapshots = [...snapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
       const valuesBySnapshot = new Map<string, SnapshotValue[]>()
-      for (const v of allValues) {
+      for (const v of values) {
         const list = valuesBySnapshot.get(v.snapshotId) || []
         list.push(v)
         valuesBySnapshot.set(v.snapshotId, list)
       }
       setChartData(buildTotalAssetSeries(sortedSnapshots, valuesBySnapshot, activeAssets))
 
-      // Comparison: latest two snapshots
       if (sortedSnapshots.length >= 2) {
         const latest = sortedSnapshots[sortedSnapshots.length - 1]
         const previous = sortedSnapshots[sortedSnapshots.length - 2]
@@ -72,6 +80,30 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('确定删除这个快照吗？快照下的所有资产值也会被删除。')) return
+    setDeletingId(id)
+    try {
+      await api.deleteSnapshot(id)
+      await load()
+    } catch (e: any) {
+      alert('删除失败: ' + e.message)
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  function getSnapshotTotal(snapshotId: string): number {
+    const activeAssetIds = new Set(allAssets.filter((a) => a.isActive).map((a) => a.id))
+    return allValues
+      .filter((v) => v.snapshotId === snapshotId && activeAssetIds.has(v.assetId))
+      .reduce((sum, v) => sum + v.amount, 0)
+  }
+
+  function getSnapshotValues(snapshotId: string): SnapshotValue[] {
+    return allValues.filter((v) => v.snapshotId === snapshotId)
   }
 
   if (loading) return <div className="page-loading">加载中...</div>
@@ -92,12 +124,13 @@ export default function DashboardPage() {
   }
 
   const maxAllocAmount = Math.max(...allocation.map((a) => a.amount), 1)
+  // Reverse chronological for history display
+  const historySnapshots = [...allSnapshots].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
 
   return (
     <div className="dashboard">
       <h1>总览</h1>
 
-      {/* Summary cards */}
       <div className="dashboard-cards">
         <div className="dash-card">
           <div className="dash-card-label">总资产</div>
@@ -120,7 +153,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="dashboard-grid">
-        {/* Allocation */}
         <div className="dash-section">
           <h3>资产类别占比</h3>
           {allocation.length === 0 ? (
@@ -134,10 +166,7 @@ export default function DashboardPage() {
                     <span>{formatMoney(item.amount)}</span>
                   </div>
                   <div className="allocation-bar-bg">
-                    <div
-                      className="allocation-bar-fill"
-                      style={{ width: `${(item.amount / maxAllocAmount) * 100}%` }}
-                    />
+                    <div className="allocation-bar-fill" style={{ width: `${(item.amount / maxAllocAmount) * 100}%` }} />
                   </div>
                   <span className="allocation-pct">{item.percentage}%</span>
                 </div>
@@ -146,14 +175,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Comparison */}
         <div className="dash-section">
           <h3>最近变化</h3>
           <SnapshotComparison comparison={comparison} />
         </div>
       </div>
 
-      {/* Total asset history chart */}
       {chartData.length > 0 && (
         <div className="dash-section">
           <h3>总资产走势</h3>
@@ -163,9 +190,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="recordedAt" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => (v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v))} />
-                <Tooltip
-                  formatter={((value: any) => [formatMoney(Number(value))]) as any}
-                />
+                <Tooltip formatter={((value: any) => [formatMoney(Number(value))]) as any} />
                 <Line type="monotone" dataKey="totalAmount" name="总资产" stroke="#4a90d9" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="investmentAmount" name="投资类" stroke="#52c41a" strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                 <Line type="monotone" dataKey="balanceAmount" name="余额类" stroke="#faad14" strokeWidth={1.5} dot={false} />
@@ -174,6 +199,70 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Snapshot History */}
+      <div className="dash-section">
+        <h3>快照历史 ({historySnapshots.length})</h3>
+        {historySnapshots.length === 0 ? (
+          <p className="tx-empty">暂无记录</p>
+        ) : (
+          <div className="history-list">
+            {historySnapshots.map((snap) => {
+              const snapValues = getSnapshotValues(snap.id)
+              const snapTotal = getSnapshotTotal(snap.id)
+              const isExpanded = expandedId === snap.id
+              const date = new Date(snap.recordedAt)
+
+              return (
+                <div key={snap.id} className={`history-item ${isExpanded ? 'expanded' : ''}`}>
+                  <div className="history-item-header" onClick={() => setExpandedId(isExpanded ? null : snap.id)}>
+                    <div className="history-item-main">
+                      <span className="history-date">
+                        {date.toLocaleDateString('zh-CN')} {date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className="history-note">{snap.note || '快照'}</span>
+                    </div>
+                    <div className="history-item-actions">
+                      <span className="history-total">{formatMoney(snapTotal)}</span>
+                      <span className="history-count">{snapValues.length} 项</span>
+                      <button
+                        className="btn-delete-snapshot"
+                        disabled={deletingId === snap.id}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(snap.id) }}
+                      >
+                        {deletingId === snap.id ? '...' : '✕'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="history-item-detail">
+                      <table className="history-value-table">
+                        <thead><tr><th>资产</th><th>类型</th><th>金额</th><th>收益</th></tr></thead>
+                        <tbody>
+                          {snapValues.map((v) => {
+                            const asset = allAssets.find((a) => a.id === v.assetId)
+                            return (
+                              <tr key={v.id}>
+                                <td>{asset?.name || v.assetId}</td>
+                                <td><span className="type-badge">{ASSET_TYPE_LABELS[asset?.type as keyof typeof ASSET_TYPE_LABELS] || asset?.type || '-'}</span></td>
+                                <td className="amount-cell">{formatMoney(v.amount)}</td>
+                                <td className={`amount-cell ${(v.profit || 0) >= 0 ? 'profit' : 'loss'}`}>
+                                  {v.profit !== undefined ? ((v.profit >= 0 ? '+' : '') + formatMoney(v.profit)) : '-'}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

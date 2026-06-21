@@ -109,6 +109,23 @@ dataRoutes.get('/snapshots/:id', (req: Request, res: Response) => {
   } catch (e: any) { res.status(500).json({ error: e.message }) }
 })
 
+dataRoutes.delete('/snapshots/:id', (req: Request, res: Response) => {
+  try {
+    const snapshots = readSnapshots()
+    const idx = snapshots.findIndex((s) => s.id === req.params.id)
+    if (idx === -1) { res.status(404).json({ error: 'Snapshot not found' }); return }
+
+    // Remove snapshot and its values
+    snapshots.splice(idx, 1)
+    writeSnapshots(snapshots)
+
+    const allValues = readSnapshotValues().filter((v) => v.snapshotId !== req.params.id)
+    writeSnapshotValues(allValues)
+
+    res.json({ success: true })
+  } catch (e: any) { res.status(500).json({ error: e.message }) }
+})
+
 dataRoutes.post('/snapshots', (req: Request, res: Response) => {
   try {
     const input = req.body as CreateSnapshotInput

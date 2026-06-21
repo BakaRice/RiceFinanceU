@@ -35,7 +35,40 @@
 .page-loading, .page-error { display:flex; flex-direction:column; align-items:center; padding:60px 0; color:#888; }
 .page-error button { margin-top:12px; padding:8px 20px; border:1px solid #ccc; border-radius:6px; background:#fff; cursor:pointer; }
 
+/* Snapshot history */
+.history-list { display:flex; flex-direction:column; gap:4px; }
+.history-item { border:1px solid #f0f0f0; border-radius:8px; overflow:hidden; transition:border-color 0.2s; }
+.history-item:hover { border-color:#d9d9d9; }
+.history-item.expanded { border-color:#4a90d9; }
+
+.history-item-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; cursor:pointer; user-select:none; }
+.history-item-header:hover { background:#fafafa; }
+.history-item-main { display:flex; align-items:center; gap:12px; }
+.history-date { font-size:14px; font-weight:500; color:#333; }
+.history-note { font-size:12px; color:#888; background:#f5f5f5; padding:2px 8px; border-radius:4px; }
+.history-item-actions { display:flex; align-items:center; gap:12px; }
+.history-total { font-size:16px; font-weight:600; color:#1a1a2e; }
+.history-count { font-size:12px; color:#aaa; }
+
+.btn-delete-snapshot { background:none; border:1px solid transparent; color:#ccc; font-size:14px; cursor:pointer; padding:4px 8px; border-radius:4px; transition:all 0.2s; }
+.btn-delete-snapshot:hover { color:#e94560; border-color:#e94560; background:#fff5f5; }
+.btn-delete-snapshot:disabled { opacity:0.4; cursor:not-allowed; }
+
+.history-item-detail { border-top:1px solid #f0f0f0; padding:12px 16px; background:#fafafa; }
+.history-value-table { width:100%; border-collapse:collapse; font-size:13px; }
+.history-value-table th { text-align:left; padding:6px 8px; color:#888; font-weight:500; border-bottom:1px solid #eee; }
+.history-value-table td { padding:6px 8px; border-bottom:1px solid #f9f9f9; }
+.history-value-table tr:last-child td { border-bottom:none; }
+.amount-cell { text-align:right; font-variant-numeric:tabular-nums; }
+.amount-cell.profit { color:#52c41a; }
+.amount-cell.loss { color:#e94560; }
+.type-badge { background:#f0f0f0; padding:1px 8px; border-radius:3px; font-size:11px; }
+
+.tx-empty { color:#ccc; font-size:13px; text-align:center; padding:20px; }
+
 @media(max-width:768px) {
   .dashboard-cards { grid-template-columns:repeat(2,1fr); }
   .dashboard-grid { grid-template-columns:1fr; }
+  .history-item-header { flex-direction:column; gap:8px; align-items:flex-start; }
+  .history-item-actions { width:100%; justify-content:space-between; }
 }

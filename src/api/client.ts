@@ -31,6 +31,7 @@ export const api = {
   getSnapshot: (id: string) => request<{ snapshot: Snapshot; values: SnapshotValue[] }>('/snapshots/' + id),
   createSnapshot: (data: CreateSnapshotInput) =>
     request<{ snapshot: Snapshot; values: SnapshotValue[] }>('/snapshots', { method: 'POST', body: JSON.stringify(data) }),
+  deleteSnapshot: (id: string) => request<{ success: boolean }>(`/snapshots/${id}`, { method: 'DELETE' }),
   getSnapshotValues: () => request<SnapshotValue[]>('/snapshot-values'),
 
   // Import/Export
