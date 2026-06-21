@@ -19,6 +19,7 @@ import { isInvestmentType } from '../../src/domain/assets'
 import { completeSnapshotValues } from '../../src/domain/snapshots'
 import {
   buildFundInitialization,
+  calculateFundPosition,
   FUND_INITIALIZATION_BUY_NOTE,
   FUND_INITIALIZATION_NAV_NOTE,
 } from '../../src/domain/funds'
@@ -449,4 +450,115 @@ dataRoutes.post('/snapshots', (req: Request, res: Response) => {
 
 dataRoutes.get('/snapshot-values', (_req: Request, res: Response) => {
   try { res.json(readSnapshotValues()) } catch (e: any) { res.status(500).json({ error: e.message }) }
+})
+
+// ——— v2: Migration ———
+
+dataRoutes.post('/migrate', (_req: Request, res: Response) => {
+  try {
+    const deposits = readDeposits()
+    const funds = readFunds()
+
+    // Convert deposits to Assets
+    const depositTypeMap: Record<string, string> = {
+      cash: 'cash', current: 'deposit', fixed: 'deposit',
+      money_market: 'other', other: 'other',
+    }
+
+    const assets: Asset[] = []
+    const now = new Date().toISOString()
+    const snapshotValues: SnapshotValue[] = []
+    const snapshotId = uuidv4()
+
+    for (const d of deposits) {
+      const assetId = uuidv4()
+      const mappedType = depositTypeMap[d.accountType] || 'deposit'
+      assets.push({
+        id: assetId, name: d.name, type: mappedType as Asset['type'],
+        institution: d.institution, currency: 'CNY', isActive: true,
+        note: d.note, createdAt: now, updatedAt: now,
+      })
+      snapshotValues.push({
+        id: uuidv4(), snapshotId, assetId,
+        amount: d.balance,
+      })
+    }
+
+    // Convert funds to Assets
+    for (const f of funds) {
+      const assetId = uuidv4()
+      assets.push({
+        id: assetId, name: f.name, type: 'fund',
+        institution: f.platform, currency: 'CNY', isActive: true,
+        note: f.note, createdAt: now, updatedAt: now,
+      })
+
+      // Try to compute fund position from old data
+      try {
+        const transactions = readTransactions()
+        const navPrices = readNavPrices()
+        const pos = calculateFundPosition(f.id, transactions, navPrices)
+        snapshotValues.push({
+          id: uuidv4(), snapshotId, assetId,
+          amount: pos.marketValue || 0,
+          profit: pos.totalPnl !== 0 ? pos.totalPnl : undefined,
+          profitRate: pos.totalCost > 0 ? pos.totalPnl / pos.totalCost : undefined,
+        })
+      } catch {
+        snapshotValues.push({
+          id: uuidv4(), snapshotId, assetId,
+          amount: 0,
+        })
+      }
+    }
+
+    // Write v2 data
+    const existingAssets = readAssets()
+    const existingSnapshots = readSnapshots()
+    const existingValues = readSnapshotValues()
+
+    // Only add assets that don't already exist (by name + type)
+    const existingKeys = new Set(existingAssets.map((a) => `${a.name}|${a.type}`))
+    const newAssets = assets.filter((a) => !existingKeys.has(`${a.name}|${a.type}`))
+    writeAssets([...existingAssets, ...newAssets])
+
+    // If there are snapshot values to migrate
+    if (snapshotValues.length > 0) {
+      const snapshot: Snapshot = {
+        id: snapshotId, recordedAt: now,
+        note: '从旧版交易模型迁移生成', createdAt: now,
+      }
+      existingSnapshots.push(snapshot)
+      writeSnapshots(existingSnapshots)
+
+      // Remap asset IDs: use actual IDs from written assets
+      const allAssets = readAssets()
+      const nameToId = new Map(allAssets.map((a) => [a.name, a.id]))
+
+      const finalValues = snapshotValues.map((sv) => {
+        const migratedAsset = assets.find((a) => {
+          const assetInDb = allAssets.find((x) => x.id === sv.assetId)
+          return assetInDb && allAssets.find((x) => x.name === (assetInDb?.name || '') && x.id === sv.assetId)
+        })
+        // Find matching asset by looking up in nameToId
+        const originalAsset = assets.find((a) => a.id === sv.assetId)
+        const actualAssetId = originalAsset ? (nameToId.get(originalAsset.name) || sv.assetId) : sv.assetId
+        return { ...sv, id: uuidv4(), snapshotId, assetId: actualAssetId }
+      })
+
+      existingValues.push(...finalValues)
+      writeSnapshotValues(existingValues)
+    }
+
+    // Update meta
+    const meta = readMeta()
+    meta.schemaVersion = 2
+    writeMeta(meta)
+
+    res.json({
+      success: true,
+      message: `迁移完成：${newAssets.length} 个资产项，${snapshotValues.length} 个快照值`,
+      assetsCreated: newAssets.length,
+    })
+  } catch (e: any) { res.status(500).json({ error: e.message }) }
 })

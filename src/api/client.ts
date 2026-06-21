@@ -71,6 +71,9 @@ export const api = {
     request<{ snapshot: Snapshot; values: SnapshotValue[] }>('/snapshots', { method: 'POST', body: JSON.stringify(data) }),
   getSnapshotValues: () => request<SnapshotValue[]>('/snapshot-values'),
 
+  // —— Migration ——
+  migrate: () => request<{ success: boolean; message: string; assetsCreated: number }>('/migrate', { method: 'POST' }),
+
   // —— Import/Export ——
   exportData: () => request<ExportDataV1 | ExportDataV2>('/export'),
   importData: (data: ExportDataV1 | ExportDataV2) =>
