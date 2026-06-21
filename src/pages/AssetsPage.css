@@ -40,4 +40,10 @@
 .empty-state { text-align:center; padding:60px 20px; color:#999; }
 .empty-state p { margin:4px 0; }
 .page-loading, .page-error { display:flex; flex-direction:column; align-items:center; padding:60px 0; color:#888; }
+.currency-badge { background:#fff7e6; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:500; color:#d48806; }
+.amount-cell { text-align:right; font-variant-numeric:tabular-nums; }
+.amount-cell.profit { color:#52c41a; }
+.amount-cell.loss { color:#e94560; }
+.amount-cell.muted { color:#ccc; }
+
 .page-error button { margin-top:12px; padding:8px 20px; border:1px solid #ccc; border-radius:6px; background:#fff; cursor:pointer; }

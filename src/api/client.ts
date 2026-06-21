@@ -18,7 +18,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Assets
   getAssets: () => request<Asset[]>('/assets'),
-  createAsset: (data: { name: string; type: string; institution?: string; note?: string }) =>
+  createAsset: (data: { name: string; type: string; currency?: string; institution?: string; note?: string }) =>
     request<Asset>('/assets', { method: 'POST', body: JSON.stringify(data) }),
   updateAsset: (id: string, data: Partial<Asset>) =>
     request<Asset>(`/assets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

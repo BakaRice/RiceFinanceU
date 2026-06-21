@@ -12,6 +12,7 @@ import { isInvestmentType } from '../../src/domain/assets'
 import { completeSnapshotValues } from '../../src/domain/snapshots'
 
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
+const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
 
 function validateAssetType(type: string): boolean {
   return VALID_ASSET_TYPES.includes(type)
@@ -27,7 +28,7 @@ dataRoutes.get('/assets', (_req: Request, res: Response) => {
 
 dataRoutes.post('/assets', (req: Request, res: Response) => {
   try {
-    const { name, type, institution, note } = req.body
+    const { name, type, currency, institution, note } = req.body
     if (!name || typeof name !== 'string' || !name.trim()) {
       res.status(400).json({ error: 'name is required and must be non-empty' })
       return
@@ -36,11 +37,12 @@ dataRoutes.post('/assets', (req: Request, res: Response) => {
       res.status(400).json({ error: `type must be one of: ${VALID_ASSET_TYPES.join(', ')}` })
       return
     }
+    const assetCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : 'CNY'
     const assets = readAssets()
     const now = new Date().toISOString()
     const newAsset: Asset = {
       id: uuidv4(), name: name.trim(), type,
-      institution, currency: 'CNY', isActive: true, note,
+      currency: assetCurrency, institution, isActive: true, note,
       createdAt: now, updatedAt: now,
     }
     assets.push(newAsset)
@@ -185,9 +187,10 @@ dataRoutes.post('/snapshots', (req: Request, res: Response) => {
       if (!v.assetId && v.asset) {
         const newId = uuidv4()
         const now = new Date().toISOString()
+        const assetCurrency = v.asset.currency && VALID_CURRENCIES.includes(v.asset.currency) ? v.asset.currency : 'CNY'
         assets.push({
           id: newId, name: v.asset.name.trim(), type: v.asset.type,
-          institution: v.asset.institution, currency: 'CNY',
+          currency: assetCurrency, institution: v.asset.institution,
           isActive: true, note: v.asset.note,
           createdAt: now, updatedAt: now,
         })

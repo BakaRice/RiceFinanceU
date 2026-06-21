@@ -9,12 +9,20 @@ export type AssetType =
   | 'housing_fund'
   | 'other'
 
+export type Currency = 'CNY' | 'USD' | 'HKD'
+
+export const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  CNY: '¥',
+  USD: '$',
+  HKD: 'HK$',
+}
+
 export type Asset = {
   id: string
   name: string
   type: AssetType
   institution?: string
-  currency: 'CNY'
+  currency: Currency
   isActive: boolean
   note?: string
   createdAt: string
@@ -46,6 +54,7 @@ export interface CreateSnapshotInput {
     asset?: {
       name: string
       type: AssetType
+      currency?: Currency
       institution?: string
       note?: string
     }

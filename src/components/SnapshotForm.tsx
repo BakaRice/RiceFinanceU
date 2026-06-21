@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../api/client'
-import type { SnapshotValue } from '../types/finance'
+import type { SnapshotValue, Currency } from '../types/finance'
 import { isInvestmentType, ASSET_TYPE_LABELS } from '../domain/assets'
 import { formatMoney } from '../domain/money'
 import './SnapshotForm.css'
@@ -13,19 +13,18 @@ interface AssetRow {
   assetId: string
   name: string
   type: string
+  currency: string
   amount: string
   profit: string
   profitRate: string
-  // From previous snapshot
   previousAmount?: number
   previousProfit?: number
   previousProfitRate?: number
-  // Whether user wants to include this asset
   included: boolean
-  // Whether this is a new inline asset
   isNew?: boolean
   inlineName?: string
   inlineType?: string
+  inlineCurrency?: string
   inlineInstitution?: string
 }
 
@@ -39,6 +38,7 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
   const [showAddAsset, setShowAddAsset] = useState(false)
   const [newAssetName, setNewAssetName] = useState('')
   const [newAssetType, setNewAssetType] = useState('fund')
+  const [newAssetCurrency, setNewAssetCurrency] = useState<Currency>('CNY')
   const [newAssetInstitution, setNewAssetInstitution] = useState('')
 
   useEffect(() => {
@@ -68,6 +68,7 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
           assetId: a.id,
           name: a.name,
           type: a.type,
+          currency: a.currency || 'CNY',
           amount: prev ? String(prev.amount) : '',
           profit: prev?.profit !== undefined ? String(prev.profit) : '',
           profitRate: prev?.profitRate !== undefined ? String(prev.profitRate * 100) : '',
@@ -153,6 +154,7 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
       assetId: '',
       name: newAssetName.trim(),
       type: newAssetType,
+      currency: newAssetCurrency,
       amount: '',
       profit: '',
       profitRate: '',
@@ -160,11 +162,13 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
       isNew: true,
       inlineName: newAssetName.trim(),
       inlineType: newAssetType,
+      inlineCurrency: newAssetCurrency,
       inlineInstitution: newAssetInstitution || undefined,
     }
     setRows((prev) => [...prev, inlineRow])
     setNewAssetName('')
     setNewAssetType('fund')
+    setNewAssetCurrency('CNY')
     setNewAssetInstitution('')
     setShowAddAsset(false)
   }
@@ -196,7 +200,8 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
         if (r.isNew) {
           item.asset = {
             name: r.inlineName!,
-            type: r.inlineType!,
+            type: r.inlineType! as any,
+            currency: (r.inlineCurrency || 'CNY') as any,
             institution: r.inlineInstitution || undefined,
           }
         } else {
@@ -259,6 +264,7 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
               }}
             />
             <span className="snapshot-asset-name">{r.name}</span>
+            {r.currency && r.currency !== 'CNY' && <span className="snapshot-currency">{r.currency}</span>}
           </label>
           <span className="snapshot-asset-type">{ASSET_TYPE_LABELS[r.type as keyof typeof ASSET_TYPE_LABELS] || r.type}</span>
           {r.isNew && (
@@ -370,6 +376,11 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
               <option value="cash">现金</option>
               <option value="housing_fund">公积金</option>
               <option value="other">其他</option>
+            </select>
+            <select value={newAssetCurrency} onChange={(e) => setNewAssetCurrency(e.target.value as Currency)}>
+              <option value="CNY">CNY ¥</option>
+              <option value="USD">USD $</option>
+              <option value="HKD">HKD HK$</option>
             </select>
             <input type="text" value={newAssetInstitution} onChange={(e) => setNewAssetInstitution(e.target.value)} placeholder="平台/机构（可选）" />
             <button type="button" className="btn-primary" onClick={addInlineAsset}>添加</button>
