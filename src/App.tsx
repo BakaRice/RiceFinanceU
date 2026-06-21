@@ -1,19 +1,20 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
-
-function PlaceholderPage({ title }: { title: string }) {
-  return <div style={{ padding: 24 }}><h1>{title}</h1><p>Coming soon...</p></div>
-}
+import DashboardPage from './pages/DashboardPage'
+import DepositsPage from './pages/DepositsPage'
+import FundsPage from './pages/FundsPage'
+import FundDetailPage from './pages/FundDetailPage'
+import EntryPage from './pages/EntryPage'
 
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<PlaceholderPage title="总览" />} />
-        <Route path="/deposits" element={<PlaceholderPage title="存款" />} />
-        <Route path="/funds" element={<PlaceholderPage title="基金" />} />
-        <Route path="/funds/:id" element={<PlaceholderPage title="基金详情" />} />
-        <Route path="/entry" element={<PlaceholderPage title="录入" />} />
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/deposits" element={<DepositsPage />} />
+        <Route path="/funds" element={<FundsPage />} />
+        <Route path="/funds/:id" element={<FundDetailPage />} />
+        <Route path="/entry" element={<EntryPage />} />
       </Route>
     </Routes>
   )
