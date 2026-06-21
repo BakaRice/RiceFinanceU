@@ -1,7 +1,0 @@
-.asset-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.summary-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.summary-card.primary { border-left: 4px solid #0f3460; }
-.summary-label { font-size: 13px; color: #888; margin-bottom: 8px; }
-.summary-value { font-size: 24px; font-weight: 700; }
-.summary-value.profit { color: #e94560; }
-.summary-value.loss { color: #27ae60; }

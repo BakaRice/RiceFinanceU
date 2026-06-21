@@ -2,34 +2,20 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { DepositAccount, Fund, Transaction, FundNavPrice, Asset, Snapshot, SnapshotValue } from '../src/types/finance'
+import type { Asset, Snapshot, SnapshotValue } from '../src/types/finance'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const DATA_DIR = path.join(__dirname, '..', 'data')
-
-// v1 collections (legacy)
-const V1_COLLECTIONS = ['deposits', 'funds', 'transactions', 'nav-prices'] as const
-
-// v2 collections (snapshot ledger)
-const V2_COLLECTIONS = ['assets', 'snapshots', 'snapshot-values'] as const
-
-type CollectionName = typeof V1_COLLECTIONS[number] | typeof V2_COLLECTIONS[number]
+const COLLECTIONS = ['assets', 'snapshots', 'snapshot-values'] as const
+type CollectionName = typeof COLLECTIONS[number]
 
 export function ensureDataDir(): void {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true })
   }
-  // Initialize v1 collections for backward compatibility
-  for (const name of V1_COLLECTIONS) {
-    const filePath = path.join(DATA_DIR, `${name}.json`)
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, '[]', 'utf-8')
-    }
-  }
-  // Initialize v2 collections
-  for (const name of V2_COLLECTIONS) {
+  for (const name of COLLECTIONS) {
     const filePath = path.join(DATA_DIR, `${name}.json`)
     if (!fs.existsSync(filePath)) {
       fs.writeFileSync(filePath, '[]', 'utf-8')
@@ -103,19 +89,6 @@ function updateMetaTimestamp(): void {
   meta.updatedAt = new Date().toISOString()
   writeMeta(meta)
 }
-
-// —— v1 typed wrappers (legacy, kept for backward compatibility) ——
-
-export function readDeposits(): DepositAccount[] { return readCollection<DepositAccount>('deposits') }
-export function writeDeposits(data: DepositAccount[]): void { writeCollection('deposits', data); updateMetaTimestamp() }
-export function readFunds(): Fund[] { return readCollection<Fund>('funds') }
-export function writeFunds(data: Fund[]): void { writeCollection('funds', data); updateMetaTimestamp() }
-export function readTransactions(): Transaction[] { return readCollection<Transaction>('transactions') }
-export function writeTransactions(data: Transaction[]): void { writeCollection('transactions', data); updateMetaTimestamp() }
-export function readNavPrices(): FundNavPrice[] { return readCollection<FundNavPrice>('nav-prices') }
-export function writeNavPrices(data: FundNavPrice[]): void { writeCollection('nav-prices', data); updateMetaTimestamp() }
-
-// —— v2 typed wrappers ——
 
 export function readAssets(): Asset[] { return readCollection<Asset>('assets') }
 export function writeAssets(data: Asset[]): void { writeCollection('assets', data); updateMetaTimestamp() }

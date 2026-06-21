@@ -16,14 +16,6 @@ export default function Layout() {
         <NavLink to="/entry" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           录入
         </NavLink>
-        <hr className="nav-divider" />
-        <span className="nav-section-label">旧版（兼容）</span>
-        <NavLink to="/deposits" className={({ isActive }) => isActive ? 'nav-item nav-item-old active' : 'nav-item nav-item-old'}>
-          存款
-        </NavLink>
-        <NavLink to="/funds" className={({ isActive }) => isActive ? 'nav-item nav-item-old active' : 'nav-item nav-item-old'}>
-          基金
-        </NavLink>
       </nav>
       <main className="content">
         <Outlet />

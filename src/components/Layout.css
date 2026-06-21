@@ -28,10 +28,6 @@
   background: #0f3460;
   border-right: 3px solid #e94560;
 }
-.nav-item-old { font-size:13px; opacity:0.6; padding:8px 20px; }
-.nav-item-old:hover { opacity:1; }
-.nav-divider { border:none; border-top:1px solid #333; margin:8px 20px; }
-.nav-section-label { font-size:10px; color:#666; padding:0 20px 8px; display:block; text-transform:uppercase; letter-spacing:1px; }
 .content {
   flex: 1;
   padding: 24px;
