@@ -95,40 +95,47 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
 
         if (!isInvestmentType(r.type as any)) return updated
 
-        // Auto-calculate profitRate when amount + profit are both valid
-        if (field === 'amount' || field === 'profit') {
-          const newAmount = field === 'amount' ? Number(value) : Number(r.amount)
-          const newProfit = field === 'profit' ? Number(value) : Number(r.profit)
-          if (Number.isFinite(newAmount) && Number.isFinite(newProfit) && newAmount > 0) {
-            const cost = newAmount - newProfit
-            if (cost > 0) {
-              updated.profitRate = ((newProfit / cost) * 100).toFixed(2)
-            }
-          }
-        }
+        // Skip auto-calc if the new value is an incomplete decimal (e.g. "2." or "-")
+        if (value === '' || value === '-' || value.endsWith('.')) return updated
 
-        // Auto-calculate profit when amount + profitRate are both valid
-        if (field === 'amount' || field === 'profitRate') {
-          const newAmount = field === 'amount' ? Number(value) : Number(r.amount)
-          const newRate = (field === 'profitRate' ? Number(value) : Number(r.profitRate)) / 100
-          if (Number.isFinite(newAmount) && Number.isFinite(newRate) && newAmount > 0 && newRate > -1) {
-            const cost = newAmount / (1 + newRate)
-            const newProfit = newAmount - cost
-            if (Number.isFinite(newProfit)) {
-              updated.profit = newProfit.toFixed(2)
-            }
-          }
-        }
+        // Parse current values (use new value for the field being edited, old for others)
+        const curAmount = field === 'amount' ? Number(value) : Number(r.amount)
+        const curProfit = field === 'profit' ? Number(value) : Number(r.profit)
+        const curRatePct = field === 'profitRate' ? Number(value) : Number(r.profitRate)
+        const curRate = curRatePct / 100
 
-        // Auto-calculate amount when profit + profitRate are both valid
-        if (field === 'profit' || field === 'profitRate') {
-          const newProfit = field === 'profit' ? Number(value) : Number(r.profit)
-          const newRate = (field === 'profitRate' ? Number(value) : Number(r.profitRate)) / 100
-          if (Number.isFinite(newProfit) && Number.isFinite(newRate) && newRate > 0) {
-            const cost = newProfit / newRate
-            if (Number.isFinite(cost) && cost > 0) {
-              updated.amount = (cost + newProfit).toFixed(2)
-            }
+        const hasAmount = Number.isFinite(curAmount) && curAmount > 0
+        const hasProfit = Number.isFinite(curProfit)
+        const hasRate = Number.isFinite(curRate) && curRate > -1
+
+        // Priority: when editing X, only auto-calc the OTHER fields.
+        //   edit amount → calc profitRate (if profit) or calc profit (if rate)
+        //   edit profit → calc profitRate (if amount) or calc amount (if rate)
+        //   edit profitRate → calc profit (if amount) or calc amount (if profit)
+
+        if (field === 'amount') {
+          if (hasProfit) {
+            const cost = curAmount - curProfit
+            if (cost > 0) updated.profitRate = ((curProfit / cost) * 100).toFixed(2)
+          } else if (hasRate) {
+            const cost = curAmount / (1 + curRate)
+            updated.profit = (curAmount - cost).toFixed(2)
+          }
+        } else if (field === 'profit') {
+          if (hasAmount) {
+            const cost = curAmount - curProfit
+            if (cost > 0) updated.profitRate = ((curProfit / cost) * 100).toFixed(2)
+          } else if (hasRate && curRate > 0) {
+            const cost = curProfit / curRate
+            updated.amount = (cost + curProfit).toFixed(2)
+          }
+        } else if (field === 'profitRate') {
+          if (hasAmount) {
+            const cost = curAmount / (1 + curRate)
+            updated.profit = (curAmount - cost).toFixed(2)
+          } else if (hasProfit && curRate > 0) {
+            const cost = curProfit / curRate
+            updated.amount = (cost + curProfit).toFixed(2)
           }
         }
 
