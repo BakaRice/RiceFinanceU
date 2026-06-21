@@ -1,63 +1,67 @@
-# Personal Finance App Technical Design
+# 个人财务管理软件技术设计
 
-Date: 2026-06-21
+日期：2026-06-21
 
-## Goal
+## 设计约定
 
-Build a local, single-user personal finance web app for managing deposits and fund holdings. The first version should be simple, transparent, and usable without a database.
+本项目的设计文档、UI 方案、评审说明默认使用中文，便于审查和讨论。代码文件名、类型名、函数名、接口字段名使用英文，保持工程可维护性。
 
-The app supports:
+## 目标
 
-- Viewing total assets, deposit totals, fund market value, and floating profit/loss.
-- Managing deposit accounts such as bank accounts, fixed deposits, Alipay, WeChat balance, and similar cash-like assets.
-- Managing fund holdings with manual buy, sell, and net asset value entries.
-- Viewing each fund's overall trend chart, including unit NAV, holding market value, cumulative invested amount, and profit/loss.
-- Recording basic financial operations so changes can be traced later.
-- Persisting all data with local JSON files.
-- Exporting and importing complete JSON backups.
+构建一个本机单人使用的个人财务管理 Web App，用于管理存款和基金持仓。第一版应当简单、透明、可用，并且不依赖数据库。
 
-The first version intentionally does not support:
+第一版支持：
 
-- Multiple users.
-- Cloud sync.
-- Login or authentication.
-- Database storage.
-- Automatic online fund NAV fetching.
-- Full income, expense, category, budget, or bookkeeping workflows.
+- 查看总资产、存款总额、基金市值和浮动盈亏。
+- 管理存款账户，例如银行活期、定期、支付宝、微信余额和类似现金资产。
+- 管理基金持仓，包括手动录入买入、卖出和基金净值。
+- 查看每个基金的整体走势图，包括单位净值、持仓市值、累计投入和收益变化。
+- 记录基础财务操作，方便之后追踪资产变化来源。
+- 使用本机 JSON 文件持久化所有数据。
+- 导出和导入完整 JSON 备份。
 
-The core design principle is: local-first, simple storage, explicit data, small modules, and easy future migration.
+第一版明确不做：
 
-## Architecture
+- 多用户。
+- 云同步。
+- 登录和认证。
+- 数据库存储。
+- 自动联网拉取基金净值。
+- 完整收入、支出、分类、预算或复式记账流程。
 
-Use a route-based React/Vite single page application with a thin local Node/Express API.
+核心设计原则是：本机优先、存储简单、数据透明、模块边界清楚，并且保留未来演进空间。
+
+## 总体架构
+
+采用基于路由拆分的 React/Vite 单页应用，加一个很薄的本机 Node/Express API。
 
 ```txt
-React/Vite frontend
+React/Vite 前端
     |
     | HTTP JSON API
     v
-Node/Express local backend
+Node/Express 本机后端
     |
-    | fs read/write
+    | fs 读写
     v
-data/*.json files
+data/*.json 文件
 ```
 
-Recommended stack:
+推荐技术栈：
 
-- Frontend: React, Vite, TypeScript.
-- Routing: React Router.
-- Charts: Recharts.
-- Forms: plain React state for the first version.
-- Backend: Node.js and Express.
-- Persistence: local JSON files under `data/`.
-- Validation: Zod or a similarly small schema validation layer.
-- Styling: plain CSS or CSS Modules.
-- Tests: Vitest for domain logic and storage behavior.
+- 前端：React、Vite、TypeScript。
+- 路由：React Router。
+- 图表：Recharts。
+- 表单：第一版使用 React 原生状态，不引入复杂表单库。
+- 后端：Node.js 和 Express。
+- 持久化：`data/` 目录下的本机 JSON 文件。
+- 校验：Zod 或类似的小型 schema 校验层。
+- 样式：普通 CSS 或 CSS Modules。
+- 测试：Vitest，重点覆盖领域计算和存储行为。
 
-The frontend is a single loaded browser app, but it is not a single large page. It should be organized by page, component, API client, shared types, and pure domain calculations.
+这里的“单页应用”只表示浏览器一次加载前端应用，并不表示所有代码写在一个页面里。前端必须按页面、组件、API client、共享类型和纯领域计算拆分。
 
-## Project Structure
+## 项目结构
 
 ```txt
 RiceFinanceU/
@@ -116,9 +120,9 @@ RiceFinanceU/
       specs/
 ```
 
-## Data Model
+## 数据模型
 
-### Deposit Account
+### 存款账户
 
 ```ts
 type DepositAccount = {
@@ -133,9 +137,9 @@ type DepositAccount = {
 }
 ```
 
-Deposit accounts store current state. Balance changes are also recorded in transactions with the previous and new balance so the user can trace why an account changed.
+存款账户保存当前状态。余额变化也会记录到操作流水中，并包含调整前和调整后的余额，方便追踪账户为什么发生变化。
 
-### Fund
+### 基金
 
 ```ts
 type Fund = {
@@ -150,9 +154,9 @@ type Fund = {
 }
 ```
 
-Funds store stable identity and metadata. Position, market value, and profit/loss are derived from transactions and NAV prices.
+基金只保存稳定的身份信息和元数据。持仓、当前市值和盈亏都由交易流水和净值点推导得出。
 
-### Transaction
+### 操作流水
 
 ```ts
 type Transaction =
@@ -195,9 +199,9 @@ type Transaction =
     }
 ```
 
-Transactions are append-oriented operation records. They are not a full bookkeeping ledger; they only represent the operations required by the first version.
+操作流水是追加式记录，不是完整记账账本。第一版只记录资产管理必需的几类操作：存款余额调整、基金买入、基金卖出和基金净值录入。
 
-### Fund NAV Price
+### 基金净值点
 
 ```ts
 type FundNavPrice = {
@@ -208,9 +212,11 @@ type FundNavPrice = {
 }
 ```
 
-NAV prices are stored separately from transactions because charts need fast, direct access to time-series data. A NAV entry should also create a `fund_nav` transaction so the operation history remains complete. The backend should write both records as one logical mutation; if either write fails, neither change should be considered successful.
+净值点单独存储，因为图表需要直接读取时间序列数据。录入净值时，也应同时创建一条 `fund_nav` 操作流水，保证操作历史完整。
 
-### Metadata
+后端应把“写入净值点”和“写入净值操作流水”当成一次逻辑 mutation。如果其中任一步失败，就不能把这次录入视为成功。
+
+### 元数据
 
 ```ts
 type Meta = {
@@ -219,95 +225,95 @@ type Meta = {
 }
 ```
 
-`schemaVersion` allows future migrations if the JSON structure changes.
+`schemaVersion` 用于将来 JSON 结构变化时做数据迁移。
 
-## Persistence
+## 持久化设计
 
-Use multiple JSON files:
+采用多个 JSON 文件：
 
 ```txt
 data/
-  deposits.json       # deposit account current state
-  funds.json          # fund metadata
-  transactions.json   # operation history
-  nav-prices.json     # fund NAV time-series data
-  meta.json           # schema version and last update time
+  deposits.json       # 存款账户当前状态
+  funds.json          # 基金元数据
+  transactions.json   # 操作流水
+  nav-prices.json     # 基金净值时间序列
+  meta.json           # 数据版本和最后更新时间
 ```
 
-Backend storage rules:
+后端存储规则：
 
-- On startup, ensure `data/` and all required JSON files exist.
-- Initialize missing files with valid empty arrays or metadata.
-- Read JSON through one storage module.
-- Validate parsed data before returning it.
-- Write changes by first writing a temporary file, then replacing the target file.
-- Never overwrite existing data if the new JSON cannot be validated.
-- Update `meta.json` after every successful mutation.
+- 启动时确保 `data/` 目录和所有必需 JSON 文件存在。
+- 缺失文件用合法的空数组或元数据初始化。
+- 所有 JSON 读取通过统一的 storage 模块完成。
+- 返回数据前进行结构校验。
+- 写入时先写临时文件，再替换目标文件，降低写坏风险。
+- 如果新数据无法通过校验，绝不覆盖已有数据。
+- 每次成功 mutation 后更新 `meta.json`。
 
-This gives simple file persistence while reducing the chance of corrupting data during writes.
+这个方案保持了文件持久化的简单性，同时降低写入过程中损坏数据的概率。
 
-## Pages
+## 页面设计
 
-### Dashboard
+### 总览页
 
-`DashboardPage` shows:
+`DashboardPage` 展示：
 
-- Total assets.
-- Deposit total.
-- Fund market value.
-- Floating profit/loss.
-- Asset allocation summary.
-- Recent transactions.
+- 总资产。
+- 存款总额。
+- 基金市值。
+- 浮动盈亏。
+- 资产构成摘要。
+- 最近操作记录。
 
-### Deposits
+### 存款页
 
-`DepositsPage` shows:
+`DepositsPage` 展示：
 
-- Deposit account list.
-- Account institution and type.
-- Current balance.
-- Last update time.
-- Add account action.
-- Adjust balance action.
+- 存款账户列表。
+- 账户机构和账户类型。
+- 当前余额。
+- 最后更新时间。
+- 新增账户入口。
+- 调整余额入口。
 
-### Funds
+### 基金页
 
-`FundsPage` shows:
+`FundsPage` 展示：
 
-- Fund list.
-- Current shares.
-- Latest NAV.
-- Current market value.
-- Cumulative invested amount.
-- Floating profit/loss.
-- Link to fund detail page.
+- 基金列表。
+- 当前份额。
+- 最新净值。
+- 当前市值。
+- 累计投入。
+- 浮动盈亏。
+- 基金详情页入口。
 
-### Fund Detail
+### 基金详情页
 
-`FundDetailPage` shows:
+`FundDetailPage` 展示：
 
-- Fund metadata.
-- Current position summary.
-- Chart with unit NAV, market value, cumulative invested amount, and profit/loss.
-- Buy and sell history.
-- NAV entry history.
+- 基金基础信息。
+- 当前持仓摘要。
+- 图表：单位净值、持仓市值、累计投入和盈亏。
+- 买入和卖出历史。
+- 净值录入历史。
 
-### Entry
+### 录入页
 
-`EntryPage` provides one place to record:
+`EntryPage` 提供统一录入口：
 
-- Deposit balance adjustment.
-- Fund buy.
-- Fund sell.
-- Fund NAV entry.
+- 存款余额调整。
+- 基金买入。
+- 基金卖出。
+- 基金净值录入。
 
-The first version uses this unified entry page to keep workflows simple. Later versions can add inline quick actions on deposit and fund detail pages.
+第一版使用统一录入页，保持流程简单。后续可以在存款页和基金详情页增加快捷操作。
 
-## Domain Logic
+## 领域计算
 
-Business calculations live in pure functions under `src/domain/`. React components should call these functions instead of embedding finance calculations in UI code.
+业务计算放在 `src/domain/` 下的纯函数中。React 组件不直接写财务计算逻辑，而是调用这些领域函数。
 
-Suggested modules:
+建议模块：
 
 ```txt
 src/domain/
@@ -329,21 +335,21 @@ src/domain/
     roundMoney()
 ```
 
-Fund position calculation uses average cost:
+基金持仓计算使用平均成本法：
 
-- Buy increases shares and total invested cost.
-- Sell decreases shares and reduces cost proportionally by average cost.
-- Latest NAV is the most recent NAV price for the fund.
-- Current market value equals current shares multiplied by latest NAV.
-- Realized profit/loss is sell proceeds minus the average-cost basis of sold shares, adjusted for sell fees.
-- Floating profit/loss is current market value minus the remaining average-cost basis of held shares.
-- Total profit/loss is realized profit/loss plus floating profit/loss.
+- 买入增加份额和总投入成本。
+- 卖出减少份额，并按照平均成本法减少对应成本。
+- 最新净值取该基金最近一个净值点。
+- 当前市值 = 当前份额 × 最新净值。
+- 已实现收益 = 卖出回收金额 - 被卖出份额的平均成本，扣除卖出手续费。
+- 浮动收益 = 当前市值 - 当前持有份额的剩余平均成本。
+- 总收益 = 已实现收益 + 浮动收益。
 
-Average cost is recommended for the first version because it is easy to explain, easy to test, and adequate for personal asset tracking.
+第一版推荐平均成本法，因为它容易解释、容易测试，也足够满足个人资产管理。
 
-## API Design
+## API 设计
 
-Use resource-oriented endpoints:
+使用资源式接口：
 
 ```txt
 GET    /api/deposits
@@ -366,102 +372,102 @@ GET    /api/export
 POST   /api/import
 ```
 
-The backend remains thin:
+后端保持很薄：
 
-- It validates input.
-- It reads and writes JSON files.
-- It returns clear errors.
-- It does not own portfolio calculations in the first version.
+- 校验输入。
+- 读取和写入 JSON 文件。
+- 返回清晰错误。
+- 第一版不负责资产组合计算。
 
-The frontend owns derived calculations through pure domain functions. This keeps the backend close to a local file API.
+前端通过纯领域函数计算派生数据。这样后端接近一个本机文件 API，整体更简单。
 
-## Frontend State
+## 前端状态
 
-Do not use Redux or a complex state manager in the first version.
+第一版不使用 Redux，也不引入复杂状态管理器。
 
-State approach:
+状态策略：
 
-- Load page data through `src/api/client.ts`.
-- Keep page-level state with `useState` and `useEffect`.
-- After mutations, reload the affected resource or page data.
-- Keep derived values out of stored state; calculate them from source data.
+- 通过 `src/api/client.ts` 加载页面数据。
+- 使用页面级 `useState` 和 `useEffect`。
+- mutation 成功后重新加载受影响的资源或页面数据。
+- 派生值不进入存储状态，而是从源数据实时计算。
 
-Future versions can add TanStack Query if request caching, loading states, and mutation invalidation become repetitive.
+如果后续请求缓存、加载状态和 mutation invalidation 变得重复，再考虑引入 TanStack Query。
 
-## Error Handling
+## 错误处理
 
-Frontend behavior:
+前端行为：
 
-- Show loading states while reading data.
-- Show an error message and retry action when loading fails.
-- Show field-level validation messages for invalid form input.
-- Show a clear failure message when saving fails.
-- Ask for confirmation before deletion or backup restore.
+- 读取数据时显示加载状态。
+- 加载失败时显示错误提示和重试入口。
+- 表单输入不合法时显示字段级错误。
+- 保存失败时明确提示“未保存成功”。
+- 删除和备份恢复前要求二次确认。
 
-Backend behavior:
+后端行为：
 
-- Missing JSON files are initialized automatically.
-- Invalid JSON returns an error and is never overwritten automatically.
-- Invalid request bodies return 400.
-- Storage failures return 500.
-- Mutations should be all-or-nothing at the file level.
+- 缺失 JSON 文件自动初始化。
+- JSON 文件损坏或解析失败时返回错误，不自动覆盖。
+- 请求体不合法时返回 400。
+- 存储失败时返回 500。
+- mutation 在文件层面尽量做到全有或全无。
 
-Any failed write must be visible to the user.
+任何写入失败都必须让用户看见，不能静默吞掉。
 
-## Backup And Restore
+## 备份与恢复
 
-The first version includes complete data export and import.
+第一版包含完整数据导出和导入。
 
-Export:
+导出：
 
-- Returns a single JSON payload containing deposits, funds, transactions, NAV prices, and metadata.
+- 返回一个完整 JSON 备份，包含存款、基金、操作流水、净值点和元数据。
 
-Import:
+导入：
 
-- Validates the backup structure and `schemaVersion`.
-- Rejects invalid backups.
-- Requires explicit confirmation before replacing local data.
-- Writes all replacement files only after validation succeeds.
+- 校验备份结构和 `schemaVersion`。
+- 拒绝非法备份。
+- 覆盖本地数据前要求用户明确确认。
+- 只有全部校验通过后才写入替换文件。
 
-This gives the user a simple manual backup path without introducing cloud sync.
+这样可以提供一个简单可靠的手动备份路径，而不引入云同步。
 
-## Security
+## 安全策略
 
-The first version is local-only:
+第一版定位为本机使用：
 
-- No login.
-- No authentication.
-- No encryption.
-- The backend should listen on `127.0.0.1`.
-- The app is intended for one trusted local user on one machine.
+- 不做登录。
+- 不做认证。
+- 不做加密。
+- 后端监听 `127.0.0.1`。
+- 应用面向一台机器上的一个可信本地用户。
 
-This avoids adding a weak or unnecessary security layer. If remote access, multi-device sync, or shared usage becomes necessary, security should be redesigned before those capabilities are added.
+这样可以避免加入表面安全但实际增加复杂度的功能。如果未来需要远程访问、多设备同步或多人使用，应先重新设计安全模型。
 
-## Testing
+## 测试策略
 
-Prioritize tests for pure domain logic and storage safety.
+优先测试纯领域逻辑和存储安全。
 
-Domain tests:
+领域测试：
 
-- Deposit total calculation.
-- Fund buy position calculation.
-- Fund sell position calculation.
-- Average cost behavior.
-- Latest NAV selection.
-- Market value calculation.
-- Profit/loss calculation.
-- Chart series generation.
-- Portfolio total and allocation calculation.
+- 存款总额计算。
+- 基金买入后的持仓计算。
+- 基金卖出后的持仓计算。
+- 平均成本行为。
+- 最新净值选择。
+- 市值计算。
+- 盈亏计算。
+- 图表序列生成。
+- 资产总额和资产配置计算。
 
-Storage tests:
+存储测试：
 
-- Empty data file initialization.
-- JSON read behavior.
-- JSON write behavior.
-- Invalid JSON rejection.
-- Import validation rejects malformed backups.
+- 空数据文件初始化。
+- JSON 读取行为。
+- JSON 写入行为。
+- 非法 JSON 拒绝。
+- 导入结构不合法的备份时拒绝覆盖。
 
-Suggested test files:
+建议测试文件：
 
 ```txt
 src/domain/funds.test.ts
@@ -469,45 +475,45 @@ src/domain/portfolio.test.ts
 server/storage.test.ts
 ```
 
-## Development Sequence
+## 开发顺序
 
-1. Initialize React, Vite, TypeScript, Express, and Vitest.
-2. Create the JSON data files and storage module.
-3. Define shared finance types.
-4. Implement domain calculation functions with tests.
-5. Implement backend API routes.
-6. Implement the dashboard page.
-7. Implement the deposits page.
-8. Implement the funds page.
-9. Implement fund detail charts.
-10. Implement the unified entry page.
-11. Implement export and import.
-12. Run manual end-to-end verification with sample data.
+1. 初始化 React、Vite、TypeScript、Express 和 Vitest。
+2. 创建 JSON 数据文件和 storage 模块。
+3. 定义共享财务类型。
+4. 实现领域计算函数并编写测试。
+5. 实现后端 API 路由。
+6. 实现总览页。
+7. 实现存款页。
+8. 实现基金页。
+9. 实现基金详情走势图。
+10. 实现统一录入页。
+11. 实现导出和导入。
+12. 使用样例数据做一次端到端手动验收。
 
-## Future Enhancements
+## 后续增强
 
-Possible future upgrades:
+后续可以考虑：
 
-- Automatic fund NAV fetching with caching and failure handling.
-- Local password or encrypted backup export.
-- SQLite migration if JSON files become limiting.
-- Desktop packaging with Tauri or Electron.
-- Mobile-friendly PWA layout.
-- More complete bookkeeping: income, expense, transfer, categories, budgets, and reports.
+- 自动拉取基金净值，并加入缓存和失败处理。
+- 本地访问密码或加密备份导出。
+- 当 JSON 文件变得受限时迁移到 SQLite。
+- 使用 Tauri 或 Electron 打包为桌面应用。
+- 增加移动端友好的 PWA 布局。
+- 扩展完整记账能力：收入、支出、转账、分类、预算和报表。
 
-These are intentionally outside the first version.
+这些能力都不属于第一版范围。
 
-## Recommendation
+## 推荐结论
 
-Use:
+采用：
 
 ```txt
-React/Vite route-based SPA
-+ Node/Express local file API
+React/Vite 路由式 SPA
++ Node/Express 本机文件 API
 + TypeScript
-+ multiple JSON files
++ 多 JSON 文件
 + Recharts
 + Vitest
 ```
 
-This design matches the requested first-principles goal: no database, clear persistence, enough structure to stay maintainable, and a clean path to grow later without rewriting the core application.
+这个方案符合第一性原理目标：不用数据库，持久化清楚透明，有足够结构维持可维护性，并且未来可以在不推翻核心架构的前提下继续演进。
