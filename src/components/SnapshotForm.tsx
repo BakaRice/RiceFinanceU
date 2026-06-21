@@ -92,14 +92,49 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
       prev.map((r, i) => {
         if (i !== index) return r
         const updated = { ...r, [field]: value }
-        // Auto-calculate profit when amount and previousAmount exist for investment
-        if (field === 'amount' && isInvestmentType(r.type as any) && r.previousAmount !== undefined) {
-          // Don't auto-calculate profit — user enters it manually
+
+        if (!isInvestmentType(r.type as any)) return updated
+
+        // Auto-calculate profitRate when amount + profit are both valid
+        if (field === 'amount' || field === 'profit') {
+          const newAmount = field === 'amount' ? Number(value) : Number(r.amount)
+          const newProfit = field === 'profit' ? Number(value) : Number(r.profit)
+          if (Number.isFinite(newAmount) && Number.isFinite(newProfit) && newAmount > 0) {
+            const cost = newAmount - newProfit
+            if (cost > 0) {
+              updated.profitRate = ((newProfit / cost) * 100).toFixed(2)
+            }
+          }
         }
+
+        // Auto-calculate profit when amount + profitRate are both valid
+        if (field === 'amount' || field === 'profitRate') {
+          const newAmount = field === 'amount' ? Number(value) : Number(r.amount)
+          const newRate = (field === 'profitRate' ? Number(value) : Number(r.profitRate)) / 100
+          if (Number.isFinite(newAmount) && Number.isFinite(newRate) && newAmount > 0 && newRate > -1) {
+            const cost = newAmount / (1 + newRate)
+            const newProfit = newAmount - cost
+            if (Number.isFinite(newProfit)) {
+              updated.profit = newProfit.toFixed(2)
+            }
+          }
+        }
+
+        // Auto-calculate amount when profit + profitRate are both valid
+        if (field === 'profit' || field === 'profitRate') {
+          const newProfit = field === 'profit' ? Number(value) : Number(r.profit)
+          const newRate = (field === 'profitRate' ? Number(value) : Number(r.profitRate)) / 100
+          if (Number.isFinite(newProfit) && Number.isFinite(newRate) && newRate > 0) {
+            const cost = newProfit / newRate
+            if (Number.isFinite(cost) && cost > 0) {
+              updated.amount = (cost + newProfit).toFixed(2)
+            }
+          }
+        }
+
         return updated
       })
     )
-    // Also auto-include when user starts typing
     if (!rows[index].included) {
       toggleIncluded(index)
     }
