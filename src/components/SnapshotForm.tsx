@@ -170,7 +170,6 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
     setSubmitting(true)
 
     try {
-      const includedRows = rows.filter((r) => r.included)
       if (includedRows.length === 0) {
         alert('请至少选择一个资产项')
         setSubmitting(false)
@@ -205,6 +204,22 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
         return item
       })
 
+      // Save review: confirm before saving
+      const reviewLines = [
+        `快照时间：${recordedAt} ${recordingTime}`,
+        `本次更新：${includedRows.length} 项`,
+        `金额变化：${changedRows.length} 项`,
+      ]
+
+      if (largeChangeRows.length > 0) {
+        reviewLines.push(`大额变化：${largeChangeRows.map((r) => r.name).join('、')}`)
+      }
+
+      if (!confirm(`${reviewLines.join('\n')}\n\n确认保存这次快照吗？`)) {
+        setSubmitting(false)
+        return
+      }
+
       const recordedAtStr = `${recordedAt}T${recordingTime}:00`
       await api.createSnapshot({
         recordedAt: recordedAtStr,
@@ -230,6 +245,19 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
   // Group rows: investment first, then balance
   const investmentRows = rows.filter((r) => isInvestmentType(r.type as any))
   const balanceRows = rows.filter((r) => !isInvestmentType(r.type as any))
+
+  const includedRows = rows.filter((r) => r.included)
+  const changedRows = includedRows.filter((r) => {
+    if (r.previousAmount === undefined) return true
+    const amount = Number(r.amount)
+    return Number.isFinite(amount) && amount !== r.previousAmount
+  })
+  const largeChangeRows = changedRows.filter((r) => {
+    if (r.previousAmount === undefined || r.previousAmount === 0) return false
+    const amount = Number(r.amount)
+    if (!Number.isFinite(amount)) return false
+    return Math.abs(amount - r.previousAmount) / Math.abs(r.previousAmount) > 0.5
+  })
 
   function renderRow(r: AssetRow) {
     const isInvestment = isInvestmentType(r.type as any)
@@ -344,6 +372,12 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
           <button type="button" className="btn-secondary" onClick={handleManageAssets}>
             管理资产项
           </button>
+        </div>
+
+        <div className="snapshot-summary">
+          <span>快照时间：{recordedAt} {recordingTime}</span>
+          <span>本次更新：{includedRows.length} 项</span>
+          <span>金额变化：{changedRows.length} 项</span>
         </div>
 
         {/* Investment assets */}

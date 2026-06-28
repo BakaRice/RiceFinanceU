@@ -43,3 +43,19 @@
 .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
 .btn-secondary { padding:8px 16px; background:#eee; color:#333; border:none; border-radius:6px; font-size:13px; cursor:pointer; }
 .btn-secondary:hover { background:#ddd; }
+
+.snapshot-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  color: #666;
+  font-size: 13px;
+}
+
+.snapshot-summary span {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
