@@ -57,7 +57,7 @@ export default function EntryPage() {
 
   return (
     <div className="entry-page">
-      <h1>录入</h1>
+      <h1>快照录入</h1>
       <div className="entry-layout">
         <div className="entry-form-col">
           <SnapshotForm onSuccess={load} />

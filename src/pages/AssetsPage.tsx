@@ -168,11 +168,11 @@ export default function AssetsPage() {
   return (
     <div className="assets-page">
       <div className="assets-header">
-        <h1>资产项</h1>
+        <h1>资产管理</h1>
         <button className="btn-primary" onClick={openCreate}>+ 新增资产</button>
       </div>
 
-      <p className="assets-hint">资产项是你需要长期追踪的明细标的或账户。金额和收益来自最新快照。</p>
+      <p className="assets-hint">维护需要长期追踪的资产档案。金额、收益和收益率来自最新快照，仅作只读参考。</p>
 
       {activeAssets.length === 0 && inactiveAssets.length === 0 && (
         <div className="empty-state"><p>暂无资产项</p></div>

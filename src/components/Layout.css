@@ -33,4 +33,4 @@
   padding: 24px;
   overflow-x: auto;
 }
-@media(max-width:768px){.sidebar{width:60px}.sidebar-title{font-size:0;padding:10px}.nav-item{font-size:12px;padding:10px 8px;text-align:center}}}
+@media(max-width:768px){.sidebar{width:60px}.sidebar-title{font-size:0;padding:10px}.nav-item{font-size:12px;padding:10px 8px;text-align:center}}

@@ -11,10 +11,10 @@ export default function Layout() {
           总览
         </NavLink>
         <NavLink to="/assets" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-          资产项
+          资产管理
         </NavLink>
         <NavLink to="/entry" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-          录入
+          快照录入
         </NavLink>
       </nav>
       <main className="content">
