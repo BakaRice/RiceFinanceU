@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import SnapshotForm from '../components/SnapshotForm'
 import type { Snapshot } from '../types/finance'
 import './EntryPage.css'
 
 export default function EntryPage() {
+  const navigate = useNavigate()
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]); const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null); const [importing, setImporting] = useState(false)
   const [showImportConfirm, setShowImportConfirm] = useState(false); const [importData, setImportData] = useState<any>(null)
@@ -60,7 +62,7 @@ export default function EntryPage() {
       <h1>快照录入</h1>
       <div className="entry-layout">
         <div className="entry-form-col">
-          <SnapshotForm onSuccess={load} />
+          <SnapshotForm onSuccess={load} onManageAssets={() => navigate('/assets')} />
         </div>
 
         <div className="entry-side-col">

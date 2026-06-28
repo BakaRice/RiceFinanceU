@@ -7,6 +7,7 @@ import './SnapshotForm.css'
 
 interface SnapshotFormProps {
   onSuccess: () => void
+  onManageAssets: () => void
 }
 
 interface AssetRow {
@@ -23,13 +24,20 @@ interface AssetRow {
   included: boolean
 }
 
-export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
+export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotFormProps) {
   const latestValuesRef = useRef<Map<string, SnapshotValue>>(new Map())
   const [rows, setRows] = useState<AssetRow[]>([])
   const [recordedAt, setRecordedAt] = useState(new Date().toISOString().split('T')[0])
   const [recordingTime, setRecordingTime] = useState(new Date().toTimeString().slice(0, 5))
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const initialRecordedAt = useRef(recordedAt)
+  const initialRecordingTime = useRef(recordingTime)
+  const [isDirty, setIsDirty] = useState(false)
+
+  function markDirty() {
+    setIsDirty(true)
+  }
 
   useEffect(() => {
     loadData()
@@ -85,6 +93,7 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
 
   function toggleIncluded(index: number) {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, included: !r.included } : r)))
+    markDirty()
   }
 
   function updateRow(index: number, field: string, value: string) {
@@ -145,10 +154,15 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
     if (!rows[index].included) {
       toggleIncluded(index)
     }
+    markDirty()
   }
 
   function handleManageAssets() {
-    // Placeholder — will be replaced in Task 4
+    if (isDirty) {
+      const ok = confirm('当前快照尚未保存，离开后本次填写内容会丢失。确定要离开吗？')
+      if (!ok) return
+    }
+    onManageAssets()
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -196,6 +210,9 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
       // Reload to show updated previous values
       await loadData()
       setNote('')
+      setIsDirty(false)
+      initialRecordedAt.current = recordedAt
+      initialRecordingTime.current = recordingTime
       alert('快照保存成功！')
     } catch (e: any) {
       alert('保存失败: ' + e.message)
@@ -301,15 +318,15 @@ export default function SnapshotForm({ onSuccess }: SnapshotFormProps) {
           <div className="snapshot-meta">
             <div className="snapshot-field">
               <label>日期 *</label>
-              <input type="date" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} required />
+              <input type="date" value={recordedAt} onChange={(e) => { setRecordedAt(e.target.value); markDirty() }} required />
             </div>
             <div className="snapshot-field">
               <label>时间</label>
-              <input type="time" value={recordingTime} onChange={(e) => setRecordingTime(e.target.value)} />
+              <input type="time" value={recordingTime} onChange={(e) => { setRecordingTime(e.target.value); markDirty() }} />
             </div>
             <div className="snapshot-field" style={{ flex: 2 }}>
               <label>备注</label>
-              <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="如：月末盘点" />
+              <input type="text" value={note} onChange={(e) => { setNote(e.target.value); markDirty() }} placeholder="如：月末盘点" />
             </div>
           </div>
         </div>
