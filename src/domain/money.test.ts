@@ -1,6 +1,6 @@
 // src/domain/money.test.ts
 import { describe, it, expect } from 'vitest'
-import { formatMoney, roundMoney } from './money'
+import { formatMoney, roundMoney, formatMoneyFixed, formatPercentFixed, isValidCurrencyAmount, isValidPercentInput, isValidSignedMoney } from './money'
 
 describe('roundMoney', () => {
   it('rounds to 2 decimal places', () => {
@@ -19,4 +19,39 @@ describe('formatMoney', () => {
   })
   it('formats zero', () => expect(formatMoney(0)).toBe('0.00'))
   it('formats negative', () => expect(formatMoney(-500.5)).toBe('-500.50'))
+})
+
+describe('mature numeric display helpers', () => {
+  it('formats money with thousand separators and two decimals', () => {
+    expect(formatMoneyFixed(12345.6)).toBe('12,345.60')
+    expect(formatMoneyFixed(0)).toBe('0.00')
+    expect(formatMoneyFixed(undefined)).toBe('-')
+  })
+
+  it('formats percentages with two decimals', () => {
+    expect(formatPercentFixed(0.0865)).toBe('8.65%')
+    expect(formatPercentFixed(0)).toBe('0.00%')
+    expect(formatPercentFixed(undefined)).toBe('-')
+  })
+
+  it('validates currency amount input', () => {
+    expect(isValidCurrencyAmount('123.45')).toBe(true)
+    expect(isValidCurrencyAmount('123.456')).toBe(false)
+    expect(isValidCurrencyAmount('-1')).toBe(false)
+    expect(isValidCurrencyAmount('')).toBe(false)
+  })
+
+  it('validates percent input', () => {
+    expect(isValidPercentInput('8.65')).toBe(true)
+    expect(isValidPercentInput('-99.99')).toBe(true)
+    expect(isValidPercentInput('-100.01')).toBe(false)
+    expect(isValidPercentInput('8.999')).toBe(false)
+  })
+
+  it('validates signed money input', () => {
+    expect(isValidSignedMoney('-100.50')).toBe(true)
+    expect(isValidSignedMoney('100')).toBe(true)
+    expect(isValidSignedMoney('')).toBe(false)
+    expect(isValidSignedMoney('-100.999')).toBe(false)
+  })
 })
