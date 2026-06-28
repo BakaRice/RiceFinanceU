@@ -2,7 +2,7 @@
 .assets-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .assets-hint { color:#999; font-size:13px; margin-bottom:24px; }
 
-.assets-table-container { background:#fff; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px; }
+.assets-table-container { background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px; }
 .assets-table-container h3 { font-size:14px; color:#888; margin-bottom:12px; }
 .inactive-section { opacity:0.7; }
 .inactive-row { opacity:0.5; }
