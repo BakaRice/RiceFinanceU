@@ -3,7 +3,7 @@ import { api } from '../api/client'
 import type { Asset, AssetType, Currency, SnapshotValue } from '../types/finance'
 import { CURRENCY_SYMBOLS } from '../types/finance'
 import { ASSET_TYPE_LABELS, isInvestmentType } from '../domain/assets'
-import { formatMoney } from '../domain/money'
+import { formatMoneyFixed, formatPercentFixed } from '../domain/money'
 import './AssetsPage.css'
 
 type SortKey = 'name' | 'type' | 'currency' | 'amount' | 'profit' | 'profitRate' | 'institution'
@@ -137,15 +137,15 @@ export default function AssetsPage() {
                 </td>
                 <td><span className="currency-badge">{a.currency}</span></td>
                 <td>{a.institution || '-'}</td>
-                <td className="amount-cell">{lv ? `${sym}${formatMoney(lv.amount)}` : '-'}</td>
+                <td className="amount-cell">{lv ? `${sym}${formatMoneyFixed(lv.amount)} ${a.currency}` : '-'}</td>
                 {hasInvestmentCol && (
                   isInvestmentType(a.type) ? (
                     <>
                       <td className={`amount-cell ${(lv?.profit || 0) >= 0 ? 'profit' : 'loss'}`}>
-                        {lv?.profit !== undefined ? ((lv.profit >= 0 ? '+' : '') + formatMoney(lv.profit)) : '-'}
+                        {lv?.profit !== undefined ? `${lv.profit >= 0 ? '+' : ''}${formatMoneyFixed(lv.profit)}` : '-'}
                       </td>
                       <td className="amount-cell">
-                        {lv?.profitRate !== undefined ? `${(lv.profitRate * 100).toFixed(2)}%` : '-'}
+                        {lv?.profitRate !== undefined ? formatPercentFixed(lv.profitRate) : '-'}
                       </td>
                     </>
                   ) : (

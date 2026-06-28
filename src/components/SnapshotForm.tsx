@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { api } from '../api/client'
 import type { SnapshotValue } from '../types/finance'
 import { isInvestmentType, ASSET_TYPE_LABELS } from '../domain/assets'
-import { formatMoney } from '../domain/money'
+import { formatMoneyFixed, formatPercentFixed, isValidCurrencyAmount, isValidPercentInput, isValidSignedMoney } from '../domain/money'
 import './SnapshotForm.css'
 
 interface SnapshotFormProps {
@@ -178,19 +178,25 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
       }
 
       const values = includedRows.map((r) => {
-        const amount = Number(r.amount)
-        if (!Number.isFinite(amount) || amount < 0) {
-          throw new Error(`资产 "${r.name}" 的金额无效`)
+        if (!isValidCurrencyAmount(r.amount)) {
+          throw new Error(`资产 "${r.name}" 的金额无效，请输入非负数字，最多 2 位小数`)
         }
+        const amount = Number(r.amount)
 
         const item: any = { assetId: r.assetId, amount }
 
         if (isInvestmentType(r.type as any)) {
           if (r.profit !== '') {
+            if (!isValidSignedMoney(r.profit)) {
+              throw new Error(`资产 "${r.name}" 的收益无效，请最多保留 2 位小数`)
+            }
             const profit = Number(r.profit)
             if (Number.isFinite(profit)) item.profit = profit
           }
           if (r.profitRate !== '') {
+            if (!isValidPercentInput(r.profitRate)) {
+              throw new Error(`资产 "${r.name}" 的收益率无效，不能小于 -100%，且最多保留 2 位小数`)
+            }
             const rate = Number(r.profitRate)
             if (Number.isFinite(rate)) item.profitRate = rate / 100 // Convert % to decimal
           }
@@ -261,7 +267,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
                 )
                 if (realIndex >= 0) updateRow(realIndex, 'amount', e.target.value)
               }}
-              placeholder={r.previousAmount !== undefined ? `上次: ${formatMoney(r.previousAmount)}` : '0.00'}
+              placeholder={r.previousAmount !== undefined ? `上次: ${formatMoneyFixed(r.previousAmount)}` : '0.00'}
               disabled={!r.included}
             />
             {hasChanged && r.previousAmount !== undefined && (
@@ -284,7 +290,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
                     )
                     if (realIndex >= 0) updateRow(realIndex, 'profit', e.target.value)
                   }}
-                  placeholder={r.previousProfit !== undefined ? `上次: ${formatMoney(r.previousProfit)}` : '如 500.00'}
+                  placeholder={r.previousProfit !== undefined ? `上次: ${formatMoneyFixed(r.previousProfit)}` : '如 500.00'}
                   disabled={!r.included}
                 />
               </div>
@@ -299,7 +305,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
                     )
                     if (realIndex >= 0) updateRow(realIndex, 'profitRate', e.target.value)
                   }}
-                  placeholder={r.previousProfitRate !== undefined ? `上次: ${(r.previousProfitRate * 100).toFixed(2)}%` : '如 8.65'}
+                  placeholder={r.previousProfitRate !== undefined ? `上次: ${formatPercentFixed(r.previousProfitRate)}` : '如 8.65'}
                   disabled={!r.included}
                 />
               </div>
