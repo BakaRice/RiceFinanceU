@@ -16,6 +16,9 @@ export default function Layout() {
         <NavLink to="/entry" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           快照录入
         </NavLink>
+        <NavLink to="/data" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+          数据管理
+        </NavLink>
       </nav>
       <main className="content">
         <Outlet />
