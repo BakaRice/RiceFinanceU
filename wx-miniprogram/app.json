@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/login/login",
+    "pages/entry/entry"
+  ],
+  "window": {
+    "backgroundColor": "#f4f6f3",
+    "navigationBarBackgroundColor": "#f8faf6",
+    "navigationBarTitleText": "RiceFinanceU",
+    "navigationBarTextStyle": "black"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

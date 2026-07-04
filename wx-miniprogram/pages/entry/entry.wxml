@@ -1,0 +1,75 @@
+<view class="rf-page entry-page">
+  <view wx:if="{{loading}}" class="page-state">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:elif="{{error}}" class="page-state">
+    <text>{{error}}</text>
+    <button class="ghost-button" bindtap="load">重试</button>
+  </view>
+
+  <block wx:else>
+    <view class="entry-header">
+      <view>
+        <view class="page-title">快照录入</view>
+        <view class="page-subtitle">已选择 {{includedCount}} / {{rows.length}} 项资产</view>
+      </view>
+    </view>
+
+    <view class="entry-meta">
+      <picker mode="date" value="{{recordedDate}}" bindchange="onDateChange">
+        <view class="picker-field">
+          <text class="picker-label">日期</text>
+          <text>{{recordedDate}}</text>
+        </view>
+      </picker>
+      <picker mode="time" value="{{recordedTime}}" bindchange="onTimeChange">
+        <view class="picker-field">
+          <text class="picker-label">时间</text>
+          <text>{{recordedTime}}</text>
+        </view>
+      </picker>
+    </view>
+
+    <view wx:if="{{rows.length === 0}}" class="empty-text">
+      暂无活跃资产。请先在 PC 端创建资产。
+    </view>
+
+    <view wx:for="{{rows}}" wx:key="assetId" class="entry-card {{item.included ? '' : 'entry-card-muted'}}">
+      <view class="entry-card-head">
+        <view class="entry-asset-title">
+          <text class="entry-asset-name">{{item.name}}</text>
+          <text class="entry-asset-type">{{item.typeLabel}} · {{item.currency}}</text>
+        </view>
+        <switch checked="{{item.included}}" color="#17694c" data-index="{{index}}" bindchange="onIncludedChange" />
+      </view>
+
+      <view class="input-grid">
+        <view class="input-field">
+          <text class="input-label">金额</text>
+          <input class="entry-input" type="digit" value="{{item.amount}}" placeholder="0.00" data-index="{{index}}" data-field="amount" bindinput="onFieldInput" />
+        </view>
+
+        <block wx:if="{{item.isInvestment}}">
+          <view class="input-field">
+            <text class="input-label">收益</text>
+            <input class="entry-input" type="text" value="{{item.profit}}" placeholder="可为负数" data-index="{{index}}" data-field="profit" bindinput="onFieldInput" />
+          </view>
+          <view class="input-field">
+            <text class="input-label">收益率 %</text>
+            <input class="entry-input" type="text" value="{{item.profitRate}}" placeholder="例如 8.12" data-index="{{index}}" data-field="profitRate" bindinput="onFieldInput" />
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <view class="note-field">
+      <text class="input-label">备注</text>
+      <textarea class="note-input" value="{{note}}" placeholder="可选" maxlength="200" bindinput="onNoteInput" />
+    </view>
+
+    <button class="primary-button submit-button" loading="{{submitting}}" disabled="{{submitting || rows.length === 0}}" bindtap="handleSubmit">
+      保存快照
+    </button>
+  </block>
+</view>

@@ -1,0 +1,116 @@
+.entry-page {
+  padding-bottom: 56rpx;
+}
+
+.entry-header {
+  margin-bottom: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.entry-meta {
+  margin-bottom: 24rpx;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.picker-field,
+.note-field,
+.entry-card {
+  background: #ffffff;
+  border: 1rpx solid #dfe6df;
+  border-radius: 16rpx;
+}
+
+.picker-field {
+  min-height: 92rpx;
+  padding: 18rpx 22rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.picker-label,
+.input-label {
+  color: #68746c;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.entry-card {
+  margin-bottom: 16rpx;
+  padding: 22rpx;
+}
+
+.entry-card-muted {
+  opacity: 0.56;
+}
+
+.entry-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.entry-asset-title {
+  min-width: 0;
+}
+
+.entry-asset-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.entry-asset-type {
+  display: block;
+  margin-top: 8rpx;
+  color: #68746c;
+  font-size: 23rpx;
+}
+
+.input-grid {
+  margin-top: 18rpx;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14rpx;
+}
+
+.input-field {
+  padding: 16rpx 18rpx;
+  background: #f7f9f6;
+  border-radius: 14rpx;
+}
+
+.entry-input {
+  height: 56rpx;
+  margin-top: 4rpx;
+  color: #18201b;
+  font-size: 30rpx;
+}
+
+.note-field {
+  margin-top: 22rpx;
+  padding: 18rpx 22rpx;
+}
+
+.note-input {
+  width: 100%;
+  min-height: 128rpx;
+  margin-top: 8rpx;
+  color: #18201b;
+  font-size: 28rpx;
+}
+
+.submit-button {
+  margin-top: 28rpx;
+}

@@ -1,0 +1,71 @@
+<view class="rf-page dashboard-page">
+  <view wx:if="{{loading}}" class="page-state">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:elif="{{error}}" class="page-state">
+    <text>{{error}}</text>
+    <button class="ghost-button" bindtap="handleRefresh">重试</button>
+  </view>
+
+  <block wx:else>
+    <view class="hero-panel">
+      <view class="hero-topline">
+        <text>总资产 CNY</text>
+        <text>{{latestLabel}}</text>
+      </view>
+      <view class="hero-amount">{{summary.total}}</view>
+      <view class="hero-meta">汇率 {{ratesLabel}}</view>
+    </view>
+
+    <view class="stat-grid">
+      <view wx:for="{{statCards}}" wx:key="label" class="stat-card">
+        <text class="stat-label">{{item.label}}</text>
+        <text class="stat-value">{{item.value}}</text>
+      </view>
+    </view>
+
+    <view class="action-row">
+      <button class="primary-button action-main" bindtap="goEntry">录入新快照</button>
+      <button class="ghost-button action-secondary" bindtap="handleRefresh">刷新</button>
+    </view>
+
+    <view class="section-header">
+      <text class="section-title">资产概览</text>
+      <text class="muted-text">{{assetRows.length}} 项</text>
+    </view>
+    <view wx:if="{{assetRows.length === 0}}" class="empty-text">
+      暂无资产。请先在 PC 端创建资产。
+    </view>
+    <view wx:for="{{assetRows}}" wx:key="id" class="asset-row">
+      <view class="asset-main">
+        <view class="asset-title-line">
+          <text class="asset-name">{{item.name}}</text>
+          <text class="asset-type">{{item.typeLabel}}</text>
+        </view>
+        <view class="asset-meta">
+          <text>{{item.currency}}</text>
+          <text wx:if="{{item.amountCNYText}}">{{item.amountCNYText}}</text>
+        </view>
+      </view>
+      <view class="asset-amount">
+        <text>{{item.amountText}}</text>
+        <text wx:if="{{item.profitText}}" class="asset-profit">收益 {{item.profitText}}</text>
+      </view>
+    </view>
+
+    <view class="section-header">
+      <text class="section-title">最近快照</text>
+      <text class="muted-text">{{snapshotRows.length}} 条</text>
+    </view>
+    <view wx:if="{{snapshotRows.length === 0}}" class="empty-text">
+      暂无快照。可以先录入一条。
+    </view>
+    <view wx:for="{{snapshotRows}}" wx:key="id" class="snapshot-row">
+      <text class="snapshot-time">{{item.time}}</text>
+      <text class="snapshot-note">{{item.note}}</text>
+    </view>
+
+    <button class="ghost-button danger-button logout-button" bindtap="handleLogout">退出登录</button>
+  </block>
+</view>

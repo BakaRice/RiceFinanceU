@@ -1,0 +1,27 @@
+<view class="rf-page login-page">
+  <view class="login-hero">
+    <view class="brand-mark">R</view>
+    <view>
+      <view class="page-title">RiceFinanceU</view>
+      <view class="page-subtitle">个人资产快照账本</view>
+    </view>
+  </view>
+
+  <view class="login-form">
+    <view class="field">
+      <text class="field-label">邮箱</text>
+      <input class="field-input" type="text" value="{{email}}" placeholder="请输入登录邮箱" bindinput="onEmailInput" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">密码</text>
+      <input class="field-input" password value="{{password}}" placeholder="请输入登录密码" bindinput="onPasswordInput" />
+    </view>
+
+    <view wx:if="{{error}}" class="login-error">{{error}}</view>
+
+    <button class="primary-button login-button" loading="{{submitting}}" disabled="{{!canSubmit || submitting}}" bindtap="handleLogin">
+      登录
+    </button>
+  </view>
+</view>

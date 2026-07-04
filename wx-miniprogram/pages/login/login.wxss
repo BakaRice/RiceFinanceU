@@ -1,0 +1,57 @@
+.login-page {
+  padding-top: 88rpx;
+}
+
+.login-hero {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.brand-mark {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: #173e35;
+  border-radius: 16rpx;
+  font-size: 42rpx;
+  font-weight: 800;
+}
+
+.login-form {
+  margin-top: 70rpx;
+}
+
+.field {
+  margin-bottom: 22rpx;
+  padding: 22rpx 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #dfe6df;
+  border-radius: 16rpx;
+}
+
+.field-label {
+  display: block;
+  color: #68746c;
+  font-size: 23rpx;
+}
+
+.field-input {
+  height: 58rpx;
+  margin-top: 8rpx;
+  color: #18201b;
+  font-size: 30rpx;
+}
+
+.login-error {
+  margin: 10rpx 0 22rpx;
+  color: #b83232;
+  font-size: 24rpx;
+}
+
+.login-button {
+  margin-top: 34rpx;
+}
