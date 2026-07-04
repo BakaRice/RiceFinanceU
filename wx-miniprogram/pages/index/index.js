@@ -165,26 +165,8 @@ Component({
       }
     },
 
-    goEntry() {
-      wx.navigateTo({ url: '/pages/entry/entry' })
-    },
-
     handleRefresh() {
       this.loadIfAuthenticated()
-    },
-
-    handleLogout() {
-      wx.showModal({
-        title: '退出登录',
-        content: '确定要退出这个小程序吗？',
-        confirmText: '退出',
-        confirmColor: '#b83232',
-        success: async (res) => {
-          if (!res.confirm) return
-          await api.logout()
-          wx.redirectTo({ url: '/pages/login/login' })
-        },
-      })
     },
   },
 })

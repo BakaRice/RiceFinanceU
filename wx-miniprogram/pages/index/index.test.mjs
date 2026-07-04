@@ -131,6 +131,14 @@ test('总览页事件处理函数放在 methods 中，匹配微信 Component 页
 
   loadCommonJs('pages/index/index.js')
 
-  assert.equal(typeof pageDefinition.methods?.goEntry, 'function')
   assert.equal(typeof pageDefinition.methods?.handleRefresh, 'function')
+})
+
+test('总览页不展示常驻录入、退出、刷新主按钮', () => {
+  const wxml = readFileSync(path.resolve(rootDir, 'pages/index/index.wxml'), 'utf8')
+
+  assert.equal(wxml.includes('quick-actions'), false)
+  assert.equal(wxml.includes('bindtap="goEntry"'), false)
+  assert.equal(wxml.includes('bindtap="handleLogout"'), false)
+  assert.equal(wxml.includes('class="topbar-button"'), false)
 })

@@ -18,6 +18,8 @@ wx-miniprogram/project.private.config.json
 
 # Data files (auto-generated at runtime)
 data/
+!wx-miniprogram/pages/data/
+!wx-miniprogram/pages/data/**
 
 # Editor directories and files
 .vscode/*

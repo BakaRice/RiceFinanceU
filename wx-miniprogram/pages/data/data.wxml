@@ -1,0 +1,31 @@
+<view class="rf-page data-page">
+  <view class="page-title">数据管理</view>
+
+  <view class="section-header">
+    <text class="section-title">JSON 备份</text>
+  </view>
+
+  <view class="data-panel">
+    <button class="primary-button data-button" loading="{{exporting}}" disabled="{{exporting}}" bindtap="handleExport">
+      导出 JSON
+    </button>
+
+    <view class="import-box">
+      <textarea class="import-textarea" value="{{importText}}" placeholder="粘贴 JSON" maxlength="-1" bindinput="onImportInput" />
+    </view>
+
+    <button class="ghost-button data-button" loading="{{importing}}" disabled="{{importing || !importText}}" bindtap="handleImport">
+      导入 JSON
+    </button>
+  </view>
+
+  <view class="section-header">
+    <text class="section-title">账号</text>
+  </view>
+
+  <view class="data-panel">
+    <button class="ghost-button danger-button data-button" bindtap="handleLogout">
+      退出登录
+    </button>
+  </view>
+</view>

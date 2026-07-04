@@ -2,13 +2,39 @@
   "pages": [
     "pages/login/login",
     "pages/index/index",
-    "pages/entry/entry"
+    "pages/assets/assets",
+    "pages/entry/entry",
+    "pages/data/data"
   ],
   "window": {
-    "backgroundColor": "#f4f6f3",
-    "navigationBarBackgroundColor": "#f8faf6",
+    "backgroundColor": "#f3f4f6",
+    "navigationBarBackgroundColor": "#f3f4f6",
     "navigationBarTitleText": "RiceFinanceU",
     "navigationBarTextStyle": "black"
+  },
+  "tabBar": {
+    "color": "#7a838d",
+    "selectedColor": "#2d5f7e",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "总览"
+      },
+      {
+        "pagePath": "pages/assets/assets",
+        "text": "资产"
+      },
+      {
+        "pagePath": "pages/entry/entry",
+        "text": "录入"
+      },
+      {
+        "pagePath": "pages/data/data",
+        "text": "数据"
+      }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",

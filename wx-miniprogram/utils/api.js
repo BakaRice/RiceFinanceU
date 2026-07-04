@@ -72,11 +72,25 @@ async function logout() {
 }
 
 module.exports = {
+  createAsset(data) {
+    return request('/assets', {
+      method: 'POST',
+      data,
+    })
+  },
   createSnapshot(data) {
     return request('/snapshots', {
       method: 'POST',
       data,
     })
+  },
+  deleteAsset(id) {
+    return request(`/assets/${id}`, {
+      method: 'DELETE',
+    })
+  },
+  exportData() {
+    return request('/export')
   },
   getAssets() {
     return request('/assets')
@@ -90,7 +104,19 @@ module.exports = {
   getSnapshots() {
     return request('/snapshots')
   },
+  importData(data) {
+    return request('/import', {
+      method: 'POST',
+      data,
+    })
+  },
   login,
   logout,
   request,
+  updateAsset(id, data) {
+    return request(`/assets/${id}`, {
+      method: 'PATCH',
+      data,
+    })
+  },
 }

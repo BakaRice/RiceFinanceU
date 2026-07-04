@@ -146,11 +146,7 @@ Page({
         icon: 'success',
       })
       setTimeout(() => {
-        if (getCurrentPages().length > 1) {
-          wx.navigateBack({ delta: 1 })
-        } else {
-          wx.redirectTo({ url: '/pages/index/index' })
-        }
+        wx.switchTab({ url: '/pages/index/index' })
       }, 450)
     } catch (error) {
       wx.showToast({

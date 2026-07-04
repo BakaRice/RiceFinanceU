@@ -1,0 +1,123 @@
+<view class="rf-page assets-page">
+  <view wx:if="{{loading}}" class="page-state">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:elif="{{error}}" class="page-state">
+    <text>{{error}}</text>
+    <button class="ghost-button" bindtap="handleRefresh">重试</button>
+  </view>
+
+  <block wx:else>
+    <view class="assets-topbar">
+      <view>
+        <view class="page-title">资产管理</view>
+        <view class="assets-meta">
+          <text>启用 {{activeCount}}</text>
+          <text wx:if="{{inactiveCount > 0}}">停用 {{inactiveCount}}</text>
+          <text>{{currencyLabel}}</text>
+        </view>
+      </view>
+      <button class="topbar-action" bindtap="openCreate">新增</button>
+    </view>
+
+    <view wx:if="{{activeRows.length === 0 && inactiveRows.length === 0}}" class="empty-text">
+      暂无资产
+    </view>
+
+    <block wx:else>
+      <view wx:if="{{activeRows.length > 0}}" class="section-header">
+        <text class="section-title">已启用</text>
+        <text class="muted-text">{{activeRows.length}} 项</text>
+      </view>
+      <view wx:if="{{activeRows.length > 0}}" class="asset-list">
+        <view wx:for="{{activeRows}}" wx:key="id" class="asset-item">
+          <view class="asset-head">
+            <view class="asset-title">
+              <text class="asset-name">{{item.name}}</text>
+              <text class="asset-sub">{{item.typeLabel}} · {{item.currency}} · {{item.institution}}</text>
+            </view>
+            <view class="asset-amount number-text">{{item.amountText}}</view>
+          </view>
+
+          <view class="asset-metrics">
+            <view class="metric-cell">
+              <text class="metric-label">收益</text>
+              <text class="metric-value metric-{{item.profitTone}} number-text">{{item.profitText}}</text>
+            </view>
+            <view class="metric-cell">
+              <text class="metric-label">收益率</text>
+              <text class="metric-value number-text">{{item.profitRateText}}</text>
+            </view>
+          </view>
+
+          <view wx:if="{{item.note}}" class="asset-note">{{item.note}}</view>
+
+          <view class="row-actions">
+            <button class="row-button" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
+            <button class="row-button danger-row-button" data-id="{{item.id}}" bindtap="handleDeactivate">停用</button>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{inactiveRows.length > 0}}" class="section-header">
+        <text class="section-title">已停用</text>
+        <text class="muted-text">{{inactiveRows.length}} 项</text>
+      </view>
+      <view wx:if="{{inactiveRows.length > 0}}" class="asset-list">
+        <view wx:for="{{inactiveRows}}" wx:key="id" class="asset-item asset-item-muted">
+          <view class="asset-head">
+            <view class="asset-title">
+              <text class="asset-name">{{item.name}}</text>
+              <text class="asset-sub">{{item.typeLabel}} · {{item.currency}} · {{item.institution}}</text>
+            </view>
+            <view class="asset-amount number-text">{{item.amountText}}</view>
+          </view>
+          <view class="row-actions">
+            <button class="row-button" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <view wx:if="{{showForm}}" class="form-mask" bindtap="closeForm">
+      <view class="asset-form" catchtap="noop">
+        <view class="form-title">{{formTitle}}</view>
+
+        <view class="form-field">
+          <text class="form-label">名称</text>
+          <input class="form-input" value="{{name}}" placeholder="名称" bindinput="onNameInput" />
+        </view>
+
+        <picker range="{{assetTypeOptions}}" range-key="label" value="{{typeIndex}}" bindchange="onTypeChange">
+          <view class="form-field picker-form-field">
+            <text class="form-label">类型</text>
+            <text class="form-value">{{assetTypeOptions[typeIndex].label}}</text>
+          </view>
+        </picker>
+
+        <picker range="{{currencyOptions}}" range-key="label" value="{{currencyIndex}}" bindchange="onCurrencyChange">
+          <view class="form-field picker-form-field">
+            <text class="form-label">币种</text>
+            <text class="form-value">{{currencyOptions[currencyIndex].label}}</text>
+          </view>
+        </picker>
+
+        <view class="form-field">
+          <text class="form-label">平台/机构</text>
+          <input class="form-input" value="{{institution}}" placeholder="平台/机构" bindinput="onInstitutionInput" />
+        </view>
+
+        <view class="form-field">
+          <text class="form-label">备注</text>
+          <input class="form-input" value="{{note}}" placeholder="备注" bindinput="onNoteInput" />
+        </view>
+
+        <view class="form-actions">
+          <button class="ghost-button form-action" bindtap="closeForm">取消</button>
+          <button class="primary-button form-action" loading="{{saving}}" disabled="{{saving}}" bindtap="handleSave">保存</button>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

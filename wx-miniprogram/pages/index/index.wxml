@@ -14,7 +14,6 @@
         <view class="page-title">总览</view>
         <view class="topbar-date">{{latestLabel}}</view>
       </view>
-      <button class="topbar-button" bindtap="handleRefresh">刷新</button>
     </view>
 
     <view class="balance-block">
@@ -39,11 +38,6 @@
           <text class="metric-decimal">{{item.valueParts.decimal}}</text>
         </view>
       </view>
-    </view>
-
-    <view class="quick-actions">
-      <button class="primary-button action-main" bindtap="goEntry">录入</button>
-      <button class="ghost-button action-secondary" bindtap="handleLogout">退出</button>
     </view>
 
     <view class="section-header">

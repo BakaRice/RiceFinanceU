@@ -40,7 +40,7 @@ Page({
         email: this.data.email.trim(),
         password: this.data.password,
       })
-      wx.redirectTo({ url: '/pages/index/index' })
+      wx.switchTab({ url: '/pages/index/index' })
     } catch (error) {
       this.setData({
         error: error.message || '登录失败',
@@ -51,6 +51,6 @@ Page({
   },
 
   goDashboard() {
-    wx.redirectTo({ url: '/pages/index/index' })
+    wx.switchTab({ url: '/pages/index/index' })
   },
 })

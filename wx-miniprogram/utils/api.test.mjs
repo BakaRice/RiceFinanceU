@@ -116,3 +116,45 @@ test('network failures keep the platform error message for debugging request dom
 
   await assert.rejects(() => api.getAssets(), /url not in domain list/)
 })
+
+test('asset management helpers call the same endpoints as the desktop app', async () => {
+  globalThis.wx = createWxMock(() => ({ statusCode: 200, data: { success: true } }))
+  globalThis.wx.storage['ricefinanceu.sessionToken'] = 'stored-token'
+
+  const api = loadCommonJs('utils/api.js')
+
+  await api.createAsset({ name: '现金', type: 'cash', currency: 'CNY' })
+  await api.updateAsset('asset-1', { name: '现金账户' })
+  await api.deleteAsset('asset-1')
+
+  assert.equal(globalThis.wx.requests[0].url, 'https://ricefinanceu.ricemarch-finance.workers.dev/api/assets')
+  assert.equal(globalThis.wx.requests[0].method, 'POST')
+  assert.deepEqual(globalThis.wx.requests[0].data, { name: '现金', type: 'cash', currency: 'CNY' })
+  assert.equal(globalThis.wx.requests[1].url, 'https://ricefinanceu.ricemarch-finance.workers.dev/api/assets/asset-1')
+  assert.equal(globalThis.wx.requests[1].method, 'PATCH')
+  assert.deepEqual(globalThis.wx.requests[1].data, { name: '现金账户' })
+  assert.equal(globalThis.wx.requests[2].url, 'https://ricefinanceu.ricemarch-finance.workers.dev/api/assets/asset-1')
+  assert.equal(globalThis.wx.requests[2].method, 'DELETE')
+})
+
+test('data management helpers call export and import endpoints', async () => {
+  globalThis.wx = createWxMock(() => ({ statusCode: 200, data: { success: true } }))
+  globalThis.wx.storage['ricefinanceu.sessionToken'] = 'stored-token'
+
+  const api = loadCommonJs('utils/api.js')
+  const backup = {
+    meta: { schemaVersion: 2 },
+    assets: [],
+    snapshots: [],
+    snapshotValues: [],
+  }
+
+  await api.exportData()
+  await api.importData(backup)
+
+  assert.equal(globalThis.wx.requests[0].url, 'https://ricefinanceu.ricemarch-finance.workers.dev/api/export')
+  assert.equal(globalThis.wx.requests[0].method, 'GET')
+  assert.equal(globalThis.wx.requests[1].url, 'https://ricefinanceu.ricemarch-finance.workers.dev/api/import')
+  assert.equal(globalThis.wx.requests[1].method, 'POST')
+  assert.deepEqual(globalThis.wx.requests[1].data, backup)
+})
