@@ -12,14 +12,14 @@
 
 第一版只有一个用户：
 
-- 邮箱：`resmarch404@gmail.com`
-- 密码：部署时通过 Cloudflare Worker Secret 配置，不写入代码仓库。
+- 邮箱：部署时通过 `APP_USER_EMAIL` 配置，不写入代码仓库。
+- 密码：部署时通过 `APP_PASSWORD` 配置，不写入代码仓库。
 
 登录流程：
 
 1. 前端显示登录页，输入邮箱和密码。
 2. `POST /api/auth/login` 把邮箱和密码发给 Worker。
-3. Worker 校验邮箱必须是 `resmarch404@gmail.com`，密码必须匹配 `APP_PASSWORD` Secret。
+3. Worker 校验邮箱必须匹配 `APP_USER_EMAIL`，密码必须匹配 `APP_PASSWORD`。
 4. 登录成功后，Worker 生成随机 session token，把 token hash 后写入 KV。
 5. 前端把明文 session token 存在浏览器本地存储。
 6. 后续 API 请求使用 `Authorization: Bearer <session token>`。
@@ -63,6 +63,7 @@ Worker 保留当前前端已经依赖的 `/api` 路径，尽量减少 UI 侧改�
 
 公开接口：
 
+- `GET /api/auth/config`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/health`
@@ -112,8 +113,8 @@ Wrangler 配置包含：
 - Worker main：`worker/index.js`
 - 静态资源目录：`dist`
 - KV binding：`FINANCE_KV`
+- Secret：`APP_USER_EMAIL`
 - Secret：`APP_PASSWORD`
-- 变量：`APP_USER_EMAIL = "resmarch404@gmail.com"`
 
 ## 非目标
 

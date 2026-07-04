@@ -18,7 +18,7 @@
 - Create `wrangler.jsonc`: Cloudflare Worker config, KV binding, static assets, compatibility date, observability.
 - Modify `src/api/client.ts`: add session token handling, auth API calls, and automatic `Authorization` header.
 - Create `src/api/session.ts`: browser session storage helper.
-- Create `src/pages/LoginPage.tsx` and `src/pages/LoginPage.css`: login screen for the fixed email account.
+- Create `src/pages/LoginPage.tsx` and `src/pages/LoginPage.css`: login screen for the configured single-user account.
 - Modify `src/main.tsx` or `src/App.tsx`: add auth gate around the existing app.
 - Modify `README.md`: document local dev, first deploy, KV namespace, and secret setup in Chinese.
 
@@ -70,9 +70,9 @@
 - Modify: `README.md`
 
 - [ ] Add scripts for Worker local dev and deploy.
-- [ ] Add `wrangler.jsonc` with static assets, KV binding placeholder, `APP_USER_EMAIL`, and observability.
+- [ ] Add `wrangler.jsonc` with static assets, KV binding placeholder, and observability.
 - [ ] Keep Vite usable, but make Worker the deploy target.
-- [ ] Document `wrangler kv namespace create FINANCE_KV`, `wrangler secret put APP_PASSWORD`, `npm run build`, and `npm run deploy`.
+- [ ] Document `wrangler kv namespace create FINANCE_KV`, `wrangler secret put APP_USER_EMAIL`, `wrangler secret put APP_PASSWORD`, `npm run build`, and `npm run deploy`.
 - [ ] Run tests, `npm run build`, and Worker syntax checks.
 
 ### Task 5: Final Verification

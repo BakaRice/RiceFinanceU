@@ -234,6 +234,11 @@ async function handleLogin(request, env) {
   })
 }
 
+function handleAuthConfig(request, env) {
+  if (request.method !== 'GET') return methodNotAllowed()
+  return json({ userEmail: normalizeEmail(env.APP_USER_EMAIL) })
+}
+
 async function handleLogout(request, env) {
   if (request.method !== 'POST') return methodNotAllowed()
 
@@ -513,6 +518,10 @@ async function handleApi(request, env) {
 
   if (url.pathname === '/api/auth/login') {
     return handleLogin(request, env)
+  }
+
+  if (url.pathname === '/api/auth/config') {
+    return handleAuthConfig(request, env)
   }
 
   if (url.pathname === '/api/auth/logout') {

@@ -14,7 +14,7 @@ Cloudflare Worker 同时托管前端静态资源 dist/
 
 第一版只支持一个用户：
 
-- 登录邮箱：`resmarch404@gmail.com`
+- 登录邮箱：通过 Cloudflare Secret 或本地 `.dev.vars` 配置
 - 登录密码：通过 Cloudflare Secret 或本地 `.dev.vars` 配置
 
 ## 本地开发
@@ -31,7 +31,7 @@ npm install
 cp .dev.vars.example .dev.vars
 ```
 
-然后编辑 `.dev.vars`，把 `APP_PASSWORD` 改成你的本地登录密码。
+然后编辑 `.dev.vars`，把 `APP_USER_EMAIL` 和 `APP_PASSWORD` 改成你的本地登录邮箱和密码。
 
 启动前端和 Worker API：
 
@@ -108,6 +108,7 @@ npx wrangler kv namespace create FINANCE_KV
 设置线上登录密码：
 
 ```bash
+npx wrangler secret put APP_USER_EMAIL
 npx wrangler secret put APP_PASSWORD
 ```
 

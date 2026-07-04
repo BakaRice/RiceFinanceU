@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from './client'
 import { getSessionToken, setSessionToken } from './session'
 
+const TEST_EMAIL = 'owner@example.com'
+
 function installLocalStorageMock() {
   const store = new Map<string, string>()
   vi.stubGlobal('localStorage', {
@@ -25,23 +27,35 @@ describe('api client auth session', () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       token: 'session-token',
       expiresAt: '2026-08-01T00:00:00.000Z',
-      user: { email: 'resmarch404@gmail.com' },
+      user: { email: TEST_EMAIL },
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
     const result = await api.login({
-      email: 'resmarch404@gmail.com',
+      email: TEST_EMAIL,
       password: 'correct-password',
     })
 
-    expect(result.user.email).toBe('resmarch404@gmail.com')
+    expect(result.user.email).toBe(TEST_EMAIL)
     expect(getSessionToken()).toBe('session-token')
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({
-        email: 'resmarch404@gmail.com',
+        email: TEST_EMAIL,
         password: 'correct-password',
       }),
+    }))
+  })
+
+  it('可以读取登录配置里的默认邮箱', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      userEmail: TEST_EMAIL,
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.getAuthConfig()).resolves.toEqual({ userEmail: TEST_EMAIL })
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/config', expect.objectContaining({
+      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
     }))
   })
 

@@ -3,6 +3,8 @@ import test from 'node:test'
 
 import worker from './index.js'
 
+const TEST_EMAIL = 'owner@example.com'
+
 class MemoryKV {
   constructor() {
     this.values = new Map()
@@ -36,7 +38,7 @@ class MemoryKV {
 function createEnv() {
   return {
     FINANCE_KV: new MemoryKV(),
-    APP_USER_EMAIL: 'resmarch404@gmail.com',
+    APP_USER_EMAIL: TEST_EMAIL,
     APP_PASSWORD: 'correct-password',
   }
 }
@@ -61,7 +63,7 @@ async function login(env) {
   const response = await request(env, '/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({
-      email: 'resmarch404@gmail.com',
+      email: TEST_EMAIL,
       password: 'correct-password',
     }),
   })
@@ -85,14 +87,14 @@ test('正确邮箱和密码可以登录，并用 session 访问受保护接口',
   const loginResponse = await request(env, '/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({
-      email: 'resmarch404@gmail.com',
+      email: TEST_EMAIL,
       password: 'correct-password',
     }),
   })
 
   assert.equal(loginResponse.status, 200)
   const loginBody = await loginResponse.json()
-  assert.equal(loginBody.user.email, 'resmarch404@gmail.com')
+  assert.equal(loginBody.user.email, TEST_EMAIL)
   assert.equal(typeof loginBody.token, 'string')
   assert.ok(loginBody.token.length > 20)
 
@@ -112,7 +114,7 @@ test('密码错误时登录失败', async () => {
   const response = await request(env, '/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({
-      email: 'resmarch404@gmail.com',
+      email: TEST_EMAIL,
       password: 'wrong-password',
     }),
   })
@@ -128,13 +130,22 @@ test('没有配置登录密码时拒绝登录', async () => {
   const response = await request(env, '/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({
-      email: 'resmarch404@gmail.com',
+      email: TEST_EMAIL,
       password: '',
     }),
   })
 
   assert.equal(response.status, 500)
   assert.deepEqual(await response.json(), { error: '登录配置未完成' })
+})
+
+test('登录配置接口从运行时环境返回邮箱', async () => {
+  const env = createEnv()
+
+  const response = await request(env, '/api/auth/config')
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), { userEmail: TEST_EMAIL })
 })
 
 test('没有 session 时不能访问受保护接口', async () => {

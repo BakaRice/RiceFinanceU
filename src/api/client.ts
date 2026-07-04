@@ -10,6 +10,10 @@ export interface LoginResult {
   user: { email: string }
 }
 
+export interface AuthConfig {
+  userEmail: string
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const token = getSessionToken()
   const headers: Record<string, string> = {
@@ -36,6 +40,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Auth
+  getAuthConfig: () => request<AuthConfig>('/auth/config'),
   login: async (data: { email: string; password: string }) => {
     const result = await request<LoginResult>('/auth/login', {
       method: 'POST',

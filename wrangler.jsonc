@@ -14,9 +14,6 @@
       "id": "replace-with-finance-kv-namespace-id"
     }
   ],
-  "vars": {
-    "APP_USER_EMAIL": "resmarch404@gmail.com"
-  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
