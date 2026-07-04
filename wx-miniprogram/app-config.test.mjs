@@ -38,3 +38,19 @@ test('底部导航页面文件都应该存在', () => {
     }
   }
 })
+
+test('底部导航菜单应该配置本地图标', () => {
+  const appConfig = JSON.parse(readFileSync('wx-miniprogram/app.json', 'utf8'))
+  const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+  for (const item of appConfig.tabBar.list) {
+    for (const key of ['iconPath', 'selectedIconPath']) {
+      assert.equal(typeof item[key], 'string', `${item.text}.${key} should be configured`)
+      assert.equal(item[key].endsWith('.png'), true, `${item.text}.${key} should point to a PNG`)
+
+      const iconFile = `wx-miniprogram/${item[key]}`
+      assert.equal(existsSync(iconFile), true, `${iconFile} should exist`)
+      assert.deepEqual(readFileSync(iconFile).subarray(0, 8), pngSignature)
+    }
+  }
+})

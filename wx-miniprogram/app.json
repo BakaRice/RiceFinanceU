@@ -20,19 +20,27 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "总览"
+        "text": "总览",
+        "iconPath": "assets/tabbar/overview.png",
+        "selectedIconPath": "assets/tabbar/overview-active.png"
       },
       {
         "pagePath": "pages/assets/assets",
-        "text": "资产"
+        "text": "资产",
+        "iconPath": "assets/tabbar/assets.png",
+        "selectedIconPath": "assets/tabbar/assets-active.png"
       },
       {
         "pagePath": "pages/entry/entry",
-        "text": "录入"
+        "text": "录入",
+        "iconPath": "assets/tabbar/entry.png",
+        "selectedIconPath": "assets/tabbar/entry-active.png"
       },
       {
         "pagePath": "pages/data/data",
-        "text": "数据"
+        "text": "数据",
+        "iconPath": "assets/tabbar/data.png",
+        "selectedIconPath": "assets/tabbar/data-active.png"
       }
     ]
   },
