@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cloudflare-worker-demo",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-04",
+  "kv_namespaces": [
+    {
+      "binding": "DEMO_KV",
+      "id": "replace-with-your-kv-namespace-id"
+    }
+  ]
+}

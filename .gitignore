@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+.wrangler/
+.superpowers/
 
 # Data files (auto-generated at runtime)
 data/

@@ -6,18 +6,30 @@ import {
   compareSnapshots,
   buildTotalAssetSeries,
 } from '../domain/snapshots'
-import type { SnapshotTotal, AllocationItem, SnapshotComparison as SnapshotComparisonType, TotalAssetPoint } from '../domain/snapshots'
-import { formatMoney } from '../domain/money'
+import type {
+  SnapshotTotal,
+  AllocationItem,
+  SnapshotComparison as SnapshotComparisonType,
+  TotalAssetPoint,
+} from '../domain/snapshots'
 import { ASSET_TYPE_LABELS } from '../domain/assets'
-import SnapshotComparison from '../components/SnapshotComparison'
+import MoneyDisplay from '../components/MoneyDisplay'
+import { useFeedback } from '../components/Feedback/FeedbackContext'
 import type { Asset, Snapshot, SnapshotValue, ExchangeRates } from '../types/finance'
-import { CURRENCY_SYMBOLS } from '../types/finance'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from 'recharts'
 import './DashboardPage.css'
 
 export default function DashboardPage() {
+  const { toast, confirm } = useFeedback()
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState<SnapshotTotal | null>(null)
@@ -25,7 +37,6 @@ export default function DashboardPage() {
   const [comparison, setComparison] = useState<SnapshotComparisonType | null>(null)
   const [chartData, setChartData] = useState<TotalAssetPoint[]>([])
   const [hasSnapshots, setHasSnapshots] = useState(false)
-  // History
   const [allSnapshots, setAllSnapshots] = useState<Snapshot[]>([])
   const [allValues, setAllValues] = useState<SnapshotValue[]>([])
   const [allAssets, setAllAssets] = useState<Asset[]>([])
@@ -36,10 +47,13 @@ export default function DashboardPage() {
   const [usdRate, setUsdRate] = useState('7.2')
   const [hkdRate, setHkdRate] = useState('0.92')
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
   async function load() {
-    setLoading(true); setError(null)
+    setLoading(true)
+    setError(null)
     try {
       const [assets, latestData, snapshots, values, ratesData] = await Promise.all([
         api.getAssets(),
@@ -52,7 +66,6 @@ export default function DashboardPage() {
       setRates(ratesData)
       setUsdRate(String(ratesData.USD))
       setHkdRate(String(ratesData.HKD))
-
       setAllSnapshots(snapshots)
       setAllValues(values)
       setAllAssets(assets)
@@ -69,14 +82,18 @@ export default function DashboardPage() {
       setTotal(calculateSnapshotTotal(latestData.values, activeAssets, ratesData))
       setAllocation(calculateAllocation(latestData.values, activeAssets, ratesData))
 
-      const sortedSnapshots = [...snapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+      const sortedSnapshots = [...snapshots].sort((a, b) =>
+        a.recordedAt.localeCompare(b.recordedAt)
+      )
       const valuesBySnapshot = new Map<string, SnapshotValue[]>()
       for (const v of values) {
         const list = valuesBySnapshot.get(v.snapshotId) || []
         list.push(v)
         valuesBySnapshot.set(v.snapshotId, list)
       }
-      setChartData(buildTotalAssetSeries(sortedSnapshots, valuesBySnapshot, activeAssets, ratesData))
+      setChartData(
+        buildTotalAssetSeries(sortedSnapshots, valuesBySnapshot, activeAssets, ratesData)
+      )
 
       if (sortedSnapshots.length >= 2) {
         const latest = sortedSnapshots[sortedSnapshots.length - 1]
@@ -93,79 +110,106 @@ export default function DashboardPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('确定删除这个快照吗？快照下的所有资产值也会被删除。')) return
+    const ok = await confirm({
+      title: '删除快照',
+      message: '确定删除这个快照吗？快照下的所有资产值也会被删除。',
+      confirmLabel: '删除',
+      cancelLabel: '取消',
+      variant: 'danger',
+    })
+    if (!ok) return
     setDeletingId(id)
     try {
       await api.deleteSnapshot(id)
+      toast('快照已删除')
       await load()
     } catch (e: any) {
-      alert('删除失败: ' + e.message)
+      toast('删除失败: ' + e.message, 'error')
     } finally {
       setDeletingId(null)
     }
-  }
-
-  function getSnapshotTotal(snapshotId: string): number {
-    const activeAssetIds = new Set(allAssets.filter((a) => a.isActive).map((a) => a.id))
-    return allValues
-      .filter((v) => v.snapshotId === snapshotId && activeAssetIds.has(v.assetId))
-      .reduce((sum, v) => sum + v.amount, 0)
   }
 
   function getSnapshotValues(snapshotId: string): SnapshotValue[] {
     return allValues.filter((v) => v.snapshotId === snapshotId)
   }
 
+  function getSnapshotTotalCNY(snapshotId: string): number {
+    const activeAssetIds = new Set(allAssets.filter((a) => a.isActive).map((a) => a.id))
+    return allValues
+      .filter((v) => v.snapshotId === snapshotId && activeAssetIds.has(v.assetId))
+      .reduce((sum, v) => {
+        const asset = allAssets.find((a) => a.id === v.assetId)
+        const factor =
+          asset?.currency === 'USD'
+            ? rates.USD
+            : asset?.currency === 'HKD'
+              ? rates.HKD
+              : 1
+        return sum + v.amount * factor
+      }, 0)
+  }
+
   if (loading) return <div className="page-loading">加载中...</div>
-  if (error) return <div className="page-error"><p>{error}</p><button onClick={load}>重试</button></div>
+  if (error)
+    return (
+      <div className="page-error">
+        <p>{error}</p>
+        <button onClick={load}>重试</button>
+      </div>
+    )
 
   if (!hasSnapshots) {
     return (
-      <div className="dashboard-empty">
+      <div className="dash-empty">
         <h1>总览</h1>
         <div className="empty-state">
-          <p className="empty-icon">📊</p>
           <h2>欢迎使用资产快照账本</h2>
-          <p>还没有快照数据。去<strong>录入</strong>页面创建你的第一份资产快照吧！</p>
-          <p className="empty-hint">每次录入只需要填写本次变化的资产，未填写的资产会自动沿用上次的值。</p>
+          <p>
+            还没有快照数据。去<strong>录入</strong>页面创建你的第一份资产快照。
+          </p>
+          <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
+            每次录入只需填写本次变化的资产，未填写的资产会自动沿用上次的值。
+          </p>
         </div>
       </div>
     )
   }
 
   const maxAllocAmount = Math.max(...allocation.map((a) => a.amount), 1)
-  // Reverse chronological for history display
-  const historySnapshots = [...allSnapshots].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+  const historySnapshots = [...allSnapshots].sort((a, b) =>
+    b.recordedAt.localeCompare(a.recordedAt)
+  )
 
   return (
     <div className="dashboard">
-      <h1>总览</h1>
+      <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, marginBottom: 16 }}>
+        总览
+      </h1>
 
-      <div className="dashboard-cards">
-        <div className="dash-card">
-          <div className="dash-card-label">总资产 (折合CNY)</div>
-          <div className="dash-card-value">{total ? formatMoney(total.totalAmountCNY) : '-'}</div>
-          {total && total.byCurrency.length > 1 && (
-            <div className="dash-card-sub">
-              {total.byCurrency.map((bc) => (
-                <span key={bc.currency}>{CURRENCY_SYMBOLS[bc.currency as keyof typeof CURRENCY_SYMBOLS] || bc.currency}{formatMoney(bc.amount)}</span>
-              ))}
-            </div>
-          )}
+      {/* Compact stat bar */}
+      <div className="dash-stat-bar">
+        <div className="dash-stat-item">
+          <span className="dash-stat-label">总资产 (CNY)</span>
+          <MoneyDisplay value={total?.totalAmountCNY} />
         </div>
-        <div className="dash-card">
-          <div className="dash-card-label">投资类 (折合CNY)</div>
-          <div className="dash-card-value">{total ? formatMoney(total.investmentAmountCNY) : '-'}</div>
-        </div>
-        <div className="dash-card">
-          <div className="dash-card-label">余额类 (折合CNY)</div>
-          <div className="dash-card-value">{total ? formatMoney(total.balanceAmountCNY) : '-'}</div>
-        </div>
-        <div className="dash-card">
-          <div className="dash-card-label">投资收益 (折合CNY)</div>
-          <div className={`dash-card-value ${(total?.totalProfitCNY || 0) >= 0 ? 'profit' : 'loss'}`}>
-            {total ? ((total.totalProfitCNY >= 0 ? '+' : '') + formatMoney(total.totalProfitCNY)) : '-'}
+        {comparison && (
+          <div className="dash-stat-item">
+            <span className="dash-stat-label">较上次变化</span>
+            <MoneyDisplay value={comparison.totalAmountChange} isProfit />
           </div>
+        )}
+        <div className="dash-stat-item">
+          <span className="dash-stat-label">投资类</span>
+          <MoneyDisplay value={total?.investmentAmountCNY} />
+        </div>
+        <div className="dash-stat-item">
+          <span className="dash-stat-label">余额类</span>
+          <MoneyDisplay value={total?.balanceAmountCNY} />
+        </div>
+        <div className="dash-stat-item">
+          <span className="dash-stat-label">投资收益</span>
+          <MoneyDisplay value={total?.totalProfitCNY} isProfit />
         </div>
       </div>
 
@@ -173,38 +217,75 @@ export default function DashboardPage() {
       <div className="rates-bar">
         {editingRates ? (
           <>
-            <span>汇率: </span>
-            <label>USD <input type="number" step="0.01" value={usdRate} onChange={(e) => setUsdRate(e.target.value)} style={{width:70}} /></label>
-            <label>HKD <input type="number" step="0.01" value={hkdRate} onChange={(e) => setHkdRate(e.target.value)} style={{width:70}} /></label>
-            <button className="btn-link" onClick={async () => {
-              await api.updateRates({ USD: Number(usdRate), HKD: Number(hkdRate) })
-              setEditingRates(false)
-              load()
-            }}>保存</button>
-            <button className="btn-link" onClick={() => setEditingRates(false)}>取消</button>
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>汇率:</span>
+            <label>
+              USD{' '}
+              <input
+                type="number"
+                step="0.01"
+                value={usdRate}
+                onChange={(e) => setUsdRate(e.target.value)}
+                className="rates-input"
+              />
+            </label>
+            <label>
+              HKD{' '}
+              <input
+                type="number"
+                step="0.01"
+                value={hkdRate}
+                onChange={(e) => setHkdRate(e.target.value)}
+                className="rates-input"
+              />
+            </label>
+            <button
+              className="btn-link"
+              onClick={async () => {
+                await api.updateRates({ USD: Number(usdRate), HKD: Number(hkdRate) })
+                setEditingRates(false)
+                load()
+              }}
+            >
+              保存
+            </button>
+            <button className="btn-link" onClick={() => setEditingRates(false)}>
+              取消
+            </button>
           </>
         ) : (
-          <span onClick={() => setEditingRates(true)} style={{cursor:'pointer'}}>
-            汇率: USD {rates.USD} | HKD {rates.HKD} <span style={{color:'#4a90d9',fontSize:12}}>修改</span>
+          <span
+            onClick={() => setEditingRates(true)}
+            style={{ cursor: 'pointer', fontSize: 12, color: 'var(--color-text-muted)' }}
+          >
+            汇率: USD {rates.USD.toFixed(2)} | HKD {rates.HKD.toFixed(2)}{' '}
+            <span style={{ color: 'var(--color-primary)', fontSize: 11 }}>修改</span>
           </span>
         )}
       </div>
 
-      <div className="dashboard-grid">
+      <div className="dash-grid">
+        {/* Allocation */}
         <div className="dash-section">
-          <h3>资产类别占比</h3>
+          <h3 className="section-title">资产类别占比</h3>
           {allocation.length === 0 ? (
-            <p className="tx-empty">暂无数据</p>
+            <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
+              暂无数据
+            </p>
           ) : (
-            <div className="allocation-bars">
+            <div className="allocation-list">
               {allocation.map((item) => (
                 <div key={item.type} className="allocation-row">
-                  <div className="allocation-label">
-                    <span>{item.label}</span>
-                    <span>{formatMoney(item.amount)}</span>
+                  <div className="allocation-head">
+                    <span className="allocation-type">{item.label}</span>
+                    <span className="allocation-amount">
+                      <MoneyDisplay value={item.amount} showCurrency={false} />
+                    </span>
                   </div>
-                  <div className="allocation-bar-bg">
-                    <div className="allocation-bar-fill" style={{ width: `${(item.amount / maxAllocAmount) * 100}%` }} />
+                  <div className="allocation-bar-track">
+                    <div
+                      className="allocation-bar-fill"
+                      style={{ width: `${(item.amount / maxAllocAmount) * 100}%` }}
+                    />
                   </div>
                   <span className="allocation-pct">{item.percentage}%</span>
                 </div>
@@ -213,25 +294,106 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Recent changes */}
         <div className="dash-section">
-          <h3>最近变化</h3>
-          <SnapshotComparison comparison={comparison} />
+          <h3 className="section-title">最近变化</h3>
+          {comparison && comparison.items.filter((i) => i.amountChange !== 0).length > 0 ? (
+            <table className="fin-table">
+              <thead>
+                <tr>
+                  <th>资产</th>
+                  <th className="align-right">上次金额</th>
+                  <th className="align-right">本次金额</th>
+                  <th className="align-right">变化</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.items
+                  .filter((i) => i.amountChange !== 0)
+                  .slice(0, 10)
+                  .map((item) => {
+                    const asset = allAssets.find((a) => a.id === item.assetId)
+                    return (
+                      <tr key={item.assetId}>
+                        <td>{item.assetName}</td>
+                        <td className="align-right">
+                          <MoneyDisplay
+                            value={item.previousAmount}
+                            currency={asset?.currency}
+                            showCurrency={false}
+                          />
+                        </td>
+                        <td className="align-right">
+                          <MoneyDisplay
+                            value={item.currentAmount}
+                            currency={asset?.currency}
+                            showCurrency={false}
+                          />
+                        </td>
+                        <td className="align-right">
+                          <MoneyDisplay value={item.amountChange} isProfit showCurrency={false} />
+                        </td>
+                      </tr>
+                    )
+                  })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
+              暂无变化
+            </p>
+          )}
         </div>
       </div>
 
+      {/* Chart */}
       {chartData.length > 0 && (
-        <div className="dash-section">
-          <h3>总资产走势</h3>
+        <div className="dash-section" style={{ marginTop: 16 }}>
+          <h3 className="section-title">总资产走势</h3>
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={280}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="recordedAt" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => (v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v))} />
-                <Tooltip formatter={((value: any) => [formatMoney(Number(value))]) as any} />
-                <Line type="monotone" dataKey="totalAmount" name="总资产" stroke="#4a90d9" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="investmentAmount" name="投资类" stroke="#52c41a" strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
-                <Line type="monotone" dataKey="balanceAmount" name="余额类" stroke="#faad14" strokeWidth={1.5} dot={false} />
+                <XAxis dataKey="recordedAt" tick={{ fontSize: 11 }} />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) =>
+                    v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
+                  }
+                />
+                <Tooltip
+                  formatter={((value: any) => [
+                    Number(value).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }),
+                  ]) as any}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="totalAmount"
+                  name="总资产"
+                  stroke="#2d5f7e"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="investmentAmount"
+                  name="投资类"
+                  stroke="#3a7d5a"
+                  strokeWidth={1.5}
+                  dot={false}
+                  strokeDasharray="5 5"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="balanceAmount"
+                  name="余额类"
+                  stroke="#b8860b"
+                  strokeWidth={1.5}
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -239,34 +401,49 @@ export default function DashboardPage() {
       )}
 
       {/* Snapshot History */}
-      <div className="dash-section">
-        <h3>快照历史 ({historySnapshots.length})</h3>
+      <div className="dash-section" style={{ marginTop: 16 }}>
+        <h3 className="section-title">快照历史 ({historySnapshots.length})</h3>
         {historySnapshots.length === 0 ? (
-          <p className="tx-empty">暂无记录</p>
+          <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
+            暂无记录
+          </p>
         ) : (
           <div className="history-list">
             {historySnapshots.map((snap) => {
               const snapValues = getSnapshotValues(snap.id)
-              const snapTotal = getSnapshotTotal(snap.id)
+              const snapTotal = getSnapshotTotalCNY(snap.id)
               const isExpanded = expandedId === snap.id
               const date = new Date(snap.recordedAt)
 
               return (
-                <div key={snap.id} className={`history-item ${isExpanded ? 'expanded' : ''}`}>
-                  <div className="history-item-header" onClick={() => setExpandedId(isExpanded ? null : snap.id)}>
+                <div
+                  key={snap.id}
+                  className={`history-item ${isExpanded ? 'expanded' : ''}`}
+                >
+                  <div
+                    className="history-item-header"
+                    onClick={() => setExpandedId(isExpanded ? null : snap.id)}
+                  >
                     <div className="history-item-main">
                       <span className="history-date">
-                        {date.toLocaleDateString('zh-CN')} {date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                        {date.toLocaleDateString('zh-CN')}{' '}
+                        {date.toLocaleTimeString('zh-CN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
                       <span className="history-note">{snap.note || '快照'}</span>
                     </div>
                     <div className="history-item-actions">
-                      <span className="history-total">{formatMoney(snapTotal)}</span>
+                      <MoneyDisplay value={snapTotal} />
                       <span className="history-count">{snapValues.length} 项</span>
                       <button
                         className="btn-delete-snapshot"
                         disabled={deletingId === snap.id}
-                        onClick={(e) => { e.stopPropagation(); handleDelete(snap.id) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(snap.id)
+                        }}
                       >
                         {deletingId === snap.id ? '...' : '✕'}
                       </button>
@@ -275,18 +452,37 @@ export default function DashboardPage() {
 
                   {isExpanded && (
                     <div className="history-item-detail">
-                      <table className="history-value-table">
-                        <thead><tr><th>资产</th><th>类型</th><th>金额</th><th>收益</th></tr></thead>
+                      <table className="fin-table">
+                        <thead>
+                          <tr>
+                            <th>资产</th>
+                            <th>类型</th>
+                            <th className="align-right">金额</th>
+                            <th className="align-right">收益</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {snapValues.map((v) => {
                             const asset = allAssets.find((a) => a.id === v.assetId)
                             return (
                               <tr key={v.id}>
                                 <td>{asset?.name || v.assetId}</td>
-                                <td><span className="type-badge">{ASSET_TYPE_LABELS[asset?.type as keyof typeof ASSET_TYPE_LABELS] || asset?.type || '-'}</span></td>
-                                <td className="amount-cell">{formatMoney(v.amount)}</td>
-                                <td className={`amount-cell ${(v.profit || 0) >= 0 ? 'profit' : 'loss'}`}>
-                                  {v.profit !== undefined ? ((v.profit >= 0 ? '+' : '') + formatMoney(v.profit)) : '-'}
+                                <td>
+                                  <span className="type-badge">
+                                    {ASSET_TYPE_LABELS[
+                                      asset?.type as keyof typeof ASSET_TYPE_LABELS
+                                    ] || asset?.type || '-'}
+                                  </span>
+                                </td>
+                                <td className="align-right">
+                                  <MoneyDisplay
+                                    value={v.amount}
+                                    currency={asset?.currency}
+                                    showCurrency={false}
+                                  />
+                                </td>
+                                <td className="align-right">
+                                  <MoneyDisplay value={v.profit} isProfit />
                                 </td>
                               </tr>
                             )

@@ -1,22 +1,71 @@
-.snapshot-comparison { background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
-.comparison-empty { color:#999; text-align:center; padding:20px; }
-.comparison-summary { display:flex; gap:32px; margin-bottom:16px; }
-.comparison-stat { display:flex; flex-direction:column; }
-.stat-label { font-size:12px; color:#888; }
-.stat-value { font-size:20px; font-weight:600; }
-.stat-value.positive { color:#52c41a; }
-.stat-value.negative { color:#e94560; }
+.snapshot-comparison {
+  /* Used inside dash-section, so no card styling */
+}
 
-.comparison-items { border-top:1px solid #f0f0f0; padding-top:12px; }
-.comparison-item { padding:8px 0; border-bottom:1px solid #f9f9f9; }
-.comparison-item:last-child { border-bottom:none; }
-.comparison-item-header { display:flex; justify-content:space-between; align-items:center; }
-.comparison-item-name { font-size:14px; font-weight:500; }
-.comparison-item-change { font-size:16px; font-weight:600; }
-.comparison-item-change.positive { color:#52c41a; }
-.comparison-item-change.negative { color:#e94560; }
-.comparison-item-detail { display:flex; align-items:center; gap:6px; margin-top:2px; font-size:12px; color:#999; }
-.detail-arrow { color:#ccc; }
-.detail-profit { margin-left:12px; font-weight:500; }
-.detail-profit.positive { color:#52c41a; }
-.detail-profit.negative { color:#e94560; }
+.comparison-empty {
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 20px;
+  font-size: var(--font-size-sm);
+}
+
+.comparison-summary {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 16px;
+}
+
+.comparison-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.comparison-items {
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 12px;
+}
+
+.comparison-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.comparison-item:last-child {
+  border-bottom: none;
+}
+
+.comparison-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comparison-item-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.comparison-item-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.detail-arrow {
+  color: var(--color-text-muted);
+}
+
+.detail-profit {
+  margin-left: 12px;
+  font-weight: var(--font-weight-medium);
+}

@@ -1,0 +1,129 @@
+.asset-detail {
+  max-width: 900px;
+}
+
+/* Header */
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-xl);
+}
+
+.detail-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.detail-name {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.detail-institution {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.detail-header-right {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Main metrics */
+.detail-metrics {
+  display: flex;
+  gap: var(--space-2xl);
+  align-items: flex-start;
+  margin-bottom: var(--space-2xl);
+  padding-bottom: var(--space-xl);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-main-amount {
+  min-width: 280px;
+}
+
+.detail-metric-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-xs);
+}
+
+.detail-update-time {
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.detail-no-data {
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+  padding: 12px 0;
+}
+
+.detail-secondary-metrics {
+  display: flex;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.detail-metric-item {
+  min-width: 100px;
+}
+
+/* Info grid */
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xl);
+}
+
+.detail-info-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+}
+
+/* Description list */
+.detail-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  font-size: var(--font-size-sm);
+}
+
+.detail-dl dt {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.detail-dl dd {
+  color: var(--color-text);
+}
+
+@media (max-width: 768px) {
+  .detail-metrics {
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+  .detail-info-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-header {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+}
