@@ -76,4 +76,5 @@ export type ExportData = {
   assets: Asset[]
   snapshots: Snapshot[]
   snapshotValues: SnapshotValue[]
+  rates?: ExchangeRates
 }

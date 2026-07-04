@@ -5,11 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "tsx server/index.ts",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "dev:api": "npm run build && wrangler dev --port 8787",
+    "dev:server": "npm run dev:api",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test:app": "vitest run src",
+    "worker:test": "node --test worker/worker.test.mjs",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:dry-run": "npm run build && wrangler deploy --dry-run",
+    "test": "npm run test:app && npm run worker:test",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -41,6 +46,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.107.0"
   }
 }

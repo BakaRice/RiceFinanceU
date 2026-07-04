@@ -1,73 +1,144 @@
-# React + TypeScript + Vite
+# RiceFinanceU
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+个人资产快照账本。当前版本使用 React + Vite 构建前端，使用 Cloudflare Worker 提供 API，使用 Cloudflare KV 保存一份完整 JSON 数据。
 
-Currently, two official plugins are available:
+## 当前架构
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```txt
+浏览器 / 未来小程序
+  -> Cloudflare Worker /api
+  -> Cloudflare KV
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Cloudflare Worker 同时托管前端静态资源 dist/
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+第一版只支持一个用户：
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- 登录邮箱：`resmarch404@gmail.com`
+- 登录密码：通过 Cloudflare Secret 或本地 `.dev.vars` 配置
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 本地开发
+
+安装依赖：
+
+```bash
+npm install
 ```
+
+创建本地密钥文件：
+
+```bash
+cp .dev.vars.example .dev.vars
+```
+
+然后编辑 `.dev.vars`，把 `APP_PASSWORD` 改成你的本地登录密码。
+
+启动前端和 Worker API：
+
+```bash
+npm run dev:all
+```
+
+也可以分开启动：
+
+```bash
+npm run dev
+npm run dev:api
+```
+
+前端地址：
+
+```txt
+http://localhost:5173
+```
+
+Worker API 地址：
+
+```txt
+http://localhost:8787
+```
+
+## 测试
+
+运行当前主线测试：
+
+```bash
+npm test
+```
+
+这会依次运行前端/domain 测试和 Worker 测试，不会触发旧本地后端的 storage 测试。
+
+只运行前端/domain 测试：
+
+```bash
+npm run test:app
+```
+
+只运行 Worker 测试：
+
+```bash
+npm run worker:test
+```
+
+构建前端：
+
+```bash
+npm run build
+```
+
+## 第一次部署到 Cloudflare
+
+创建 KV namespace：
+
+```bash
+npx wrangler kv namespace create FINANCE_KV
+```
+
+命令会返回一个 namespace id。把它填到 `wrangler.jsonc`：
+
+```jsonc
+"kv_namespaces": [
+  {
+    "binding": "FINANCE_KV",
+    "id": "这里填返回的 id"
+  }
+]
+```
+
+设置线上登录密码：
+
+```bash
+npx wrangler secret put APP_PASSWORD
+```
+
+部署：
+
+```bash
+npm run deploy
+```
+
+部署前干跑验证：
+
+```bash
+npm run deploy:dry-run
+```
+
+## 数据迁移
+
+旧本地 Express 版本的数据可以通过“数据管理”页的 JSON 导出/导入迁移。
+
+如果你已有旧备份文件：
+
+1. 部署新 Worker。
+2. 登录网页。
+3. 打开“数据管理”。
+4. 导入旧 JSON 备份。
+
+新版本导出的 JSON 会包含 `rates` 汇率字段。旧备份没有 `rates` 字段也可以导入，系统会使用默认汇率。
+
+## 重要说明
+
+- `.dev.vars` 不要提交到 Git。
+- `APP_PASSWORD` 不要写进代码或文档。
+- `data/` 是旧本地后端运行时目录，新 Worker/KV 架构不再依赖它。
+- `server/` 里的 Express 代码会暂时保留作为迁移参考，正式路径以 Worker 为准。旧 `server/storage.test.ts` 会操作 `data/`，所以没有放进默认 `npm test`。

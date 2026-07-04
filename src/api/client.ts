@@ -1,21 +1,57 @@
 // src/api/client.ts
 import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates } from '../types/finance'
+import { clearSessionToken, getSessionToken, setSessionToken } from './session'
 
 const BASE = '/api'
 
+export interface LoginResult {
+  token: string
+  expiresAt: string
+  user: { email: string }
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = getSessionToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string> | undefined),
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
   const res = await fetch(`${BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers,
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
+    if (res.status === 401) {
+      clearSessionToken()
+    }
     throw new Error((body as any).error || `Request failed: ${res.status}`)
   }
   return res.json()
 }
 
 export const api = {
+  // Auth
+  login: async (data: { email: string; password: string }) => {
+    const result = await request<LoginResult>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    setSessionToken(result.token)
+    return result
+  },
+  logout: async () => {
+    try {
+      await request<{ success: boolean }>('/auth/logout', { method: 'POST' })
+    } finally {
+      clearSessionToken()
+    }
+  },
+
   // Assets
   getAssets: () => request<Asset[]>('/assets'),
   createAsset: (data: { name: string; type: string; currency?: string; institution?: string; note?: string }) =>

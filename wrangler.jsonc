@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ricefinanceu",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-07-04",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "FINANCE_KV",
+      "id": "replace-with-finance-kv-namespace-id"
+    }
+  ],
+  "vars": {
+    "APP_USER_EMAIL": "resmarch404@gmail.com"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

@@ -44,6 +44,22 @@
   color: #e8edf2;
 }
 
+.nav-logout {
+  margin: auto 10px 12px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d0dae4;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.nav-logout:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
 .content {
   flex: 1;
   padding: 20px 24px;
@@ -63,5 +79,9 @@
     font-size: 11px;
     padding: 10px 6px;
     text-align: center;
+  }
+  .nav-logout {
+    margin: auto 6px 8px;
+    font-size: 11px;
   }
 }

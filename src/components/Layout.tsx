@@ -2,7 +2,11 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import './Layout.css'
 
-export default function Layout() {
+interface LayoutProps {
+  onLogout?: () => void
+}
+
+export default function Layout({ onLogout }: LayoutProps) {
   return (
     <div className="layout">
       <nav className="sidebar">
@@ -19,6 +23,11 @@ export default function Layout() {
         <NavLink to="/data" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           数据管理
         </NavLink>
+        {onLogout && (
+          <button className="nav-logout" type="button" onClick={onLogout}>
+            退出
+          </button>
+        )}
       </nav>
       <main className="content">
         <Outlet />

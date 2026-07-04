@@ -13,6 +13,7 @@ dist-ssr
 *.local
 .wrangler/
 .superpowers/
+.dev.vars
 
 # Data files (auto-generated at runtime)
 data/
