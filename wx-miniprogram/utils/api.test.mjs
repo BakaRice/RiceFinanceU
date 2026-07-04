@@ -103,3 +103,16 @@ test('authenticated requests include bearer token and clear it on unauthorized r
     url: '/pages/login/login',
   })
 })
+
+test('network failures keep the platform error message for debugging request domain issues', async () => {
+  globalThis.wx = createWxMock(() => ({ statusCode: 200, data: [] }))
+  globalThis.wx.request = (options) => {
+    options.fail({
+      errMsg: 'request:fail url not in domain list',
+    })
+  }
+
+  const api = loadCommonJs('utils/api.js')
+
+  await assert.rejects(() => api.getAssets(), /url not in domain list/)
+})

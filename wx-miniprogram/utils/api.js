@@ -42,8 +42,9 @@ function request(path, options) {
 
         reject(new Error(message))
       },
-      fail() {
-        reject(new Error('网络请求失败，请稍后重试'))
+      fail(error) {
+        const detail = error && error.errMsg ? `：${error.errMsg}` : ''
+        reject(new Error(`网络请求失败，请稍后重试${detail}`))
       },
     })
   })

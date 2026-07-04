@@ -8,12 +8,13 @@ Page({
     canSubmit: false,
     submitting: false,
     error: '',
+    hasToken: false,
   },
 
   onLoad() {
-    if (session.hasSessionToken()) {
-      wx.redirectTo({ url: '/pages/index/index' })
-    }
+    this.setData({
+      hasToken: session.hasSessionToken(),
+    })
   },
 
   onEmailInput(event) {
@@ -47,5 +48,9 @@ Page({
     } finally {
       this.setData({ submitting: false })
     }
+  },
+
+  goDashboard() {
+    wx.redirectTo({ url: '/pages/index/index' })
   },
 })

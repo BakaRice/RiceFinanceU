@@ -25,6 +25,32 @@
   margin-top: 70rpx;
 }
 
+.resume-panel {
+  margin-bottom: 26rpx;
+  padding: 22rpx;
+  background: #ffffff;
+  border: 1rpx solid #dfe6df;
+  border-radius: 16rpx;
+}
+
+.resume-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.resume-copy {
+  display: block;
+  margin-top: 8rpx;
+  color: #68746c;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.resume-button {
+  margin-top: 18rpx;
+}
+
 .field {
   margin-bottom: 22rpx;
   padding: 22rpx 24rpx;

@@ -30,6 +30,8 @@ https://ricefinanceu.ricemarch-finance.workers.dev
 
 开发阶段如果只是本地调试，也可以在微信开发者工具里临时勾选“不校验合法域名、web-view、TLS 版本以及 HTTPS 证书”。
 
+如果页面提示类似 `request:fail url not in domain list`，说明请求被微信开发者工具或小程序后台的合法域名配置拦截了。处理方式是配置上面的 request 合法域名，或者在本地开发阶段关闭合法域名校验。
+
 ## 当前页面
 
 - `pages/login/login`：登录页。

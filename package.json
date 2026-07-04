@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "test:app": "vitest run src",
     "worker:test": "node --test worker/worker.test.mjs",
-    "mini:test": "node --test wx-miniprogram/utils/*.test.mjs",
+    "mini:test": "node --test wx-miniprogram/app-config.test.mjs wx-miniprogram/pages/**/*.test.mjs wx-miniprogram/utils/*.test.mjs",
     "deploy": "npm run build && wrangler deploy",
     "deploy:dry-run": "npm run build && wrangler deploy --dry-run",
     "test": "npm run test:app && npm run worker:test",
