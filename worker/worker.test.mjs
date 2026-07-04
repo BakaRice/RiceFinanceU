@@ -121,6 +121,22 @@ test('密码错误时登录失败', async () => {
   assert.deepEqual(await response.json(), { error: '邮箱或密码错误' })
 })
 
+test('没有配置登录密码时拒绝登录', async () => {
+  const env = createEnv()
+  delete env.APP_PASSWORD
+
+  const response = await request(env, '/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: 'resmarch404@gmail.com',
+      password: '',
+    }),
+  })
+
+  assert.equal(response.status, 500)
+  assert.deepEqual(await response.json(), { error: '登录配置未完成' })
+})
+
 test('没有 session 时不能访问受保护接口', async () => {
   const env = createEnv()
 

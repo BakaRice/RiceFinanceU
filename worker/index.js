@@ -211,9 +211,15 @@ async function handleLogin(request, env) {
   const email = normalizeEmail(body?.email)
   const password = String(body?.password || '')
   const allowedEmail = normalizeEmail(env.APP_USER_EMAIL)
+  const configuredPassword = String(env.APP_PASSWORD || '')
+
+  if (!allowedEmail || !configuredPassword) {
+    console.error({ message: 'Worker auth is not configured' })
+    return json({ error: '登录配置未完成' }, { status: 500 })
+  }
 
   const passwordHash = await sha256Hex(password)
-  const expectedPasswordHash = await sha256Hex(String(env.APP_PASSWORD || ''))
+  const expectedPasswordHash = await sha256Hex(configuredPassword)
   const passwordMatches = constantTimeEqual(passwordHash, expectedPasswordHash)
 
   if (email !== allowedEmail || !passwordMatches) {
