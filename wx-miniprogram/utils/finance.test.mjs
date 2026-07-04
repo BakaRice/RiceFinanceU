@@ -61,8 +61,10 @@ test('buildEntryRows keeps active assets and pre-fills the latest snapshot value
   assert.equal(rows[0].amount, '1200.5')
   assert.equal(rows[0].profit, '100.25')
   assert.equal(rows[0].profitRate, '8.12')
+  assert.equal(rows[0].isInvestment, true)
   assert.equal(rows[0].included, true)
   assert.equal(rows[1].amount, '300')
+  assert.equal(rows[1].isInvestment, false)
   assert.equal(rows[1].included, true)
 })
 

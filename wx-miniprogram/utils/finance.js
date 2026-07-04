@@ -112,6 +112,7 @@ function buildEntryRows(assets, latestData) {
         name: asset.name,
         type: asset.type,
         typeLabel: getAssetTypeLabel(asset.type),
+        isInvestment: isInvestmentType(asset.type),
         currency: asset.currency || 'CNY',
         amount: formatPlainNumber(previous && previous.amount),
         profit: formatPlainNumber(previous && previous.profit),
