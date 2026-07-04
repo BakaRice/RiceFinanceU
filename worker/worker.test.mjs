@@ -139,13 +139,13 @@ test('没有配置登录密码时拒绝登录', async () => {
   assert.deepEqual(await response.json(), { error: '登录配置未完成' })
 })
 
-test('登录配置接口从运行时环境返回邮箱', async () => {
+test('不提供公开登录配置接口', async () => {
   const env = createEnv()
 
   const response = await request(env, '/api/auth/config')
 
-  assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), { userEmail: TEST_EMAIL })
+  assert.equal(response.status, 401)
+  assert.deepEqual(await response.json(), { error: '请先登录' })
 })
 
 test('没有 session 时不能访问受保护接口', async () => {

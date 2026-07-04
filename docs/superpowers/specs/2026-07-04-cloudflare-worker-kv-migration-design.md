@@ -63,7 +63,6 @@ Worker 保留当前前端已经依赖的 `/api` 路径，尽量减少 UI 侧改�
 
 公开接口：
 
-- `GET /api/auth/config`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/health`

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api/client'
 import './LoginPage.css'
 
@@ -11,22 +11,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    let active = true
-
-    api.getAuthConfig()
-      .then((config) => {
-        if (active && config.userEmail) {
-          setEmail(config.userEmail)
-        }
-      })
-      .catch(() => undefined)
-
-    return () => {
-      active = false
-    }
-  }, [])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()

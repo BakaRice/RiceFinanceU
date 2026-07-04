@@ -47,18 +47,6 @@ describe('api client auth session', () => {
     }))
   })
 
-  it('可以读取登录配置里的默认邮箱', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
-      userEmail: TEST_EMAIL,
-    }), { status: 200 }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    await expect(api.getAuthConfig()).resolves.toEqual({ userEmail: TEST_EMAIL })
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/config', expect.objectContaining({
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-    }))
-  })
-
   it('已登录后普通请求会带 Authorization header', async () => {
     setSessionToken('session-token')
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }))
