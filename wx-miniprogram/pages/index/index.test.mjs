@@ -53,10 +53,14 @@ test('总览页展示时如果已有 token，会立即请求总览所需接口',
       const dataByPath = {
         '/assets': [
           { id: 'cash', name: '现金', type: 'cash', currency: 'CNY', isActive: true },
+          { id: 'fund', name: '美元基金', type: 'fund', currency: 'USD', isActive: true },
         ],
         '/snapshots/latest': {
           snapshot: { id: 's1', recordedAt: '2026-07-04T12:00:00.000Z' },
-          values: [{ assetId: 'cash', amount: 100 }],
+          values: [
+            { assetId: 'cash', amount: 100 },
+            { assetId: 'fund', amount: 20, profit: 2 },
+          ],
         },
         '/snapshots': [
           { id: 's1', recordedAt: '2026-07-04T12:00:00.000Z', note: '测试' },
@@ -94,7 +98,20 @@ test('总览页展示时如果已有 token，会立即请求总览所需接口',
     requests.map((url) => url.replace('https://ricefinanceu.ricemarch-finance.workers.dev/api', '')).sort(),
     ['/assets', '/rates', '/snapshots', '/snapshots/latest'].sort()
   )
-  assert.equal(page.data.summary.total, '¥100.00')
+  assert.equal(page.data.summary.total, '¥244.00')
+  assert.deepEqual(page.data.summary.totalParts, {
+    prefix: '¥',
+    main: '244',
+    decimal: '.00',
+  })
+  assert.equal(page.data.statCards[2].tone, 'profit')
+  assert.equal(page.data.assetRows[0].id, 'fund')
+  assert.deepEqual(page.data.assetRows[0].amountParts, {
+    prefix: '',
+    main: '20',
+    decimal: '.00',
+  })
+  assert.equal(page.data.assetRows[0].profitTone, 'profit')
 })
 
 test('总览页事件处理函数放在 methods 中，匹配微信 Component 页面结构', () => {

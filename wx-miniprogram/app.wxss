@@ -1,7 +1,7 @@
 page {
   min-height: 100vh;
-  color: #18201b;
-  background: #f4f6f3;
+  color: #161a1f;
+  background: #f3f4f6;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
   font-size: 28rpx;
 }
@@ -15,7 +15,7 @@ button {
 }
 
 button {
-  border-radius: 16rpx;
+  border-radius: 12rpx;
   font-weight: 600;
 }
 
@@ -25,7 +25,7 @@ button::after {
 
 .rf-page {
   min-height: 100vh;
-  padding: 28rpx;
+  padding: 28rpx 26rpx 44rpx;
 }
 
 .page-state {
@@ -35,73 +35,81 @@ button::after {
   align-items: center;
   justify-content: center;
   gap: 20rpx;
-  color: #68746c;
+  color: #7a838d;
 }
 
 .page-title {
-  font-size: 40rpx;
+  font-size: 38rpx;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .page-subtitle {
   margin-top: 8rpx;
-  color: #68746c;
+  color: #7a838d;
   font-size: 24rpx;
 }
 
 .primary-button {
-  height: 88rpx;
+  height: 84rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  background: #17694c;
-  border-radius: 16rpx;
-  font-size: 30rpx;
+  background: #2d5f7e;
+  border-radius: 12rpx;
+  font-size: 29rpx;
 }
 
 .primary-button[disabled] {
   color: rgba(255, 255, 255, 0.72);
-  background: #9bb7aa;
+  background: #9bb0bf;
 }
 
 .ghost-button {
-  height: 76rpx;
+  height: 74rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #17694c;
+  color: #2d5f7e;
   background: #ffffff;
-  border: 1rpx solid #cbd8d0;
-  border-radius: 16rpx;
-  font-size: 28rpx;
+  border: 1rpx solid #d8dee5;
+  border-radius: 12rpx;
+  font-size: 27rpx;
 }
 
 .danger-button {
-  color: #b83232;
-  background: #fff6f4;
-  border-color: #f1c6c0;
+  color: #c0392b;
+  background: #fff8f7;
+  border-color: #efc7c0;
 }
 
 .muted-text {
-  color: #68746c;
+  color: #7a838d;
 }
 
 .section-header {
-  margin: 36rpx 0 18rpx;
+  margin: 34rpx 0 14rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .section-title {
-  font-size: 30rpx;
+  color: #242a31;
+  font-size: 28rpx;
   font-weight: 700;
 }
 
 .empty-text {
-  padding: 28rpx 0;
-  color: #68746c;
+  padding: 30rpx 0;
+  color: #7a838d;
   text-align: center;
+  font-size: 25rpx;
+}
+
+.number-text {
+  font-family: "DIN Alternate", "SF Pro Display", -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }

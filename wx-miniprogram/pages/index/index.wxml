@@ -9,63 +9,99 @@
   </view>
 
   <block wx:else>
-    <view class="hero-panel">
-      <view class="hero-topline">
-        <text>总资产 CNY</text>
-        <text>{{latestLabel}}</text>
+    <view class="dashboard-topbar">
+      <view>
+        <view class="page-title">总览</view>
+        <view class="topbar-date">{{latestLabel}}</view>
       </view>
-      <view class="hero-amount">{{summary.total}}</view>
-      <view class="hero-meta">汇率 {{ratesLabel}}</view>
+      <button class="topbar-button" bindtap="handleRefresh">刷新</button>
     </view>
 
-    <view class="stat-grid">
-      <view wx:for="{{statCards}}" wx:key="label" class="stat-card">
-        <text class="stat-label">{{item.label}}</text>
-        <text class="stat-value">{{item.value}}</text>
+    <view class="balance-block">
+      <view class="balance-label-row">
+        <text>总资产</text>
+        <text>CNY</text>
+      </view>
+      <view class="balance-amount number-text">
+        <text class="money-prefix">{{summary.totalParts.prefix}}</text>
+        <text class="money-main">{{summary.totalParts.main}}</text>
+        <text class="money-decimal">{{summary.totalParts.decimal}}</text>
+      </view>
+      <view class="balance-meta">{{ratesLabel}}</view>
+    </view>
+
+    <view class="metric-strip">
+      <view wx:for="{{statCards}}" wx:key="label" class="metric-item metric-{{item.tone}}">
+        <text class="metric-label">{{item.label}}</text>
+        <view class="metric-value number-text">
+          <text class="metric-prefix">{{item.valueParts.prefix}}</text>
+          <text>{{item.valueParts.main}}</text>
+          <text class="metric-decimal">{{item.valueParts.decimal}}</text>
+        </view>
       </view>
     </view>
 
-    <view class="action-row">
-      <button class="primary-button action-main" bindtap="goEntry">录入新快照</button>
-      <button class="ghost-button action-secondary" bindtap="handleRefresh">刷新</button>
+    <view class="quick-actions">
+      <button class="primary-button action-main" bindtap="goEntry">录入</button>
+      <button class="ghost-button action-secondary" bindtap="handleLogout">退出</button>
     </view>
 
     <view class="section-header">
-      <text class="section-title">资产概览</text>
+      <text class="section-title">资产</text>
       <text class="muted-text">{{assetRows.length}} 项</text>
     </view>
     <view wx:if="{{assetRows.length === 0}}" class="empty-text">
-      暂无资产。请先在 PC 端创建资产。
+      暂无资产
     </view>
-    <view wx:for="{{assetRows}}" wx:key="id" class="asset-row">
-      <view class="asset-main">
-        <view class="asset-title-line">
-          <text class="asset-name">{{item.name}}</text>
-          <text class="asset-type">{{item.typeLabel}}</text>
+    <view wx:else class="asset-table">
+      <view wx:for="{{assetRows}}" wx:key="id" class="asset-row">
+        <view class="asset-main">
+          <view class="asset-title-line">
+            <text class="asset-name">{{item.name}}</text>
+          </view>
+          <view class="asset-meta">
+            <text>{{item.typeLabel}}</text>
+            <text>{{item.currency}}</text>
+          </view>
         </view>
-        <view class="asset-meta">
-          <text>{{item.currency}}</text>
-          <text wx:if="{{item.amountCNYText}}">{{item.amountCNYText}}</text>
+
+        <view class="asset-amount">
+          <view class="asset-money number-text">
+            <text>{{item.amountParts.prefix}}</text>
+            <text>{{item.amountParts.main}}</text>
+            <text class="asset-decimal">{{item.amountParts.decimal}}</text>
+          </view>
+          <view wx:if="{{item.amountCNYParts}}" class="asset-cny number-text">
+            <text>≈ </text>
+            <text>{{item.amountCNYParts.prefix}}</text>
+            <text>{{item.amountCNYParts.main}}</text>
+            <text>{{item.amountCNYParts.decimal}}</text>
+          </view>
         </view>
-      </view>
-      <view class="asset-amount">
-        <text>{{item.amountText}}</text>
-        <text wx:if="{{item.profitText}}" class="asset-profit">收益 {{item.profitText}}</text>
+
+        <view class="asset-profit profit-{{item.profitTone}}">
+          <view wx:if="{{item.profitParts}}" class="number-text">
+            <text>{{item.profitParts.prefix}}</text>
+            <text>{{item.profitParts.main}}</text>
+            <text class="asset-decimal">{{item.profitParts.decimal}}</text>
+          </view>
+          <text wx:else>-</text>
+        </view>
       </view>
     </view>
 
     <view class="section-header">
-      <text class="section-title">最近快照</text>
+      <text class="section-title">快照</text>
       <text class="muted-text">{{snapshotRows.length}} 条</text>
     </view>
     <view wx:if="{{snapshotRows.length === 0}}" class="empty-text">
-      暂无快照。可以先录入一条。
+      暂无快照
     </view>
-    <view wx:for="{{snapshotRows}}" wx:key="id" class="snapshot-row">
-      <text class="snapshot-time">{{item.time}}</text>
-      <text class="snapshot-note">{{item.note}}</text>
+    <view wx:else class="snapshot-list">
+      <view wx:for="{{snapshotRows}}" wx:key="id" class="snapshot-row">
+        <text class="snapshot-time number-text">{{item.time}}</text>
+        <text class="snapshot-note">{{item.note}}</text>
+      </view>
     </view>
-
-    <button class="ghost-button danger-button logout-button" bindtap="handleLogout">退出登录</button>
   </block>
 </view>

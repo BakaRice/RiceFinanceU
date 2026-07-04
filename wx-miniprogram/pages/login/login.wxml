@@ -1,33 +1,33 @@
 <view class="rf-page login-page">
-  <view class="login-hero">
-    <view class="brand-mark">R</view>
-    <view>
-      <view class="page-title">RiceFinanceU</view>
-      <view class="page-subtitle">个人资产快照账本</view>
+  <view class="login-shell">
+    <view class="login-hero">
+      <view class="brand-mark">RF</view>
+      <view>
+        <view class="brand-name">RiceFinanceU</view>
+      </view>
     </view>
-  </view>
 
-  <view class="login-form">
     <view wx:if="{{hasToken}}" class="resume-panel">
-      <text class="resume-title">本机已有登录状态</text>
-      <text class="resume-copy">可以直接进入总览；如果加载失败，再重新输入账号密码登录。</text>
-      <button class="ghost-button resume-button" bindtap="goDashboard">进入总览</button>
+      <text class="resume-title">已登录</text>
+      <button class="resume-button" bindtap="goDashboard">进入</button>
     </view>
 
-    <view class="field">
-      <text class="field-label">邮箱</text>
-      <input class="field-input" type="text" value="{{email}}" placeholder="请输入登录邮箱" bindinput="onEmailInput" />
+    <view class="login-form">
+      <view class="field">
+        <text class="field-label">邮箱</text>
+        <input class="field-input" type="text" value="{{email}}" placeholder="邮箱" bindinput="onEmailInput" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">密码</text>
+        <input class="field-input" password value="{{password}}" placeholder="密码" bindinput="onPasswordInput" />
+      </view>
+
+      <view wx:if="{{error}}" class="login-error">{{error}}</view>
+
+      <button class="primary-button login-button" loading="{{submitting}}" disabled="{{!canSubmit || submitting}}" bindtap="handleLogin">
+        登录
+      </button>
     </view>
-
-    <view class="field">
-      <text class="field-label">密码</text>
-      <input class="field-input" password value="{{password}}" placeholder="请输入登录密码" bindinput="onPasswordInput" />
-    </view>
-
-    <view wx:if="{{error}}" class="login-error">{{error}}</view>
-
-    <button class="primary-button login-button" loading="{{submitting}}" disabled="{{!canSubmit || submitting}}" bindtap="handleLogin">
-      登录
-    </button>
   </view>
 </view>

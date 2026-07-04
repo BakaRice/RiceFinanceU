@@ -9,10 +9,10 @@
   </view>
 
   <block wx:else>
-    <view class="entry-header">
+    <view class="entry-topbar">
       <view>
-        <view class="page-title">快照录入</view>
-        <view class="page-subtitle">已选择 {{includedCount}} / {{rows.length}} 项资产</view>
+        <view class="page-title">快照</view>
+        <view class="entry-count">{{includedCount}} / {{rows.length}}</view>
       </view>
     </view>
 
@@ -32,44 +32,45 @@
     </view>
 
     <view wx:if="{{rows.length === 0}}" class="empty-text">
-      暂无活跃资产。请先在 PC 端创建资产。
+      暂无资产
     </view>
 
-    <view wx:for="{{rows}}" wx:key="assetId" class="entry-card {{item.included ? '' : 'entry-card-muted'}}">
-      <view class="entry-card-head">
-        <view class="entry-asset-title">
-          <text class="entry-asset-name">{{item.name}}</text>
-          <text class="entry-asset-type">{{item.typeLabel}} · {{item.currency}}</text>
-        </view>
-        <switch checked="{{item.included}}" color="#17694c" data-index="{{index}}" bindchange="onIncludedChange" />
-      </view>
-
-      <view class="input-grid">
-        <view class="input-field">
-          <text class="input-label">金额</text>
-          <input class="entry-input" type="digit" value="{{item.amount}}" placeholder="0.00" data-index="{{index}}" data-field="amount" bindinput="onFieldInput" />
+    <view wx:else class="entry-table">
+      <view wx:for="{{rows}}" wx:key="assetId" class="entry-row {{item.included ? '' : 'entry-row-muted'}}">
+        <view class="entry-row-head">
+          <view class="entry-asset-title">
+            <text class="entry-asset-name">{{item.name}}</text>
+            <text class="entry-asset-type">{{item.typeLabel}} · {{item.currency}}</text>
+          </view>
+          <switch checked="{{item.included}}" color="#2d5f7e" data-index="{{index}}" bindchange="onIncludedChange" />
         </view>
 
-        <block wx:if="{{item.isInvestment}}">
+        <view class="entry-fields {{item.isInvestment ? 'entry-fields-invest' : ''}}">
           <view class="input-field">
-            <text class="input-label">收益</text>
-            <input class="entry-input" type="text" value="{{item.profit}}" placeholder="可为负数" data-index="{{index}}" data-field="profit" bindinput="onFieldInput" />
+            <text class="input-label">金额</text>
+            <input class="entry-input number-text" type="digit" value="{{item.amount}}" placeholder="0.00" data-index="{{index}}" data-field="amount" bindinput="onFieldInput" />
           </view>
-          <view class="input-field">
-            <text class="input-label">收益率 %</text>
-            <input class="entry-input" type="text" value="{{item.profitRate}}" placeholder="例如 8.12" data-index="{{index}}" data-field="profitRate" bindinput="onFieldInput" />
-          </view>
-        </block>
+
+          <block wx:if="{{item.isInvestment}}">
+            <view class="input-field">
+              <text class="input-label">收益</text>
+              <input class="entry-input number-text" type="text" value="{{item.profit}}" placeholder="0.00" data-index="{{index}}" data-field="profit" bindinput="onFieldInput" />
+            </view>
+            <view class="input-field">
+              <text class="input-label">收益率</text>
+              <input class="entry-input number-text" type="text" value="{{item.profitRate}}" placeholder="0.00" data-index="{{index}}" data-field="profitRate" bindinput="onFieldInput" />
+            </view>
+          </block>
+        </view>
       </view>
     </view>
 
     <view class="note-field">
-      <text class="input-label">备注</text>
-      <textarea class="note-input" value="{{note}}" placeholder="可选" maxlength="200" bindinput="onNoteInput" />
+      <textarea class="note-input" value="{{note}}" placeholder="备注" maxlength="200" bindinput="onNoteInput" />
     </view>
 
     <button class="primary-button submit-button" loading="{{submitting}}" disabled="{{submitting || rows.length === 0}}" bindtap="handleSubmit">
-      保存快照
+      保存
     </button>
   </block>
 </view>

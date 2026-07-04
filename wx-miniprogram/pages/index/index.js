@@ -11,6 +11,29 @@ function buildValueMap(latestData) {
   return map
 }
 
+function buildMoneyParts(value, prefix) {
+  if (value === undefined || value === null || !Number.isFinite(Number(value))) {
+    return {
+      prefix: '',
+      main: '-',
+      decimal: '',
+    }
+  }
+
+  const [main, decimal] = finance.formatMoney(value).split('.')
+  return {
+    prefix: prefix || '',
+    main,
+    decimal: decimal ? `.${decimal}` : '',
+  }
+}
+
+function getSignedTone(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number === 0) return 'neutral'
+  return number > 0 ? 'profit' : 'loss'
+}
+
 function buildAssetRows(assets, latestData, rates) {
   const valueMap = buildValueMap(latestData)
   return assets
@@ -19,6 +42,7 @@ function buildAssetRows(assets, latestData, rates) {
       const value = valueMap.get(asset.id)
       const amount = value ? Number(value.amount) : null
       const amountCNY = value ? finance.convertToCNY(value.amount, asset.currency, rates) : null
+      const profit = value && value.profit !== undefined ? Number(value.profit) : null
       return {
         id: asset.id,
         name: asset.name,
@@ -26,8 +50,12 @@ function buildAssetRows(assets, latestData, rates) {
         currency: asset.currency || 'CNY',
         amountValue: amount === null ? -1 : amountCNY,
         amountText: amount === null ? '-' : finance.formatMoney(amount),
+        amountParts: buildMoneyParts(amount),
         amountCNYText: amountCNY === null || asset.currency === 'CNY' ? '' : `约 ¥${finance.formatMoney(amountCNY)}`,
-        profitText: value && value.profit !== undefined ? finance.formatMoney(value.profit) : '',
+        amountCNYParts: amountCNY === null || asset.currency === 'CNY' ? null : buildMoneyParts(amountCNY, '¥'),
+        profitText: profit === null ? '' : finance.formatMoney(profit),
+        profitParts: profit === null ? null : buildMoneyParts(profit),
+        profitTone: getSignedTone(profit),
       }
     })
     .sort((left, right) => right.amountValue - left.amountValue)
@@ -104,11 +132,27 @@ Component({
           ratesLabel: `USD ${Number(rates.USD).toFixed(2)} / HKD ${Number(rates.HKD).toFixed(2)}`,
           summary: {
             total: `¥${finance.formatMoney(total.totalAmountCNY)}`,
+            totalParts: buildMoneyParts(total.totalAmountCNY, '¥'),
           },
           statCards: [
-            { label: '投资类', value: `¥${finance.formatMoney(total.investmentAmountCNY)}` },
-            { label: '余额类', value: `¥${finance.formatMoney(total.balanceAmountCNY)}` },
-            { label: '投资收益', value: `¥${finance.formatMoney(total.totalProfitCNY)}` },
+            {
+              label: '投资',
+              value: `¥${finance.formatMoney(total.investmentAmountCNY)}`,
+              valueParts: buildMoneyParts(total.investmentAmountCNY, '¥'),
+              tone: 'neutral',
+            },
+            {
+              label: '余额',
+              value: `¥${finance.formatMoney(total.balanceAmountCNY)}`,
+              valueParts: buildMoneyParts(total.balanceAmountCNY, '¥'),
+              tone: 'neutral',
+            },
+            {
+              label: '收益',
+              value: `¥${finance.formatMoney(total.totalProfitCNY)}`,
+              valueParts: buildMoneyParts(total.totalProfitCNY, '¥'),
+              tone: getSignedTone(total.totalProfitCNY),
+            },
           ],
           assetRows,
           snapshotRows,

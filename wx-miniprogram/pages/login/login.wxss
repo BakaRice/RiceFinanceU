@@ -1,83 +1,102 @@
 .login-page {
-  padding-top: 88rpx;
+  padding-top: 118rpx;
+}
+
+.login-shell {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .login-hero {
   display: flex;
   align-items: center;
-  gap: 24rpx;
+  gap: 20rpx;
 }
 
 .brand-mark {
-  width: 88rpx;
-  height: 88rpx;
+  width: 72rpx;
+  height: 72rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  background: #173e35;
-  border-radius: 16rpx;
-  font-size: 42rpx;
+  background: #2d5f7e;
+  border-radius: 12rpx;
+  font-size: 28rpx;
   font-weight: 800;
 }
 
-.login-form {
-  margin-top: 70rpx;
+.brand-name {
+  color: #161a1f;
+  font-size: 38rpx;
+  font-weight: 750;
+  line-height: 1.1;
 }
 
 .resume-panel {
-  margin-bottom: 26rpx;
-  padding: 22rpx;
+  margin-top: 58rpx;
+  min-height: 78rpx;
+  padding: 0 18rpx 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: #ffffff;
-  border: 1rpx solid #dfe6df;
-  border-radius: 16rpx;
+  border: 1rpx solid #dfe3e8;
+  border-radius: 12rpx;
 }
 
 .resume-title {
-  display: block;
-  font-size: 28rpx;
+  color: #20262d;
+  font-size: 26rpx;
   font-weight: 700;
 }
 
-.resume-copy {
-  display: block;
-  margin-top: 8rpx;
-  color: #68746c;
-  font-size: 23rpx;
-  line-height: 1.5;
+.resume-button {
+  width: 112rpx;
+  height: 54rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2d5f7e;
+  background: #f5f8fa;
+  border: 1rpx solid #d8dee5;
+  border-radius: 10rpx;
+  font-size: 24rpx;
 }
 
-.resume-button {
-  margin-top: 18rpx;
+.login-form {
+  margin-top: 42rpx;
 }
 
 .field {
-  margin-bottom: 22rpx;
-  padding: 22rpx 24rpx;
+  min-height: 98rpx;
+  margin-bottom: 14rpx;
+  padding: 16rpx 20rpx;
   background: #ffffff;
-  border: 1rpx solid #dfe6df;
-  border-radius: 16rpx;
+  border: 1rpx solid #dfe3e8;
+  border-radius: 12rpx;
 }
 
 .field-label {
   display: block;
-  color: #68746c;
-  font-size: 23rpx;
+  color: #7a838d;
+  font-size: 22rpx;
 }
 
 .field-input {
-  height: 58rpx;
-  margin-top: 8rpx;
-  color: #18201b;
-  font-size: 30rpx;
+  height: 52rpx;
+  margin-top: 4rpx;
+  color: #161a1f;
+  font-size: 29rpx;
 }
 
 .login-error {
-  margin: 10rpx 0 22rpx;
-  color: #b83232;
+  margin: 12rpx 0 20rpx;
+  color: #c0392b;
   font-size: 24rpx;
 }
 
 .login-button {
-  margin-top: 34rpx;
+  margin-top: 30rpx;
 }
