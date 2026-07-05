@@ -11,6 +11,15 @@ const DEFAULT_RATES = {
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
 const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
 const INVESTMENT_TYPES = ['fund', 'stock', 'gold']
+const ASSET_PROFILE_FIELDS = {
+  fund: ['fundCode', 'fundCategory', 'marketTheme', 'holdingPlatform'],
+  stock: ['ticker', 'exchange', 'brokerAccount', 'industryTag'],
+  gold: ['holdingForm', 'custodian', 'unit', 'sourceNote'],
+  deposit: ['bank', 'depositType', 'term', 'maturityDate', 'annualRate'],
+  cash: ['accountChannel', 'purposeTag', 'availabilityNote'],
+  housing_fund: ['contributionCity', 'accountOwner', 'managementNote'],
+  other: ['customCategory', 'ownershipNote', 'managementNote', 'reminderDate'],
+}
 
 function json(data, init = {}) {
   return new Response(JSON.stringify(data), {
@@ -114,6 +123,23 @@ function isValidAssetType(type) {
 
 function normalizeCurrency(currency) {
   return VALID_CURRENCIES.includes(currency) ? currency : 'CNY'
+}
+
+function sanitizeAssetProfile(type, profile) {
+  if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return undefined
+
+  const cleaned = {}
+  for (const key of ASSET_PROFILE_FIELDS[type] || []) {
+    const value = profile[key]
+    if (typeof value !== 'string') continue
+
+    const trimmed = value.trim()
+    if (trimmed) {
+      cleaned[key] = trimmed
+    }
+  }
+
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined
 }
 
 function createId() {
@@ -254,7 +280,7 @@ async function handleAssets(request, env, segments) {
 
     if (request.method === 'POST') {
       const body = await readJsonBody(request)
-      const { name, type, currency, institution, note } = body || {}
+      const { name, type, currency, institution, note, profile } = body || {}
 
       if (!name || typeof name !== 'string' || !name.trim()) {
         return badRequest('name is required and must be non-empty')
@@ -264,12 +290,14 @@ async function handleAssets(request, env, segments) {
       }
 
       const now = new Date().toISOString()
+      const assetProfile = sanitizeAssetProfile(type, profile)
       const asset = {
         id: createId(),
         name: name.trim(),
         type,
         currency: normalizeCurrency(currency),
         institution,
+        ...(assetProfile ? { profile: assetProfile } : {}),
         isActive: true,
         note,
         createdAt: now,
@@ -294,12 +322,24 @@ async function handleAssets(request, env, segments) {
       if (body?.type && !isValidAssetType(body.type)) {
         return badRequest(`type must be one of: ${VALID_ASSET_TYPES.join(', ')}`)
       }
-      data.assets[assetIndex] = {
+      const nextType = body?.type || data.assets[assetIndex].type
+      const nextProfile = sanitizeAssetProfile(
+        nextType,
+        body?.profile !== undefined ? body.profile : data.assets[assetIndex].profile,
+      )
+      const nextAsset = {
         ...data.assets[assetIndex],
         ...(body || {}),
         id,
+        type: nextType,
         updatedAt: new Date().toISOString(),
       }
+      if (nextProfile) {
+        nextAsset.profile = nextProfile
+      } else {
+        delete nextAsset.profile
+      }
+      data.assets[assetIndex] = nextAsset
       await writeData(env, data)
       return json(data.assets[assetIndex])
     }
@@ -380,12 +420,14 @@ async function handleSnapshots(request, env, segments) {
       input.values.forEach((value, index) => {
         if (!value.assetId && value.asset) {
           const id = createId()
+          const profile = sanitizeAssetProfile(value.asset.type, value.asset.profile)
           data.assets.push({
             id,
             name: value.asset.name.trim(),
             type: value.asset.type,
             currency: normalizeCurrency(value.asset.currency),
             institution: value.asset.institution,
+            ...(profile ? { profile } : {}),
             isActive: true,
             note: value.asset.note,
             createdAt: now,
@@ -490,7 +532,16 @@ async function handleImport(request, env) {
 
   const imported = normalizeData({
     meta: { schemaVersion: 2, updatedAt: new Date().toISOString() },
-    assets: body.assets,
+    assets: body.assets.map((asset) => {
+      const profile = sanitizeAssetProfile(asset.type, asset.profile)
+      const normalizedAsset = { ...asset }
+      if (profile) {
+        normalizedAsset.profile = profile
+      } else {
+        delete normalizedAsset.profile
+      }
+      return normalizedAsset
+    }),
     snapshots: body.snapshots || body.transactions || [],
     snapshotValues: body.snapshotValues,
     rates: body.rates || { ...DEFAULT_RATES, updatedAt: new Date().toISOString() },

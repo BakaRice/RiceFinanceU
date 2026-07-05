@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Asset, SnapshotValue } from '../types/finance'
 import { CURRENCY_SYMBOLS } from '../types/finance'
-import { ASSET_TYPE_LABELS, isInvestmentType } from '../domain/assets'
+import { ASSET_TYPE_LABELS, getAssetProfileFields, isInvestmentType } from '../domain/assets'
 import MoneyDisplay from '../components/MoneyDisplay'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetDetailPage.css'
@@ -107,8 +107,6 @@ export default function AssetDetailPage() {
     }
   }
 
-  const isInvestment = asset ? isInvestmentType(asset.type) : false
-
   if (loading) return <div className="page-loading">加载中...</div>
   if (error) return (
     <div className="page-error">
@@ -117,6 +115,14 @@ export default function AssetDetailPage() {
     </div>
   )
   if (!asset) return null
+
+  const isInvestment = isInvestmentType(asset.type)
+  const profileRows = getAssetProfileFields(asset.type)
+    .map((field) => ({
+      label: field.label,
+      value: asset.profile?.[field.key],
+    }))
+    .filter((row) => row.value)
 
   // Calculate cost basis for investment assets
   const costBasis = latestValue && isInvestment && latestValue.profit !== undefined
@@ -138,7 +144,7 @@ export default function AssetDetailPage() {
             <span className={`status-badge ${asset.isActive ? 'status-active' : 'status-inactive'}`}>
               {asset.isActive ? '启用' : '停用'}
             </span>
-            <span className="type-badge type-{asset.type}">
+            <span className={`type-badge type-${asset.type}`}>
               {ASSET_TYPE_LABELS[asset.type as keyof typeof ASSET_TYPE_LABELS] || asset.type}
             </span>
             {asset.institution && <span className="detail-institution">{asset.institution}</span>}
@@ -223,6 +229,22 @@ export default function AssetDetailPage() {
               </>
             )}
           </dl>
+        </div>
+
+        <div className="detail-info-section">
+          <h3 className="section-title">资产档案</h3>
+          {profileRows.length === 0 ? (
+            <p className="detail-profile-empty">未补充档案信息</p>
+          ) : (
+            <dl className="detail-dl">
+              {profileRows.map((row) => (
+                <div className="detail-dl-row" key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
 
         {/* History */}

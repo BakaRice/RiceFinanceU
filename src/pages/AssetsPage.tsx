@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Asset, AssetType, Currency, SnapshotValue } from '../types/finance'
-import { ASSET_TYPE_LABELS, isInvestmentType } from '../domain/assets'
+import type { Asset, AssetProfile, AssetProfileKey, AssetType, Currency, SnapshotValue } from '../types/finance'
+import {
+  ASSET_TYPE_LABELS,
+  formatAssetProfileIdentifier,
+  getAssetProfileFields,
+  isInvestmentType,
+  sanitizeAssetProfile,
+} from '../domain/assets'
 import MoneyDisplay from '../components/MoneyDisplay'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetsPage.css'
@@ -24,6 +30,7 @@ export default function AssetsPage() {
   const [currency, setCurrency] = useState<Currency>('CNY')
   const [institution, setInstitution] = useState('')
   const [note, setNote] = useState('')
+  const [profileDraft, setProfileDraft] = useState<AssetProfile>({})
   const [sortKey, setSortKey] = useState<SortKey>('type')
   const [sortDir, setSortDir] = useState<1 | -1>(1)
 
@@ -61,6 +68,7 @@ export default function AssetsPage() {
     setCurrency('CNY')
     setInstitution('')
     setNote('')
+    setProfileDraft({})
     setShowForm(true)
   }
 
@@ -71,29 +79,27 @@ export default function AssetsPage() {
     setCurrency(a.currency)
     setInstitution(a.institution || '')
     setNote(a.note || '')
+    setProfileDraft(a.profile || {})
     setShowForm(true)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const profile = sanitizeAssetProfile(type, profileDraft)
+    const payload = {
+      name,
+      type,
+      currency,
+      institution: institution || undefined,
+      note: note || undefined,
+      profile: profile || {},
+    }
     try {
       if (editingId) {
-        await api.updateAsset(editingId, {
-          name,
-          type,
-          currency,
-          institution: institution || undefined,
-          note: note || undefined,
-        } as any)
+        await api.updateAsset(editingId, payload)
         toast('资产已更新')
       } else {
-        await api.createAsset({
-          name,
-          type,
-          currency,
-          institution: institution || undefined,
-          note: note || undefined,
-        } as any)
+        await api.createAsset(payload)
         toast('资产已创建')
       }
       setShowForm(false)
@@ -101,6 +107,10 @@ export default function AssetsPage() {
     } catch (e: any) {
       toast('保存失败: ' + e.message, 'error')
     }
+  }
+
+  function updateProfileDraft(key: AssetProfileKey, value: string) {
+    setProfileDraft((prev) => ({ ...prev, [key]: value }))
   }
 
   async function handleDeactivate(a: Asset) {
@@ -198,6 +208,7 @@ export default function AssetsPage() {
             <th className="sortable" onClick={() => toggleSort('type')}>
               类型 {sortIcon('type')}
             </th>
+            <th>标识</th>
             <th className="sortable" onClick={() => toggleSort('institution')}>
               机构 {sortIcon('institution')}
             </th>
@@ -241,6 +252,9 @@ export default function AssetsPage() {
                   <span className={`type-badge type-${a.type}`}>
                     {ASSET_TYPE_LABELS[a.type as keyof typeof ASSET_TYPE_LABELS] || a.type}
                   </span>
+                </td>
+                <td className="asset-profile-identifier">
+                  {formatAssetProfileIdentifier(a)}
                 </td>
                 <td className="text-muted" style={{ fontSize: 13 }}>
                   {a.institution || '-'}
@@ -385,6 +399,23 @@ export default function AssetsPage() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
+              <div className="profile-fields">
+                <div className="profile-fields-title">类型档案</div>
+                <div className="profile-field-grid">
+                  {getAssetProfileFields(type).map((field) => (
+                    <label className="profile-field" key={field.key}>
+                      <span className="form-label">{field.label}</span>
+                      <input
+                        type={field.inputType || 'text'}
+                        className="form-input"
+                        value={profileDraft[field.key] || ''}
+                        onChange={(e) => updateProfileDraft(field.key, e.target.value)}
+                        placeholder={field.placeholder}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="form-buttons">
                 <button type="submit" className="btn-primary">保存</button>
                 <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>

@@ -114,6 +114,16 @@
   color: var(--color-text);
 }
 
+.detail-dl-row {
+  display: contents;
+}
+
+.detail-profile-empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  padding: 12px 0;
+}
+
 @media (max-width: 768px) {
   .detail-metrics {
     flex-direction: column;

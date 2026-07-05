@@ -8,7 +8,7 @@ import {
   readRates, writeRates,
 } from '../storage'
 import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput, ExchangeRates } from '../../src/types/finance'
-import { isInvestmentType } from '../../src/domain/assets'
+import { isInvestmentType, sanitizeAssetProfile } from '../../src/domain/assets'
 import { completeSnapshotValues } from '../../src/domain/snapshots'
 
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
@@ -28,7 +28,7 @@ dataRoutes.get('/assets', (_req: Request, res: Response) => {
 
 dataRoutes.post('/assets', (req: Request, res: Response) => {
   try {
-    const { name, type, currency, institution, note } = req.body
+    const { name, type, currency, institution, note, profile } = req.body
     if (!name || typeof name !== 'string' || !name.trim()) {
       res.status(400).json({ error: 'name is required and must be non-empty' })
       return
@@ -40,9 +40,11 @@ dataRoutes.post('/assets', (req: Request, res: Response) => {
     const assetCurrency = currency && VALID_CURRENCIES.includes(currency) ? currency : 'CNY'
     const assets = readAssets()
     const now = new Date().toISOString()
+    const assetProfile = sanitizeAssetProfile(type, profile)
     const newAsset: Asset = {
       id: uuidv4(), name: name.trim(), type,
       currency: assetCurrency, institution, isActive: true, note,
+      ...(assetProfile ? { profile: assetProfile } : {}),
       createdAt: now, updatedAt: now,
     }
     assets.push(newAsset)
@@ -61,7 +63,24 @@ dataRoutes.patch('/assets/:id', (req: Request, res: Response) => {
       res.status(400).json({ error: `type must be one of: ${VALID_ASSET_TYPES.join(', ')}` })
       return
     }
-    assets[idx] = { ...assets[idx], ...req.body, id, updatedAt: new Date().toISOString() }
+    const nextType = req.body.type || assets[idx].type
+    const nextProfile = sanitizeAssetProfile(
+      nextType,
+      req.body.profile !== undefined ? req.body.profile : assets[idx].profile,
+    )
+    const nextAsset: Asset = {
+      ...assets[idx],
+      ...req.body,
+      id,
+      type: nextType,
+      updatedAt: new Date().toISOString(),
+    }
+    if (nextProfile) {
+      nextAsset.profile = nextProfile
+    } else {
+      delete nextAsset.profile
+    }
+    assets[idx] = nextAsset
     writeAssets(assets)
     res.json(assets[idx])
   } catch (e: any) { res.status(500).json({ error: e.message }) }
@@ -188,9 +207,11 @@ dataRoutes.post('/snapshots', (req: Request, res: Response) => {
         const newId = uuidv4()
         const now = new Date().toISOString()
         const assetCurrency = v.asset.currency && VALID_CURRENCIES.includes(v.asset.currency) ? v.asset.currency : 'CNY'
+        const profile = sanitizeAssetProfile(v.asset.type, v.asset.profile)
         assets.push({
           id: newId, name: v.asset.name.trim(), type: v.asset.type,
           currency: assetCurrency, institution: v.asset.institution,
+          ...(profile ? { profile } : {}),
           isActive: true, note: v.asset.note,
           createdAt: now, updatedAt: now,
         })

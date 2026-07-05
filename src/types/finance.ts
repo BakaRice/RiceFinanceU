@@ -11,6 +11,36 @@ export type AssetType =
 
 export type Currency = 'CNY' | 'USD' | 'HKD'
 
+export type AssetProfileKey =
+  | 'fundCode'
+  | 'fundCategory'
+  | 'marketTheme'
+  | 'holdingPlatform'
+  | 'ticker'
+  | 'exchange'
+  | 'brokerAccount'
+  | 'industryTag'
+  | 'holdingForm'
+  | 'custodian'
+  | 'unit'
+  | 'sourceNote'
+  | 'bank'
+  | 'depositType'
+  | 'term'
+  | 'maturityDate'
+  | 'annualRate'
+  | 'accountChannel'
+  | 'purposeTag'
+  | 'availabilityNote'
+  | 'contributionCity'
+  | 'accountOwner'
+  | 'managementNote'
+  | 'customCategory'
+  | 'ownershipNote'
+  | 'reminderDate'
+
+export type AssetProfile = Partial<Record<AssetProfileKey, string>>
+
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   CNY: '¥',
   USD: '$',
@@ -31,6 +61,7 @@ export type Asset = {
   currency: Currency
   isActive: boolean
   note?: string
+  profile?: AssetProfile
   createdAt: string
   updatedAt: string
 }
@@ -63,6 +94,7 @@ export interface CreateSnapshotInput {
       currency?: Currency
       institution?: string
       note?: string
+      profile?: AssetProfile
     }
     amount: number
     profit?: number

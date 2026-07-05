@@ -7,6 +7,7 @@ import {
   readMeta, writeMeta,
 } from '../storage'
 import type { ExportData, Asset, Snapshot, SnapshotValue } from '../../src/types/finance'
+import { sanitizeAssetProfile } from '../../src/domain/assets'
 
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
 const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
@@ -59,6 +60,17 @@ function validateAsset(a: any, index: number): ValidationError[] {
   // Optional fields type checks
   if (a.institution !== undefined && a.institution !== null && typeof a.institution !== 'string') errs.push(tag('institution', 'must be a string if present'))
   if (a.note !== undefined && a.note !== null && typeof a.note !== 'string') errs.push(tag('note', 'must be a string if present'))
+  if (a.profile !== undefined && a.profile !== null) {
+    if (typeof a.profile !== 'object' || Array.isArray(a.profile)) {
+      errs.push(tag('profile', 'must be an object if present'))
+    } else {
+      for (const [key, value] of Object.entries(a.profile)) {
+        if (typeof value !== 'string') {
+          errs.push(tag(`profile.${key}`, 'must be a string if present'))
+        }
+      }
+    }
+  }
 
   return errs
 }
@@ -192,6 +204,17 @@ importExportRoutes.post('/import', (req: Request, res: Response) => {
       }
     }
 
+    const normalizedAssets: Asset[] = data.assets.map((asset: any) => {
+      const profile = sanitizeAssetProfile(asset.type, asset.profile)
+      const normalizedAsset = { ...asset } as Asset
+      if (profile) {
+        normalizedAsset.profile = profile
+      } else {
+        delete normalizedAsset.profile
+      }
+      return normalizedAsset
+    })
+
     const normalizedValues: SnapshotValue[] = data.snapshotValues.map((v: any) => {
       const amount = round2(v.amount)
       const assetType = assetTypeMap.get(v.assetId)
@@ -241,7 +264,7 @@ importExportRoutes.post('/import', (req: Request, res: Response) => {
     })
 
     // ——— All valid, write ———
-    writeAssets(data.assets as Asset[])
+    writeAssets(normalizedAssets)
     writeSnapshots(snapshots as Snapshot[])
     writeSnapshotValues(normalizedValues)
     writeMeta({ schemaVersion: 2, updatedAt: new Date().toISOString() })

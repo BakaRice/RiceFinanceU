@@ -193,6 +193,42 @@ test('可以创建资产并软删除资产', async () => {
   assert.equal(assets[0].isActive, false)
 })
 
+test('资产接口会清理并保存类型档案字段', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const createResponse = await authedRequest(env, '/api/assets', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      name: '零钱',
+      type: 'cash',
+      currency: 'CNY',
+      profile: {
+        accountChannel: ' 微信零钱 ',
+        fundCode: 'should-drop',
+        purposeTag: '',
+      },
+    }),
+  })
+
+  assert.equal(createResponse.status, 201)
+  const asset = await createResponse.json()
+  assert.deepEqual(asset.profile, { accountChannel: '微信零钱' })
+
+  const updateResponse = await authedRequest(env, `/api/assets/${asset.id}`, {
+    token,
+    method: 'PATCH',
+    body: JSON.stringify({
+      profile: {},
+    }),
+  })
+
+  assert.equal(updateResponse.status, 200)
+  const updatedAsset = await updateResponse.json()
+  assert.equal(updatedAsset.profile, undefined)
+})
+
 test('可以创建快照，并在第二次快照中继承未提交资产的上一次数值', async () => {
   const env = createEnv()
   const token = await login(env)
