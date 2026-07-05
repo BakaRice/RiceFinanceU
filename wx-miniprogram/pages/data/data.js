@@ -53,12 +53,8 @@ Component({
       try {
         const data = await api.exportData()
         const text = JSON.stringify(data, null, 2)
-        wx.setClipboardData({
-          data: text,
-          success() {
-            wx.showToast({ title: '已复制', icon: 'success' })
-          },
-        })
+        this.setData({ importText: text })
+        wx.showToast({ title: '已导出到文本框', icon: 'success' })
       } catch (error) {
         wx.showToast({ title: error.message || '导出失败', icon: 'none' })
       } finally {

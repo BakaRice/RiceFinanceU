@@ -20,6 +20,11 @@ export function convertToCNY(amount: number, currency: string, rates?: ExchangeR
 
 /**
  * Complete a partial snapshot submission into a full snapshot.
+ *
+ * Product model: entry is a time-bound inventory sheet. The user may only
+ * type changed assets, but every saved snapshot must still represent the
+ * whole portfolio at that time so dashboards never need recursive lookups.
+ *
  * Rules:
  * 1. Copy all values from the previous latest snapshot.
  * 2. Override with values submitted this time (matched by assetId).
@@ -30,7 +35,7 @@ export function completeSnapshotValues(
   input: CreateSnapshotInput['values'],
   newAssetIds: Record<string, string> // maps temporary index → real assetId
 ): SnapshotValue[] {
-  // Start with a copy of previous values
+  // Start from the previous complete state, then replace the rows touched now.
   const result: SnapshotValue[] = previousValues.map((v) => ({ ...v }))
 
   for (let i = 0; i < input.length; i++) {
@@ -49,7 +54,7 @@ export function completeSnapshotValues(
       note: item.note,
     }
 
-    // Find and replace existing, or push new
+    // Find and replace existing, or push new assets into the complete state.
     const existingIdx = result.findIndex((v) => v.assetId === assetId)
     if (existingIdx >= 0) {
       result[existingIdx] = { ...result[existingIdx], ...sv, id: result[existingIdx].id }
@@ -309,6 +314,8 @@ function isValidDateTimeParts(
 }
 
 function parseLocalSnapshotDate(value: string): Date | null {
+  // Snapshot entry stores local date/time strings. Parse those as local time so
+  // daily/weekly grouping matches what the user typed instead of shifting by UTC.
   const localMatch = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2}))?$/.exec(value)
   if (localMatch) {
     const [, yearText, monthText, dayText, hourText = '0', minuteText = '0', secondText = '0'] = localMatch
@@ -407,6 +414,8 @@ export function buildScaledTotalAssetSeries(
     const existingDate = existing ? parseLocalSnapshotDate(existing.recordedAt) : null
     const existingTime = existingDate ? existingDate.getTime() : Number.NEGATIVE_INFINITY
 
+    // When grouping by week/month/quarter/year, show the latest snapshot inside
+    // each period. That keeps the chart aligned with "period-end portfolio value".
     if (!existing || snapshotTime >= existingTime) {
       const values = valuesBySnapshot.get(snap.id) || []
       const total = calculateSnapshotTotal(values, assets, rates)

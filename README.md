@@ -2,6 +2,14 @@
 
 个人资产快照账本。当前版本使用 React + Vite 构建前端，使用 Cloudflare Worker 提供 API，使用 Cloudflare KV 保存一份完整 JSON 数据。
 
+## 项目地图
+
+如果你想理解产品模型、代码结构、关键文件和容易改错的规则，先看：
+
+- [项目索引](docs/PROJECT_INDEX.md)
+
+非主项目的示例和实验代码统一放在 `demo/`。
+
 ## 当前架构
 
 ```txt
@@ -58,6 +66,8 @@ Worker API 地址：
 http://localhost:8787
 ```
 
+Vite 会把 `/api` 代理到本地 Worker。当前 API 行为以 `worker/index.js` 为准。
+
 ## 测试
 
 运行当前主线测试：
@@ -66,7 +76,7 @@ http://localhost:8787
 npm test
 ```
 
-这会依次运行前端/domain 测试和 Worker 测试，不会触发旧本地后端的 storage 测试。
+这会依次运行前端/domain 测试和 Worker 测试。
 
 只运行前端/domain 测试：
 
@@ -126,7 +136,7 @@ npm run deploy:dry-run
 
 ## 数据迁移
 
-旧本地 Express 版本的数据可以通过“数据管理”页的 JSON 导出/导入迁移。
+旧本地 JSON 数据可以通过“数据管理”页的 JSON 导出/导入迁移。
 
 如果你已有旧备份文件：
 
@@ -141,5 +151,4 @@ npm run deploy:dry-run
 
 - `.dev.vars` 不要提交到 Git。
 - `APP_PASSWORD` 不要写进代码或文档。
-- `data/` 是旧本地后端运行时目录，新 Worker/KV 架构不再依赖它。
-- `server/` 里的 Express 代码会暂时保留作为迁移参考，正式路径以 Worker 为准。旧 `server/storage.test.ts` 会操作 `data/`，所以没有放进默认 `npm test`。
+- 仓库不再保留旧 Express 后端和旧 `data/` 本地 JSON 数据目录；正式 API 在 `worker/index.js`。

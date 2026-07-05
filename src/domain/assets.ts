@@ -8,6 +8,8 @@ export interface AssetProfileField {
   inputType?: 'text' | 'date'
 }
 
+// Single source of truth for asset dossier fields. These fields are intentionally
+// descriptive only; do not use them for amount/profit/trend calculations.
 export const ASSET_PROFILE_FIELDS: Record<AssetType, AssetProfileField[]> = {
   fund: [
     { key: 'fundCode', label: '基金代码', placeholder: '如：513100' },
@@ -86,6 +88,8 @@ export function sanitizeAssetProfile(
   const input = profile as Record<string, unknown>
   const cleaned: AssetProfile = {}
 
+  // Type switches can leave hidden form fields behind. Only persist keys that
+  // belong to the current asset type, and drop empty strings.
   for (const field of getAssetProfileFields(type)) {
     const value = input[field.key]
     if (typeof value !== 'string') continue
@@ -102,6 +106,7 @@ export function sanitizeAssetProfile(
 export function formatAssetProfileIdentifier(asset: Asset): string {
   const profile = asset.profile || {}
 
+  // The asset list needs one compact searchable hint, not the full dossier.
   switch (asset.type) {
     case 'fund':
       return profile.fundCode || '-'

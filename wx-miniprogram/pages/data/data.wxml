@@ -11,7 +11,7 @@
     </button>
 
     <view class="import-box">
-      <textarea class="import-textarea" value="{{importText}}" placeholder="粘贴 JSON" maxlength="-1" bindinput="onImportInput" />
+      <textarea class="import-textarea" value="{{importText}}" placeholder="粘贴或导出 JSON" maxlength="-1" bindinput="onImportInput" />
     </view>
 
     <button class="ghost-button data-button" loading="{{importing}}" disabled="{{importing || !importText}}" bindtap="handleImport">

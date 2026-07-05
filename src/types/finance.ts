@@ -11,6 +11,8 @@ export type AssetType =
 
 export type Currency = 'CNY' | 'USD' | 'HKD'
 
+// Asset profile fields are master-data identifiers, not valuation inputs.
+// They help describe "what this asset is"; SnapshotValue describes "what it is worth now".
 export type AssetProfileKey =
   | 'fundCode'
   | 'fundCategory'
@@ -61,6 +63,7 @@ export type Asset = {
   currency: Currency
   isActive: boolean
   note?: string
+  // Optional type-specific asset dossier. Kept out of snapshot calculations by design.
   profile?: AssetProfile
   createdAt: string
   updatedAt: string
@@ -78,6 +81,7 @@ export type SnapshotValue = {
   snapshotId: string
   assetId: string
   amount: number
+  // Only investment asset types should use profit/profitRate.
   profit?: number
   profitRate?: number
   note?: string

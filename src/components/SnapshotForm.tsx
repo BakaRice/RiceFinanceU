@@ -114,14 +114,15 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
         if (i !== index) return r
         const updated = { ...r, [field]: value, status: 'modified' as const }
 
-        // Auto-include on edit
+        // Editing a value means this asset belongs to the current snapshot.
         if (!r.included) {
           updated.included = true
         }
 
         if (!isInvestmentType(r.type as any)) return updated
 
-        // Skip auto-calc if the new value is an incomplete decimal
+        // Do not auto-calculate while the user is in the middle of typing.
+        // For example "12." is not final enough to derive profit/rate from.
         if (value === '' || value === '-' || value.endsWith('.')) return updated
 
         const curAmount = field === 'amount' ? Number(value) : Number(r.amount)
@@ -219,7 +220,8 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
         return item
       })
 
-      // Build detailed change summary for confirm dialog
+      // Build a review sheet before saving. Snapshot entry is deliberately
+      // time-bound, so the user should see which point in time they are about to write.
       const changedDetails: string[] = []
       let totalAmountDelta = 0
       for (const r of changedRows) {

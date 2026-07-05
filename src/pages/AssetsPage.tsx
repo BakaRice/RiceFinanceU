@@ -92,6 +92,8 @@ export default function AssetsPage() {
       currency,
       institution: institution || undefined,
       note: note || undefined,
+      // Send {} when the form has no usable dossier fields so editing can clear
+      // an older profile instead of silently keeping hidden values on the server.
       profile: profile || {},
     }
     try {
@@ -402,6 +404,8 @@ export default function AssetsPage() {
               <div className="profile-fields">
                 <div className="profile-fields-title">类型档案</div>
                 <div className="profile-field-grid">
+                  {/* The field list follows the selected asset type. Hidden fields
+                      are still cleaned again by sanitizeAssetProfile before save. */}
                   {getAssetProfileFields(type).map((field) => (
                     <label className="profile-field" key={field.key}>
                       <span className="form-label">{field.label}</span>

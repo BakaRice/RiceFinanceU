@@ -41,7 +41,7 @@ DELETE /api/note      删除 KV 里的便签
 进入这个目录：
 
 ```bash
-cd cloudflare-worker-demo
+cd demo/cloudflare-worker-demo
 ```
 
 运行测试：

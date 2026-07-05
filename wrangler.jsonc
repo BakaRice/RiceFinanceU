@@ -1,19 +1,25 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ricefinanceu",
+  // 生产 API 入口。静态前端资源在下面配置，业务接口都在 worker/index.js。
   "main": "worker/index.js",
   "compatibility_date": "2026-07-04",
   "assets": {
+    // npm run build 会把 React 应用输出到这里。Cloudflare 直接托管这些文件，
+    // 并在前端路由刷新时回退到 index.html。
     "directory": "./dist",
     "not_found_handling": "single-page-application",
+    // /api 流量必须先交给 Worker，不能让静态资源处理器把它当文件路径解析。
     "run_worker_first": ["/api/*"]
   },
   "kv_namespaces": [
     {
+      // 保存完整资产账本 JSON，以及短期 session 记录。
       "binding": "FINANCE_KV",
       "id": "6171cc9a6afe47289d8b971e28a64655"
     }
   ],
+  // 为个人生产部署启用 Workers Logs / observability。
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

@@ -1,66 +1,109 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file gives AI coding agents the short path into this repository.
+
+Read `docs/PROJECT_INDEX.md` first. It explains the product model, code map, domain boundaries, and common traps in more detail.
+
+## Current Architecture
+
+RiceFinanceU is a personal asset snapshot ledger.
+
+The production path is:
+
+```txt
+React/Vite frontend
+  -> Cloudflare Worker /api
+  -> Cloudflare KV
+```
+
+Local development runs:
+
+```txt
+Vite http://localhost:5173
+  -> proxy /api
+  -> Wrangler local Worker http://localhost:8787
+```
+
+There is no local Express backend in the current codebase. Treat `worker/index.js` as the API implementation.
 
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server (port 5173), proxies /api → :3001
-npm run dev:server   # Express API server (port 3001) with tsx watch
-npm run dev:all      # Both concurrently
+npm run dev          # Vite dev server on port 5173
+npm run dev:api      # Build frontend, then run Wrangler Worker on port 8787
+npm run dev:all      # Run Vite and Wrangler together
 npm run build        # TypeScript check + Vite production build
-npm test             # Vitest run (all tests)
-npm run test:watch   # Vitest watch mode
-npx vitest path/to/file.test.ts  # Run a single test file
+npm run test         # Frontend/domain tests + Worker tests
+npm run test:app     # Vitest over src/
+npm run worker:test  # Node test runner over worker/
+npm run mini:test    # WeChat miniprogram tests
 ```
 
-Seed data: start the server, then `bash scripts/seed-data.sh`.
+## Product Model
 
-## Architecture
+This app is not a transaction journal.
 
-**RiceFinanceU** (资产快照账本) is a personal asset tracking app. It uses snapshot-based ledgering: users define assets (funds, stocks, deposits, cash, etc.) then record periodic snapshots of their values. Each snapshot only needs the assets that changed — unchanged values carry forward from the previous snapshot.
+The core entities are:
 
-### Stack
+- `Asset`: long-lived master data.
+- `Snapshot`: a recorded point in time.
+- `SnapshotValue`: one asset's state inside one snapshot.
 
-React 19 + TypeScript 6 + Vite 8 (frontend), Express 5 + tsx (backend), Vitest (testing), Recharts (charts), plain CSS.
+Asset management is the master-data area. Snapshot entry is the time-bound recording area. Do not blur these responsibilities.
 
-### Backend (`server/`)
+## Key Domain Rules
 
-- `server/index.ts` — Express entry, JSON body parser (10MB limit), mounts routes under `/api`
-- `server/storage.ts` — File-based JSON persistence in `data/` (assets.json, snapshots.json, snapshot-values.json, rates.json, meta.json). Atomic writes via tmp-file + rename. Schema version 2.
-- `server/routes/dataRoutes.ts` — CRUD for assets, snapshots, snapshot values, and exchange rates. Snapshot creation handles inline asset creation and carries forward previous values for unchanged assets.
-- `server/routes/importExportRoutes.ts` — Full JSON export/import of all data for backup.
+- Investment assets are `fund`, `stock`, and `gold`.
+- Balance assets are `deposit`, `cash`, `housing_fund`, and `other`.
+- Investment assets may carry `profit` and `profitRate`.
+- Balance assets must not carry `profit` or `profitRate`.
+- Snapshot entry is partial: users submit changed assets, then `completeSnapshotValues` carries forward unchanged values.
+- Saved snapshots are complete points in time.
+- Assets are soft-deleted with `isActive: false`; historical snapshots keep their references.
+- Asset `profile` data is type-specific master data for identification and management only. It must not affect valuation, profit, or trend calculations.
 
-### Frontend (`src/`)
+## Important Files
 
-- `src/types/finance.ts` — All domain types: `Asset`, `Snapshot`, `SnapshotValue`, `ExchangeRates`, `CreateSnapshotInput`, `ExportData`. Multi-currency support (CNY/USD/HKD).
-- `src/api/client.ts` — Typed `fetch` wrapper for all `/api` endpoints. Every function returns typed promises.
-- `src/main.tsx` → `src/App.tsx` — React Router with 3 routes under a sidebar `Layout`: `/` (Dashboard), `/assets` (Assets), `/entry` (Entry/backup).
-- `src/pages/DashboardPage.tsx` — Shows total assets (CNY-converted), allocation bars, most recent snapshot comparison, historical line chart (Recharts), and expandable snapshot history list with delete.
-- `src/pages/AssetsPage.tsx` — Sortable table of assets (active + inactive). Columns: name, type, currency, institution, latest amount, profit/rate (investment only). Displays values from the most recent snapshot.
-- `src/pages/EntryPage.tsx` — Wraps `SnapshotForm` for data entry, plus JSON backup export/import UI.
-- `src/components/SnapshotForm.tsx` — The core data entry form. Lists all active assets with checkboxes. Unchecked assets carry forward from the previous snapshot. Investment assets have auto-calculating amount/profit/profitRate fields. Supports inline creation of new assets during snapshot entry.
-- `src/components/SnapshotComparison.tsx` — Shows amount/profit diffs between the two most recent snapshots.
+- `docs/PROJECT_INDEX.md`: start here for the project map.
+- `src/types/finance.ts`: shared domain types.
+- `src/domain/assets.ts`: asset categories, profile field definitions, profile cleanup, list identifiers.
+- `src/domain/snapshots.ts`: snapshot carry-forward, totals, allocation, comparison, trend series.
+- `src/domain/money.ts`: money formatting and input validation.
+- `src/api/client.ts`: browser API wrapper.
+- `src/App.tsx`: auth gate and route table.
+- `src/pages/AssetsPage.tsx`: asset management and profile editing.
+- `src/pages/AssetDetailPage.tsx`: asset detail, profile display, snapshot history.
+- `src/components/SnapshotForm.tsx`: snapshot entry form.
+- `worker/index.js`: primary API implementation.
+- `worker/worker.test.mjs`: Worker behavior tests.
+- `demo/`: non-project examples and experiments; do not treat these as production app code unless asked.
+- `wx-miniprogram/`: WeChat miniprogram client.
 
-### Domain Layer (`src/domain/`)
+## Change Guidance
 
-Pure TypeScript, no React — these hold the business logic and are tested independently.
+When changing asset fields or asset profile logic:
 
-- `assets.ts` — Classifiers: `isInvestmentType` (fund/stock/gold), `isBalanceType` (everything else), `filterActiveAssets`, `groupAssetsByType`, `ASSET_TYPE_LABELS` (Chinese labels).
-- `money.ts` — `roundMoney` (2 decimal places) and `formatMoney` (comma-separated display).
-- `snapshots.ts` — Core calculations:
-  - `completeSnapshotValues` — Merges a partial snapshot submission with the previous snapshot's values (copy prev → override submitted).
-  - `calculateSnapshotTotal` — Aggregates values into totals with currency conversion to CNY.
-  - `calculateAllocation` — Percentage breakdown by asset type.
-  - `compareSnapshots` — Computes per-asset deltas between two snapshots.
-  - `buildTotalAssetSeries` — Builds chronological time series from all snapshots for the chart.
-- `portfolio.ts` — Re-exports everything from `snapshots.ts`.
+1. Update `src/domain/assets.ts`.
+2. Keep Worker behavior in `worker/index.js` aligned.
+3. Check import/export compatibility.
+4. Add or update tests in `src/domain/assets.test.ts`, page tests, and Worker tests as appropriate.
 
-### Key Design Decisions
+When changing snapshot behavior:
 
-- **Two asset categories**: Investment (fund/stock/gold) tracks profit/profitRate; Balance (deposit/cash/housing_fund/other) only tracks amount. Profit fields on balance assets are rejected by the server.
-- **Partial snapshot updates**: Users only fill in changed assets. `completeSnapshotValues` handles carrying forward previous values for untouched assets. Checkboxes in the form control which assets are included.
-- **Multi-currency**: Each asset has a currency field. Totals are computed in both the native currency and CNY-converted amounts using adjustable exchange rates (stored in `rates.json`).
-- **Soft delete**: Assets are marked `isActive: false` rather than removed, preserving historical snapshot data. Snapshots are hard-deleted along with their values.
-- **Inline asset creation**: When entering a snapshot, users can create new assets on the fly without leaving the form.
-- **Auto-calculation in SnapshotForm**: For investment assets, editing amount/profit/profitRate auto-calculates the other fields. Stops cascading when the input is an incomplete decimal (e.g., "2.").
+1. Start with `src/domain/snapshots.ts`.
+2. Read the tests in `src/domain/snapshots.test.ts`.
+3. Preserve the partial-submit to complete-snapshot rule unless the product model is explicitly redesigned.
+
+When changing money display/input:
+
+1. Preserve 2-decimal money display.
+2. Preserve thousand separators.
+3. Preserve `-` for unknown values.
+4. Be careful with incomplete input states such as `12.`, `.5`, and `-`.
+
+Before claiming work is complete, run the relevant checks:
+
+```bash
+npm run test
+npm run build
+```
