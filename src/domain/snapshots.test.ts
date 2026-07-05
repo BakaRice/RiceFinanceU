@@ -255,7 +255,11 @@ describe('buildTotalAssetSeries', () => {
     ])
     const series = buildTotalAssetSeries(snapshots, valuesBySnapshot, assets)
     expect(series).toHaveLength(2)
+    expect(series[0].periodKey).toBe('2026-01-01')
+    expect(series[0].periodLabel).toBe('2026-01-01')
     expect(series[0].totalAmount).toBe(300)
+    expect(series[1].periodKey).toBe('2026-02-01')
+    expect(series[1].periodLabel).toBe('2026-02-01')
     expect(series[1].totalAmount).toBe(400)
   })
 
@@ -281,6 +285,33 @@ describe('buildTotalAssetSeries', () => {
 // —— buildScaledTotalAssetSeries ——
 
 describe('buildScaledTotalAssetSeries', () => {
+  it('treats date-only snapshot strings as local dates', () => {
+    const originalTimeZone = process.env.TZ
+    process.env.TZ = 'America/New_York'
+
+    try {
+      const assets = [makeAsset({ id: 'a1', type: 'fund' })]
+      const snapshots: Snapshot[] = [
+        { id: 'new-year', recordedAt: '2026-01-01', createdAt: '2026-01-01T00:00:00' },
+      ]
+      const valuesBySnapshot = new Map<string, SnapshotValue[]>([
+        ['new-year', [makeValue({ snapshotId: 'new-year', assetId: 'a1', amount: 100 })]],
+      ])
+
+      const series = buildScaledTotalAssetSeries(snapshots, valuesBySnapshot, assets, 'day')
+
+      expect(series).toHaveLength(1)
+      expect(series[0].periodKey).toBe('2026-01-01')
+      expect(series[0].periodLabel).toBe('2026-01-01')
+    } finally {
+      if (originalTimeZone === undefined) {
+        delete process.env.TZ
+      } else {
+        process.env.TZ = originalTimeZone
+      }
+    }
+  })
+
   it('keeps the latest snapshot in each day bucket', () => {
     const assets = [makeAsset({ id: 'a1', type: 'fund' })]
     const snapshots: Snapshot[] = [
@@ -299,6 +330,25 @@ describe('buildScaledTotalAssetSeries', () => {
     expect(series[0].periodLabel).toBe('2026-07-05')
     expect(series[0].recordedAt).toBe('2026-07-05T21:30:00')
     expect(series[0].totalAmount).toBe(150)
+  })
+
+  it('keeps the latest snapshot in a month bucket when input is unsorted', () => {
+    const assets = [makeAsset({ id: 'a1', type: 'deposit' })]
+    const snapshots: Snapshot[] = [
+      { id: 'later', recordedAt: '2026-07-31T23:00:00', createdAt: '2026-07-31T23:00:00' },
+      { id: 'earlier', recordedAt: '2026-07-01T09:00:00', createdAt: '2026-07-01T09:00:00' },
+    ]
+    const valuesBySnapshot = new Map<string, SnapshotValue[]>([
+      ['later', [makeValue({ snapshotId: 'later', assetId: 'a1', amount: 300 })]],
+      ['earlier', [makeValue({ snapshotId: 'earlier', assetId: 'a1', amount: 100 })]],
+    ])
+
+    const series = buildScaledTotalAssetSeries(snapshots, valuesBySnapshot, assets, 'month')
+
+    expect(series).toHaveLength(1)
+    expect(series[0].periodKey).toBe('2026-07')
+    expect(series[0].recordedAt).toBe('2026-07-31T23:00:00')
+    expect(series[0].totalAmount).toBe(300)
   })
 
   it('groups weeks from Monday to Sunday', () => {

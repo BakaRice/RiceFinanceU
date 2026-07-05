@@ -292,6 +292,55 @@ function formatLocalDateKey(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
 }
 
+function isValidDateTimeParts(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number
+): boolean {
+  if (month < 1 || month > 12) return false
+  if (day < 1 || day > new Date(year, month, 0).getDate()) return false
+  if (hour < 0 || hour > 23) return false
+  if (minute < 0 || minute > 59) return false
+  if (second < 0 || second > 59) return false
+  return true
+}
+
+function parseLocalSnapshotDate(value: string): Date | null {
+  const localMatch = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2}))?$/.exec(value)
+  if (localMatch) {
+    const [, yearText, monthText, dayText, hourText = '0', minuteText = '0', secondText = '0'] = localMatch
+    const year = Number(yearText)
+    const month = Number(monthText)
+    const day = Number(dayText)
+    const hour = Number(hourText)
+    const minute = Number(minuteText)
+    const second = Number(secondText)
+
+    if (!isValidDateTimeParts(year, month, day, hour, minute, second)) return null
+    return new Date(year, month - 1, day, hour, minute, second)
+  }
+
+  const timestampMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/.exec(value)
+  if (timestampMatch) {
+    const [, yearText, monthText, dayText, hourText, minuteText, secondText] = timestampMatch
+    const year = Number(yearText)
+    const month = Number(monthText)
+    const day = Number(dayText)
+    const hour = Number(hourText)
+    const minute = Number(minuteText)
+    const second = Number(secondText)
+
+    if (!isValidDateTimeParts(year, month, day, hour, minute, second)) return null
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  return null
+}
+
 function getMondayStart(date: Date): Date {
   const start = new Date(date)
   start.setHours(0, 0, 0, 0)
@@ -338,17 +387,25 @@ export function buildScaledTotalAssetSeries(
   scale: TrendScale,
   rates?: ExchangeRates
 ): TotalAssetPoint[] {
-  const sorted = [...snapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+  const sorted = [...snapshots].sort((a, b) => {
+    const aDate = parseLocalSnapshotDate(a.recordedAt)
+    const bDate = parseLocalSnapshotDate(b.recordedAt)
+    if (!aDate && !bDate) return a.recordedAt.localeCompare(b.recordedAt)
+    if (!aDate) return 1
+    if (!bDate) return -1
+    return aDate.getTime() - bDate.getTime() || a.recordedAt.localeCompare(b.recordedAt)
+  })
   const pointsByPeriod = new Map<string, TotalAssetPoint>()
 
   for (const snap of sorted) {
-    const date = new Date(snap.recordedAt)
+    const date = parseLocalSnapshotDate(snap.recordedAt)
+    if (!date) continue
     const snapshotTime = date.getTime()
-    if (Number.isNaN(snapshotTime)) continue
 
     const period = getTrendPeriod(date, scale)
     const existing = pointsByPeriod.get(period.key)
-    const existingTime = existing ? new Date(existing.recordedAt).getTime() : Number.NEGATIVE_INFINITY
+    const existingDate = existing ? parseLocalSnapshotDate(existing.recordedAt) : null
+    const existingTime = existingDate ? existingDate.getTime() : Number.NEGATIVE_INFINITY
 
     if (!existing || snapshotTime >= existingTime) {
       const values = valuesBySnapshot.get(snap.id) || []
