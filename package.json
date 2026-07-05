@@ -4,18 +4,18 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config modules/web-app/vite.config.ts",
     "dev:api": "npm run build && wrangler dev --port 8787",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test:app": "vitest run src",
-    "worker:test": "node --test worker/worker.test.mjs",
-    "mini:test": "node --test wx-miniprogram/app-config.test.mjs wx-miniprogram/pages/**/*.test.mjs wx-miniprogram/utils/*.test.mjs",
+    "build": "tsc && vite build --config modules/web-app/vite.config.ts",
+    "preview": "vite preview --config modules/web-app/vite.config.ts",
+    "test:app": "vitest run --config modules/web-app/vite.config.ts",
+    "worker:test": "node --test modules/worker-api/worker.test.mjs",
+    "mini:test": "node --test modules/miniprogram-app/app-config.test.mjs modules/miniprogram-app/pages/**/*.test.mjs modules/miniprogram-app/utils/*.test.mjs",
     "deploy": "npm run build && wrangler deploy",
     "deploy:dry-run": "npm run build && wrangler deploy --dry-run",
     "test": "npm run test:app && npm run worker:test",
-    "test:watch": "vitest"
+    "test:watch": "vitest --config modules/web-app/vite.config.ts"
   },
   "dependencies": {
     "react": "^19.2.6",

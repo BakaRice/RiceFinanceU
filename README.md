@@ -7,8 +7,23 @@
 如果你想理解产品模型、代码结构、关键文件和容易改错的规则，先看：
 
 - [项目索引](docs/PROJECT_INDEX.md)
+- [模块地图](docs/architecture/module-map.md)
+- [依赖规则](docs/architecture/dependency-rules.md)
 
-非主项目的示例和实验代码统一放在 `demo/`。
+正式代码统一放在 `modules/`。非主项目的示例和实验代码统一放在 `examples/`。
+
+## 代码结构
+
+```txt
+modules/
+  web-app/          React/Vite PC 端
+  miniprogram-app/  微信小程序端
+  worker-api/       Cloudflare Worker API
+  finance-core/     共享领域核心的目标模块
+
+docs/               项目知识库、架构说明、review 清单
+examples/           学习 demo 和实验代码
+```
 
 ## 当前架构
 
@@ -66,7 +81,7 @@ Worker API 地址：
 http://localhost:8787
 ```
 
-Vite 会把 `/api` 代理到本地 Worker。当前 API 行为以 `worker/index.js` 为准。
+Vite 会把 `/api` 代理到本地 Worker。当前 API 行为以 `modules/worker-api/index.js` 为准。
 
 ## 测试
 
@@ -151,4 +166,4 @@ npm run deploy:dry-run
 
 - `.dev.vars` 不要提交到 Git。
 - `APP_PASSWORD` 不要写进代码或文档。
-- 仓库不再保留旧 Express 后端和旧 `data/` 本地 JSON 数据目录；正式 API 在 `worker/index.js`。
+- 仓库不再保留旧 Express 后端和旧 `data/` 本地 JSON 数据目录；正式 API 在 `modules/worker-api/index.js`。

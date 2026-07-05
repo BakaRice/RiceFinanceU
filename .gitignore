@@ -15,12 +15,12 @@ dist-ssr
 .wrangler/
 .superpowers/
 .dev.vars
-wx-miniprogram/project.private.config.json
+modules/miniprogram-app/project.private.config.json
 
 # Data files (auto-generated at runtime)
 data/
-!wx-miniprogram/pages/data/
-!wx-miniprogram/pages/data/**
+!modules/miniprogram-app/pages/data/
+!modules/miniprogram-app/pages/data/**
 
 # Editor directories and files
 .vscode/*

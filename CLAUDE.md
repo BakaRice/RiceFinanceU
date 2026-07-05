@@ -2,7 +2,11 @@
 
 This file gives AI coding agents the short path into this repository.
 
-Read `docs/PROJECT_INDEX.md` first. It explains the product model, code map, domain boundaries, and common traps in more detail.
+Read these first:
+
+1. `docs/PROJECT_INDEX.md` for the product model and code map.
+2. `docs/architecture/dependency-rules.md` for module dependency direction.
+3. The local `README.md` inside any module you touch.
 
 ## Current Architecture
 
@@ -24,7 +28,7 @@ Vite http://localhost:5173
   -> Wrangler local Worker http://localhost:8787
 ```
 
-There is no local Express backend in the current codebase. Treat `worker/index.js` as the API implementation.
+There is no local Express backend in the current codebase. Treat `modules/worker-api/index.js` as the API implementation.
 
 ## Commands
 
@@ -34,8 +38,8 @@ npm run dev:api      # Build frontend, then run Wrangler Worker on port 8787
 npm run dev:all      # Run Vite and Wrangler together
 npm run build        # TypeScript check + Vite production build
 npm run test         # Frontend/domain tests + Worker tests
-npm run test:app     # Vitest over src/
-npm run worker:test  # Node test runner over worker/
+npm run test:app     # Vitest over modules/web-app/src/
+npm run worker:test  # Node test runner over modules/worker-api/
 npm run mini:test    # WeChat miniprogram tests
 ```
 
@@ -65,33 +69,37 @@ Asset management is the master-data area. Snapshot entry is the time-bound recor
 ## Important Files
 
 - `docs/PROJECT_INDEX.md`: start here for the project map.
-- `src/types/finance.ts`: shared domain types.
-- `src/domain/assets.ts`: asset categories, profile field definitions, profile cleanup, list identifiers.
-- `src/domain/snapshots.ts`: snapshot carry-forward, totals, allocation, comparison, trend series.
-- `src/domain/money.ts`: money formatting and input validation.
-- `src/api/client.ts`: browser API wrapper.
-- `src/App.tsx`: auth gate and route table.
-- `src/pages/AssetsPage.tsx`: asset management and profile editing.
-- `src/pages/AssetDetailPage.tsx`: asset detail, profile display, snapshot history.
-- `src/components/SnapshotForm.tsx`: snapshot entry form.
-- `worker/index.js`: primary API implementation.
-- `worker/worker.test.mjs`: Worker behavior tests.
-- `demo/`: non-project examples and experiments; do not treat these as production app code unless asked.
-- `wx-miniprogram/`: WeChat miniprogram client.
+- `docs/architecture/module-map.md`: module responsibilities.
+- `docs/architecture/dependency-rules.md`: dependency direction and runtime separation.
+- `docs/review-checklists/change-review.md`: review checklist for AI-generated changes.
+- `modules/web-app/src/types/finance.ts`: shared domain types currently used by the web app.
+- `modules/web-app/src/domain/assets.ts`: asset categories, profile field definitions, profile cleanup, list identifiers.
+- `modules/web-app/src/domain/snapshots.ts`: snapshot carry-forward, totals, allocation, comparison, trend series.
+- `modules/web-app/src/domain/money.ts`: money formatting and input validation.
+- `modules/web-app/src/api/client.ts`: browser API wrapper.
+- `modules/web-app/src/App.tsx`: auth gate and route table.
+- `modules/web-app/src/pages/AssetsPage.tsx`: asset management and profile editing.
+- `modules/web-app/src/pages/AssetDetailPage.tsx`: asset detail, profile display, snapshot history.
+- `modules/web-app/src/components/SnapshotForm.tsx`: snapshot entry form.
+- `modules/worker-api/index.js`: primary API implementation.
+- `modules/worker-api/worker.test.mjs`: Worker behavior tests.
+- `modules/miniprogram-app/`: WeChat miniprogram client.
+- `modules/finance-core/`: target home for shared pure domain rules.
+- `examples/`: non-project examples and experiments; do not treat these as production app code unless asked.
 
 ## Change Guidance
 
 When changing asset fields or asset profile logic:
 
-1. Update `src/domain/assets.ts`.
-2. Keep Worker behavior in `worker/index.js` aligned.
+1. Update `modules/web-app/src/domain/assets.ts`.
+2. Keep Worker behavior in `modules/worker-api/index.js` aligned.
 3. Check import/export compatibility.
-4. Add or update tests in `src/domain/assets.test.ts`, page tests, and Worker tests as appropriate.
+4. Add or update tests in `modules/web-app/src/domain/assets.test.ts`, page tests, and Worker tests as appropriate.
 
 When changing snapshot behavior:
 
-1. Start with `src/domain/snapshots.ts`.
-2. Read the tests in `src/domain/snapshots.test.ts`.
+1. Start with `modules/web-app/src/domain/snapshots.ts`.
+2. Read the tests in `modules/web-app/src/domain/snapshots.test.ts`.
 3. Preserve the partial-submit to complete-snapshot rule unless the product model is explicitly redesigned.
 
 When changing money display/input:

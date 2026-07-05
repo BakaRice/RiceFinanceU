@@ -1,8 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ricefinanceu",
-  // 生产 API 入口。静态前端资源在下面配置，业务接口都在 worker/index.js。
-  "main": "worker/index.js",
+  // 生产 API 入口。静态前端资源在下面配置，业务接口都在 modules/worker-api/index.js。
+  "main": "modules/worker-api/index.js",
   "compatibility_date": "2026-07-04",
   "assets": {
     // npm run build 会把 React 应用输出到这里。Cloudflare 直接托管这些文件，
