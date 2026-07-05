@@ -6,6 +6,7 @@ import {
   calculateAllocation,
   compareSnapshots,
   buildTotalAssetSeries,
+  buildScaledTotalAssetSeries,
 } from './snapshots'
 import type { Asset, Snapshot, SnapshotValue, CreateSnapshotInput } from '../types/finance'
 
@@ -274,5 +275,102 @@ describe('buildTotalAssetSeries', () => {
 
   it('returns empty array for no snapshots', () => {
     expect(buildTotalAssetSeries([], new Map(), [])).toEqual([])
+  })
+})
+
+// —— buildScaledTotalAssetSeries ——
+
+describe('buildScaledTotalAssetSeries', () => {
+  it('keeps the latest snapshot in each day bucket', () => {
+    const assets = [makeAsset({ id: 'a1', type: 'fund' })]
+    const snapshots: Snapshot[] = [
+      { id: 'morning', recordedAt: '2026-07-05T09:00:00', createdAt: '2026-07-05T09:00:00' },
+      { id: 'night', recordedAt: '2026-07-05T21:30:00', createdAt: '2026-07-05T21:30:00' },
+    ]
+    const valuesBySnapshot = new Map<string, SnapshotValue[]>([
+      ['morning', [makeValue({ snapshotId: 'morning', assetId: 'a1', amount: 100 })]],
+      ['night', [makeValue({ snapshotId: 'night', assetId: 'a1', amount: 150 })]],
+    ])
+
+    const series = buildScaledTotalAssetSeries(snapshots, valuesBySnapshot, assets, 'day')
+
+    expect(series).toHaveLength(1)
+    expect(series[0].periodKey).toBe('2026-07-05')
+    expect(series[0].periodLabel).toBe('2026-07-05')
+    expect(series[0].recordedAt).toBe('2026-07-05T21:30:00')
+    expect(series[0].totalAmount).toBe(150)
+  })
+
+  it('groups weeks from Monday to Sunday', () => {
+    const assets = [makeAsset({ id: 'a1', type: 'fund' })]
+    const snapshots: Snapshot[] = [
+      { id: 'sunday', recordedAt: '2026-07-05T12:00:00', createdAt: '2026-07-05T12:00:00' },
+      { id: 'wednesday', recordedAt: '2026-07-08T12:00:00', createdAt: '2026-07-08T12:00:00' },
+    ]
+    const valuesBySnapshot = new Map<string, SnapshotValue[]>([
+      ['sunday', [makeValue({ snapshotId: 'sunday', assetId: 'a1', amount: 100 })]],
+      ['wednesday', [makeValue({ snapshotId: 'wednesday', assetId: 'a1', amount: 200 })]],
+    ])
+
+    const series = buildScaledTotalAssetSeries(snapshots, valuesBySnapshot, assets, 'week')
+
+    expect(series.map((point) => point.periodKey)).toEqual(['2026-06-29', '2026-07-06'])
+    expect(series.map((point) => point.periodLabel)).toEqual(['2026-06-29 周', '2026-07-06 周'])
+    expect(series.map((point) => point.totalAmount)).toEqual([100, 200])
+  })
+
+  it('builds sorted quarter labels across years', () => {
+    const assets = [makeAsset({ id: 'a1', type: 'deposit' })]
+    const snapshots: Snapshot[] = [
+      { id: 'q3', recordedAt: '2026-07-01T12:00:00', createdAt: '2026-07-01T12:00:00' },
+      { id: 'q4prev', recordedAt: '2025-12-31T12:00:00', createdAt: '2025-12-31T12:00:00' },
+      { id: 'q1', recordedAt: '2026-01-01T12:00:00', createdAt: '2026-01-01T12:00:00' },
+      { id: 'q2', recordedAt: '2026-04-01T12:00:00', createdAt: '2026-04-01T12:00:00' },
+    ]
+    const valuesBySnapshot = new Map<string, SnapshotValue[]>([
+      ['q3', [makeValue({ snapshotId: 'q3', assetId: 'a1', amount: 400 })]],
+      ['q4prev', [makeValue({ snapshotId: 'q4prev', assetId: 'a1', amount: 100 })]],
+      ['q1', [makeValue({ snapshotId: 'q1', assetId: 'a1', amount: 200 })]],
+      ['q2', [makeValue({ snapshotId: 'q2', assetId: 'a1', amount: 300 })]],
+    ])
+
+    const series = buildScaledTotalAssetSeries(snapshots, valuesBySnapshot, assets, 'quarter')
+
+    expect(series.map((point) => point.periodKey)).toEqual(['2025-Q4', '2026-Q1', '2026-Q2', '2026-Q3'])
+    expect(series.map((point) => point.periodLabel)).toEqual(['2025 Q4', '2026 Q1', '2026 Q2', '2026 Q3'])
+    expect(series.map((point) => point.totalAmount)).toEqual([100, 200, 300, 400])
+  })
+
+  it('applies exchange rates to scaled trend points', () => {
+    const assets = [makeAsset({ id: 'usd', type: 'stock', currency: 'USD' })]
+    const snapshots: Snapshot[] = [
+      { id: 's1', recordedAt: '2026-07-05T12:00:00', createdAt: '2026-07-05T12:00:00' },
+    ]
+    const valuesBySnapshot = new Map<string, SnapshotValue[]>([
+      ['s1', [makeValue({ snapshotId: 's1', assetId: 'usd', amount: 10, profit: 2 })]],
+    ])
+
+    const series = buildScaledTotalAssetSeries(
+      snapshots,
+      valuesBySnapshot,
+      assets,
+      'month',
+      { USD: 7, HKD: 0.9, updatedAt: '2026-07-05T00:00:00' },
+    )
+
+    expect(series).toHaveLength(1)
+    expect(series[0].periodKey).toBe('2026-07')
+    expect(series[0].periodLabel).toBe('2026-07')
+    expect(series[0].totalAmount).toBe(70)
+    expect(series[0].totalProfit).toBe(14)
+  })
+
+  it('returns empty series for empty or invalid snapshots', () => {
+    const invalidSnapshots: Snapshot[] = [
+      { id: 'bad', recordedAt: 'not-a-date', createdAt: '2026-07-05T00:00:00' },
+    ]
+
+    expect(buildScaledTotalAssetSeries([], new Map(), [], 'year')).toEqual([])
+    expect(buildScaledTotalAssetSeries(invalidSnapshots, new Map(), [], 'year')).toEqual([])
   })
 })

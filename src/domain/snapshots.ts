@@ -267,12 +267,105 @@ export function compareSnapshots(
 
 // ——— Total asset history series ———
 
+export type TrendScale = 'day' | 'week' | 'month' | 'quarter' | 'year'
+
 export interface TotalAssetPoint {
   recordedAt: string
+  periodKey: string
+  periodLabel: string
   totalAmount: number
   investmentAmount: number
   balanceAmount: number
   totalProfit: number
+}
+
+interface TrendPeriod {
+  key: string
+  label: string
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function formatLocalDateKey(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+
+function getMondayStart(date: Date): Date {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  const day = start.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  start.setDate(start.getDate() + diff)
+  return start
+}
+
+function getTrendPeriod(date: Date, scale: TrendScale): TrendPeriod {
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+
+  switch (scale) {
+    case 'week': {
+      const weekStart = getMondayStart(date)
+      const key = formatLocalDateKey(weekStart)
+      return { key, label: `${key} 周` }
+    }
+    case 'month': {
+      const key = `${year}-${pad2(month)}`
+      return { key, label: key }
+    }
+    case 'quarter': {
+      const quarter = Math.floor((month - 1) / 3) + 1
+      return { key: `${year}-Q${quarter}`, label: `${year} Q${quarter}` }
+    }
+    case 'year': {
+      const key = String(year)
+      return { key, label: key }
+    }
+    case 'day':
+    default: {
+      const key = formatLocalDateKey(date)
+      return { key, label: key }
+    }
+  }
+}
+
+export function buildScaledTotalAssetSeries(
+  snapshots: Snapshot[],
+  valuesBySnapshot: Map<string, SnapshotValue[]>,
+  assets: Asset[],
+  scale: TrendScale,
+  rates?: ExchangeRates
+): TotalAssetPoint[] {
+  const sorted = [...snapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+  const pointsByPeriod = new Map<string, TotalAssetPoint>()
+
+  for (const snap of sorted) {
+    const date = new Date(snap.recordedAt)
+    const snapshotTime = date.getTime()
+    if (Number.isNaN(snapshotTime)) continue
+
+    const period = getTrendPeriod(date, scale)
+    const existing = pointsByPeriod.get(period.key)
+    const existingTime = existing ? new Date(existing.recordedAt).getTime() : Number.NEGATIVE_INFINITY
+
+    if (!existing || snapshotTime >= existingTime) {
+      const values = valuesBySnapshot.get(snap.id) || []
+      const total = calculateSnapshotTotal(values, assets, rates)
+      pointsByPeriod.set(period.key, {
+        recordedAt: snap.recordedAt,
+        periodKey: period.key,
+        periodLabel: period.label,
+        totalAmount: total.totalAmountCNY,
+        investmentAmount: total.investmentAmountCNY,
+        balanceAmount: total.balanceAmountCNY,
+        totalProfit: total.totalProfitCNY,
+      })
+    }
+  }
+
+  return [...pointsByPeriod.values()].sort((a, b) => a.periodKey.localeCompare(b.periodKey))
 }
 
 export function buildTotalAssetSeries(
@@ -281,16 +374,5 @@ export function buildTotalAssetSeries(
   assets: Asset[],
   rates?: ExchangeRates
 ): TotalAssetPoint[] {
-  const sorted = [...snapshots].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
-  return sorted.map((snap) => {
-    const values = valuesBySnapshot.get(snap.id) || []
-    const total = calculateSnapshotTotal(values, assets, rates)
-    return {
-      recordedAt: snap.recordedAt,
-      totalAmount: total.totalAmountCNY,
-      investmentAmount: total.investmentAmountCNY,
-      balanceAmount: total.balanceAmountCNY,
-      totalProfit: total.totalProfitCNY,
-    }
-  })
+  return buildScaledTotalAssetSeries(snapshots, valuesBySnapshot, assets, 'day', rates)
 }
