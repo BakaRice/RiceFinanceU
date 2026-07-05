@@ -90,6 +90,7 @@ function createDefaultData() {
     assets: [],
     snapshots: [],
     snapshotValues: [],
+    monthlyIncomes: [],
     rates: { ...DEFAULT_RATES, updatedAt: now },
   }
 }
@@ -108,6 +109,7 @@ function normalizeData(data) {
     assets: Array.isArray(data.assets) ? data.assets : [],
     snapshots: Array.isArray(data.snapshots) ? data.snapshots : [],
     snapshotValues: Array.isArray(data.snapshotValues) ? data.snapshotValues : [],
+    monthlyIncomes: Array.isArray(data.monthlyIncomes) ? data.monthlyIncomes : [],
     rates: data.rates && typeof data.rates === 'object'
       ? { ...DEFAULT_RATES, ...data.rates }
       : { ...DEFAULT_RATES, updatedAt: new Date().toISOString() },
@@ -204,6 +206,10 @@ function parseNonNegativeNumber(value) {
   return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : undefined
 }
 
+function roundMoney(value) {
+  return Math.round(value * 100) / 100
+}
+
 function parseDateOnly(value) {
   if (typeof value !== 'string') return undefined
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
@@ -221,6 +227,75 @@ function parseDateOnly(value) {
     return undefined
   }
   return value
+}
+
+function isValidMonthKey(value) {
+  if (typeof value !== 'string') return false
+  const match = /^(\d{4})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const month = Number(match[2])
+  return month >= 1 && month <= 12
+}
+
+function parseMonthlyIncomeAmount(body, key, defaultValue = 0) {
+  if (body?.[key] === undefined || body?.[key] === null || body?.[key] === '') {
+    return { value: defaultValue }
+  }
+
+  const numberValue = Number(body[key])
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    return { error: `${key} must be a non-negative finite number` }
+  }
+
+  return { value: roundMoney(numberValue) }
+}
+
+function sanitizeMonthlyIncomeInput(body, existing = undefined) {
+  const month = body?.month === undefined ? existing?.month : String(body.month || '').trim()
+  if (!isValidMonthKey(month)) {
+    return { error: 'month must use YYYY-MM with month 01-12' }
+  }
+
+  const salary = parseMonthlyIncomeAmount(body, 'salary', existing?.salary || 0)
+  if (salary.error) return { error: salary.error }
+  const extraIncome = parseMonthlyIncomeAmount(body, 'extraIncome', existing?.extraIncome || 0)
+  if (extraIncome.error) return { error: extraIncome.error }
+  const housingFund = parseMonthlyIncomeAmount(body, 'housingFund', existing?.housingFund || 0)
+  if (housingFund.error) return { error: housingFund.error }
+  const otherIncome = parseMonthlyIncomeAmount(body, 'otherIncome', existing?.otherIncome || 0)
+  if (otherIncome.error) return { error: otherIncome.error }
+
+  const note = typeof body?.note === 'string'
+    ? body.note.trim()
+    : typeof existing?.note === 'string'
+      ? existing.note
+      : ''
+
+  return {
+    value: {
+      month,
+      salary: salary.value,
+      extraIncome: extraIncome.value,
+      housingFund: housingFund.value,
+      otherIncome: otherIncome.value,
+      ...(note ? { note } : {}),
+    },
+  }
+}
+
+function sanitizeImportedMonthlyIncome(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return null
+
+  const sanitized = sanitizeMonthlyIncomeInput(record)
+  if (sanitized.error) return null
+
+  const now = new Date().toISOString()
+  return {
+    id: typeof record.id === 'string' && record.id.trim() ? record.id : createId(),
+    ...sanitized.value,
+    createdAt: typeof record.createdAt === 'string' ? record.createdAt : now,
+    updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : now,
+  }
 }
 
 // 浏览器和小程序客户端都以 Worker 生成的 ID 为准。
@@ -631,6 +706,80 @@ async function handleRates(request, env) {
   return methodNotAllowed()
 }
 
+async function handleMonthlyIncomes(request, env, segments) {
+  const data = await readData(env)
+
+  if (segments.length === 1) {
+    if (request.method === 'GET') {
+      return json([...data.monthlyIncomes].sort((a, b) => b.month.localeCompare(a.month)))
+    }
+
+    if (request.method === 'POST') {
+      const body = await readJsonBody(request)
+      const sanitized = sanitizeMonthlyIncomeInput(body)
+      if (sanitized.error) return badRequest(sanitized.error)
+
+      if (data.monthlyIncomes.some((income) => income.month === sanitized.value.month)) {
+        return badRequest(`monthly income for ${sanitized.value.month} already exists`)
+      }
+
+      const now = new Date().toISOString()
+      const income = {
+        id: createId(),
+        ...sanitized.value,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      data.monthlyIncomes.push(income)
+      await writeData(env, data)
+      return json(income, { status: 201 })
+    }
+
+    return methodNotAllowed()
+  }
+
+  if (segments.length === 2) {
+    const id = segments[1]
+    const incomeIndex = data.monthlyIncomes.findIndex((income) => income.id === id)
+    if (incomeIndex === -1) return json({ error: 'Monthly income not found' }, { status: 404 })
+
+    if (request.method === 'PATCH') {
+      const body = await readJsonBody(request)
+      const existing = data.monthlyIncomes[incomeIndex]
+      const sanitized = sanitizeMonthlyIncomeInput(body, existing)
+      if (sanitized.error) return badRequest(sanitized.error)
+
+      if (data.monthlyIncomes.some((income) => income.id !== id && income.month === sanitized.value.month)) {
+        return badRequest(`monthly income for ${sanitized.value.month} already exists`)
+      }
+
+      const nextIncome = {
+        ...existing,
+        ...sanitized.value,
+        updatedAt: new Date().toISOString(),
+      }
+      if (!sanitized.value.note) {
+        delete nextIncome.note
+      }
+
+      data.monthlyIncomes[incomeIndex] = nextIncome
+      await writeData(env, data)
+      return json(nextIncome)
+    }
+
+    if (request.method === 'DELETE') {
+      data.monthlyIncomes.splice(incomeIndex, 1)
+      await writeData(env, data)
+      return json({ success: true })
+    }
+
+    return methodNotAllowed()
+  }
+
+  return json({ error: '接口不存在' }, { status: 404 })
+}
+
 // 导出返回标准化后的完整 KV 文档，用于备份和手动迁移。
 // 这里不要隐藏字段，因为这份 JSON 本身就是恢复介质。
 async function handleExport(request, env) {
@@ -667,13 +816,18 @@ async function handleImport(request, env) {
     }),
     snapshots: body.snapshots || body.transactions || [],
     snapshotValues: body.snapshotValues,
+    monthlyIncomes: Array.isArray(body.monthlyIncomes)
+      ? body.monthlyIncomes
+          .map((income) => sanitizeImportedMonthlyIncome(income))
+          .filter(Boolean)
+      : [],
     rates: body.rates || { ...DEFAULT_RATES, updatedAt: new Date().toISOString() },
   })
 
   await writeData(env, imported)
   return json({
     success: true,
-    message: `Data imported: ${imported.assets.length} assets, ${imported.snapshots.length} snapshots, ${imported.snapshotValues.length} values`,
+    message: `Data imported: ${imported.assets.length} assets, ${imported.snapshots.length} snapshots, ${imported.snapshotValues.length} values, ${imported.monthlyIncomes.length} monthly incomes`,
   })
 }
 
@@ -708,6 +862,7 @@ async function handleApi(request, env) {
     return json(data.snapshotValues)
   }
   if (segments[0] === 'rates' && segments.length === 1) return handleRates(request, env)
+  if (segments[0] === 'monthly-incomes') return handleMonthlyIncomes(request, env, segments)
   if (segments[0] === 'export' && segments.length === 1) return handleExport(request, env)
   if (segments[0] === 'import' && segments.length === 1) return handleImport(request, env)
 

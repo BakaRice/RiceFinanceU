@@ -13,9 +13,13 @@ vi.mock('../api/client', () => ({
     getLatestSnapshot: vi.fn(),
     getSnapshots: vi.fn(),
     getSnapshotValues: vi.fn(),
+    getMonthlyIncomes: vi.fn(),
     getRates: vi.fn(),
     deleteSnapshot: vi.fn(),
     updateRates: vi.fn(),
+    createMonthlyIncome: vi.fn(),
+    updateMonthlyIncome: vi.fn(),
+    deleteMonthlyIncome: vi.fn(),
   },
 }))
 
@@ -30,7 +34,9 @@ vi.mock('recharts', () => ({
       {children}
     </div>
   ),
-  Line: ({ dataKey, name }: any) => <div data-testid={`line-${dataKey}`}>{name}</div>,
+  Line: ({ dataKey, name, yAxisId }: any) => (
+    <div data-testid={`line-${dataKey}`} data-y-axis-id={yAxisId || ''}>{name}</div>
+  ),
   XAxis: ({ dataKey }: any) => <div data-testid="x-axis">{dataKey}</div>,
   YAxis: () => <div data-testid="y-axis" />,
   CartesianGrid: () => <div data-testid="cartesian-grid" />,
@@ -99,7 +105,32 @@ describe('DashboardPage trend scale controls', () => {
     } as any)
     mockedApi.getSnapshots.mockResolvedValue(snapshots as any)
     mockedApi.getSnapshotValues.mockResolvedValue(snapshotValues as any)
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const chartIncomeMonth = currentMonth === '2026-07' ? '2026-10' : '2026-07'
+
+    mockedApi.getMonthlyIncomes.mockResolvedValue([
+      {
+        id: 'income-1',
+        month: chartIncomeMonth,
+        salary: 10000,
+        extraIncome: 500,
+        housingFund: 2000,
+        otherIncome: 0,
+        createdAt: `${chartIncomeMonth}-01T00:00:00`,
+        updatedAt: `${chartIncomeMonth}-01T00:00:00`,
+      },
+    ] as any)
     mockedApi.getRates.mockResolvedValue({ USD: 7.2, HKD: 0.92, updatedAt: '2026-07-05T00:00:00' })
+    mockedApi.createMonthlyIncome.mockResolvedValue({
+      id: 'income-current',
+      month: '2026-11',
+      salary: 100,
+      extraIncome: 20,
+      housingFund: 30,
+      otherIncome: 40,
+      createdAt: '2026-11-01T00:00:00',
+      updatedAt: '2026-11-01T00:00:00',
+    } as any)
   })
 
   it('renders day, week, month, quarter, and year trend controls', async () => {
@@ -135,5 +166,44 @@ describe('DashboardPage trend scale controls', () => {
     expect(screen.getByRole('button', { name: '月' }).getAttribute('aria-pressed')).toBe('true')
     expect(mockedApi.getSnapshots).toHaveBeenCalledTimes(1)
     expect(mockedApi.getSnapshotValues).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the income line on monthly scale with a separate y axis', async () => {
+    renderDashboard()
+
+    await screen.findByText('总资产走势')
+
+    expect(screen.queryByTestId('line-incomeAmount')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '月' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('line-incomeAmount').textContent).toBe('月收入')
+    })
+    expect(screen.getByTestId('line-incomeAmount').getAttribute('data-y-axis-id')).toBe('income')
+  })
+
+  it('creates current-month income from the dashboard panel', async () => {
+    renderDashboard()
+
+    await screen.findByText('月收入')
+
+    fireEvent.click(screen.getByRole('button', { name: '记录本月收入' }))
+    fireEvent.change(screen.getByLabelText('工资'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('额外收入'), { target: { value: '20' } })
+    fireEvent.change(screen.getByLabelText('公积金'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('其他收入'), { target: { value: '40' } })
+    fireEvent.change(screen.getByLabelText('备注'), { target: { value: '本月补录' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
+
+    await waitFor(() => {
+      expect(mockedApi.createMonthlyIncome).toHaveBeenCalledWith(expect.objectContaining({
+        salary: 100,
+        extraIncome: 20,
+        housingFund: 30,
+        otherIncome: 40,
+        note: '本月补录',
+      }))
+    })
   })
 })

@@ -438,3 +438,165 @@ test('汇率更新会写入导出 JSON，导入旧备份时会补默认汇率', 
   assert.equal(importedRates.USD, 7.2)
   assert.equal(importedRates.HKD, 0.92)
 })
+
+test('可以创建、更新、删除月收入记录，并按月份倒序列出', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const julyResponse = await authedRequest(env, '/api/monthly-incomes', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      month: '2026-07',
+      salary: '12000.235',
+      extraIncome: 800,
+      housingFund: 1800,
+      otherIncome: 200,
+      note: ' 7月收入 ',
+    }),
+  })
+  assert.equal(julyResponse.status, 201)
+  const july = await julyResponse.json()
+  assert.equal(july.month, '2026-07')
+  assert.equal(july.salary, 12000.24)
+  assert.equal(july.note, '7月收入')
+
+  const augustResponse = await authedRequest(env, '/api/monthly-incomes', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      month: '2026-08',
+      salary: 13000,
+    }),
+  })
+  assert.equal(augustResponse.status, 201)
+
+  const listResponse = await authedRequest(env, '/api/monthly-incomes', { token })
+  assert.equal(listResponse.status, 200)
+  const incomes = await listResponse.json()
+  assert.deepEqual(incomes.map((income) => income.month), ['2026-08', '2026-07'])
+
+  const updateResponse = await authedRequest(env, `/api/monthly-incomes/${july.id}`, {
+    token,
+    method: 'PATCH',
+    body: JSON.stringify({
+      salary: 12500,
+      note: '',
+    }),
+  })
+  assert.equal(updateResponse.status, 200)
+  const updated = await updateResponse.json()
+  assert.equal(updated.salary, 12500)
+  assert.equal(updated.note, undefined)
+
+  const deleteResponse = await authedRequest(env, `/api/monthly-incomes/${july.id}`, {
+    token,
+    method: 'DELETE',
+  })
+  assert.equal(deleteResponse.status, 200)
+  assert.deepEqual(await deleteResponse.json(), { success: true })
+
+  const afterDeleteResponse = await authedRequest(env, '/api/monthly-incomes', { token })
+  const remaining = await afterDeleteResponse.json()
+  assert.deepEqual(remaining.map((income) => income.month), ['2026-08'])
+})
+
+test('月收入接口会拒绝重复月份、非法月份和负数金额', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const createResponse = await authedRequest(env, '/api/monthly-incomes', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      month: '2026-07',
+      salary: 12000,
+    }),
+  })
+  assert.equal(createResponse.status, 201)
+
+  const duplicateResponse = await authedRequest(env, '/api/monthly-incomes', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      month: '2026-07',
+      salary: 13000,
+    }),
+  })
+  assert.equal(duplicateResponse.status, 400)
+  assert.deepEqual(await duplicateResponse.json(), { error: 'monthly income for 2026-07 already exists' })
+
+  const invalidMonthResponse = await authedRequest(env, '/api/monthly-incomes', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      month: '2026-13',
+      salary: 12000,
+    }),
+  })
+  assert.equal(invalidMonthResponse.status, 400)
+  assert.deepEqual(await invalidMonthResponse.json(), { error: 'month must use YYYY-MM with month 01-12' })
+
+  const negativeAmountResponse = await authedRequest(env, '/api/monthly-incomes', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      month: '2026-08',
+      salary: -1,
+    }),
+  })
+  assert.equal(negativeAmountResponse.status, 400)
+  assert.deepEqual(await negativeAmountResponse.json(), { error: 'salary must be a non-negative finite number' })
+})
+
+test('导入导出会保留月收入记录，旧备份会补空月收入数组', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const importResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      meta: { schemaVersion: 2, updatedAt: '2026-07-01T00:00:00.000Z' },
+      assets: [],
+      snapshots: [],
+      snapshotValues: [],
+      monthlyIncomes: [
+        {
+          id: 'income-1',
+          month: '2026-07',
+          salary: '12000.235',
+          extraIncome: 800,
+          housingFund: 1800,
+          otherIncome: 200,
+          note: ' 7月收入 ',
+          createdAt: '2026-07-01T00:00:00.000Z',
+          updatedAt: '2026-07-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  })
+  assert.equal(importResponse.status, 200)
+
+  const exportResponse = await authedRequest(env, '/api/export', { token })
+  const exported = await exportResponse.json()
+  assert.equal(exported.monthlyIncomes.length, 1)
+  assert.equal(exported.monthlyIncomes[0].salary, 12000.24)
+  assert.equal(exported.monthlyIncomes[0].note, '7月收入')
+
+  const oldImportResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      meta: { schemaVersion: 2, updatedAt: '2026-08-01T00:00:00.000Z' },
+      assets: [],
+      snapshots: [],
+      snapshotValues: [],
+    }),
+  })
+  assert.equal(oldImportResponse.status, 200)
+
+  const oldExportResponse = await authedRequest(env, '/api/export', { token })
+  const oldExported = await oldExportResponse.json()
+  assert.deepEqual(oldExported.monthlyIncomes, [])
+})

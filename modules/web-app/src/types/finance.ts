@@ -102,6 +102,18 @@ export type SnapshotValue = {
   note?: string
 }
 
+export type MonthlyIncome = {
+  id: string
+  month: string
+  salary: number
+  extraIncome: number
+  housingFund: number
+  otherIncome: number
+  note?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface CreateSnapshotInput {
   recordedAt: string
   note?: string
@@ -127,5 +139,6 @@ export type ExportData = {
   assets: Asset[]
   snapshots: Snapshot[]
   snapshotValues: SnapshotValue[]
+  monthlyIncomes?: MonthlyIncome[]
   rates?: ExchangeRates
 }

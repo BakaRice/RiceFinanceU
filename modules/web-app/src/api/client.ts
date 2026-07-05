@@ -1,5 +1,5 @@
 // src/api/client.ts
-import type { Asset, AssetDcaPlan, AssetProfile, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates } from '../types/finance'
+import type { Asset, AssetDcaPlan, AssetProfile, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates, MonthlyIncome } from '../types/finance'
 import { clearSessionToken, getSessionToken, setSessionToken } from './session'
 
 const BASE = '/api'
@@ -8,6 +8,15 @@ export interface LoginResult {
   token: string
   expiresAt: string
   user: { email: string }
+}
+
+export type MonthlyIncomeInput = {
+  month: string
+  salary?: number
+  extraIncome?: number
+  housingFund?: number
+  otherIncome?: number
+  note?: string
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -69,6 +78,15 @@ export const api = {
     request<{ snapshot: Snapshot; values: SnapshotValue[] }>('/snapshots', { method: 'POST', body: JSON.stringify(data) }),
   deleteSnapshot: (id: string) => request<{ success: boolean }>(`/snapshots/${id}`, { method: 'DELETE' }),
   getSnapshotValues: () => request<SnapshotValue[]>('/snapshot-values'),
+
+  // Monthly incomes
+  getMonthlyIncomes: () => request<MonthlyIncome[]>('/monthly-incomes'),
+  createMonthlyIncome: (data: MonthlyIncomeInput) =>
+    request<MonthlyIncome>('/monthly-incomes', { method: 'POST', body: JSON.stringify(data) }),
+  updateMonthlyIncome: (id: string, data: MonthlyIncomeInput) =>
+    request<MonthlyIncome>(`/monthly-incomes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteMonthlyIncome: (id: string) =>
+    request<{ success: boolean }>(`/monthly-incomes/${id}`, { method: 'DELETE' }),
 
   // Rates
   getRates: () => request<ExchangeRates>('/rates'),

@@ -11,19 +11,42 @@ interface ImportSummary {
   assetCount: number
   snapshotCount: number
   valueCount: number
+  incomeCount: number
   assetIdSet: Set<string>
   snapIdSet: Set<string>
   issues: string[]
   hasCriticalIssues: boolean
 }
 
-function preValidate(data: any): ImportSummary {
+const INCOME_AMOUNT_FIELDS = ['salary', 'extraIncome', 'housingFund', 'otherIncome']
+
+function isValidMonthKey(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  const match = /^(\d{4})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const month = Number(match[2])
+  return month >= 1 && month <= 12
+}
+
+function isValidIncomeAmount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+export function preValidate(data: any): ImportSummary {
   const issues: string[] = []
 
   // Normalize v1/v2
   const assets: any[] = data.assets || []
   const snapshots: any[] = data.snapshots || data.transactions || []
   const values: any[] = data.snapshotValues || []
+  const monthlyIncomes: any[] = data.monthlyIncomes === undefined
+    ? []
+    : Array.isArray(data.monthlyIncomes)
+      ? data.monthlyIncomes
+      : []
+  if (data.monthlyIncomes !== undefined && !Array.isArray(data.monthlyIncomes)) {
+    issues.push('monthlyIncomes 应为数组')
+  }
 
   const assetIdSet = new Set<string>()
   const snapIdSet = new Set<string>()
@@ -91,6 +114,27 @@ function preValidate(data: any): ImportSummary {
   if (orphanSnapCount > 0) issues.push(`${orphanSnapCount} 个快照值引用了不存在的快照`)
   if (orphanAssetCount > 0) issues.push(`${orphanAssetCount} 个快照值引用了不存在的资产`)
 
+  // Check monthly incomes
+  for (let i = 0; i < monthlyIncomes.length; i++) {
+    const income = monthlyIncomes[i]
+    const label = income && typeof income.id === 'string' && income.id.trim()
+      ? income.id
+      : `第 ${i + 1} 条`
+
+    if (!income || typeof income !== 'object' || Array.isArray(income)) {
+      issues.push(`月收入[${i}] "${label}": 记录格式无效`)
+      continue
+    }
+    if (!isValidMonthKey(income.month)) {
+      issues.push(`月收入[${i}] "${label}": 月份无效 "${income.month}"`)
+    }
+    for (const field of INCOME_AMOUNT_FIELDS) {
+      if (!isValidIncomeAmount(income[field])) {
+        issues.push(`月收入[${i}] "${label}": ${field} 金额无效 (${income[field]})`)
+      }
+    }
+  }
+
   // Cap issues shown
   const maxIssues = 15
   const shown = issues.slice(0, maxIssues)
@@ -103,6 +147,7 @@ function preValidate(data: any): ImportSummary {
     assetCount: assets.length,
     snapshotCount: snapshots.length,
     valueCount: values.length,
+    incomeCount: monthlyIncomes.length,
     assetIdSet,
     snapIdSet,
     issues: shown,
@@ -229,7 +274,7 @@ export default function DataManagementPage() {
               <div>Schema v{importSummary.schemaVersion}</div>
               <div>
                 资产: {importSummary.assetCount} | 快照: {importSummary.snapshotCount} | 记录:{' '}
-                {importSummary.valueCount}
+                {importSummary.valueCount} | 月收入: {importSummary.incomeCount}
               </div>
             </div>
 

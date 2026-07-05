@@ -65,6 +65,114 @@
   border-color: var(--color-border-focus);
 }
 
+/* Income */
+.income-section {
+  padding-bottom: var(--space-md);
+}
+
+.income-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.income-section-head .section-title {
+  margin-bottom: 2px;
+}
+
+.income-section-subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.income-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(110px, 1fr));
+  gap: var(--space-sm);
+}
+
+.income-summary-main,
+.income-summary-item {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.income-summary-item span:first-child {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.income-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.income-modal-head,
+.income-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.income-modal-head {
+  margin-bottom: var(--space-lg);
+}
+
+.income-modal-head h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.income-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.income-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.income-form-field input {
+  height: 34px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.income-form-field input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+}
+
+.income-form-field-full {
+  grid-column: 1 / -1;
+}
+
+.income-modal-actions {
+  justify-content: flex-end;
+  margin-top: var(--space-lg);
+}
+
 /* Grid */
 .dash-grid {
   display: grid;
@@ -353,6 +461,13 @@
     border-bottom: none;
   }
   .dash-grid {
+    grid-template-columns: 1fr;
+  }
+  .income-section-head {
+    flex-direction: column;
+  }
+  .income-summary-grid,
+  .income-form-grid {
     grid-template-columns: 1fr;
   }
   .history-item-header {
