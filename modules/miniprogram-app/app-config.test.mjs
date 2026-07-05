@@ -10,10 +10,11 @@ function readAppConfig() {
   return JSON.parse(readFileSync(path.join(appRoot, 'app.json'), 'utf8'))
 }
 
-test('小程序启动页应该是登录页', () => {
+test('小程序启动页应该直接进入总览页', () => {
   const appConfig = readAppConfig()
 
-  assert.equal(appConfig.pages[0], 'pages/login/login')
+  assert.equal(appConfig.pages[0], 'pages/index/index')
+  assert.ok(appConfig.pages.includes('pages/login/login'))
 })
 
 test('小程序底部导航应该对齐 PC 端核心菜单', () => {

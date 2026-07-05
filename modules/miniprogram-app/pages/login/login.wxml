@@ -7,11 +7,6 @@
       </view>
     </view>
 
-    <view wx:if="{{hasToken}}" class="resume-panel">
-      <text class="resume-title">已登录</text>
-      <button class="resume-button" bindtap="goDashboard">进入</button>
-    </view>
-
     <view class="login-form">
       <view class="field">
         <text class="field-label">邮箱</text>

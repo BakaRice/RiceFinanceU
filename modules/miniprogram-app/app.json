@@ -1,10 +1,10 @@
 {
   "pages": [
-    "pages/login/login",
     "pages/index/index",
     "pages/assets/assets",
     "pages/entry/entry",
-    "pages/data/data"
+    "pages/data/data",
+    "pages/login/login"
   ],
   "window": {
     "backgroundColor": "#f3f4f6",

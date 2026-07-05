@@ -42,16 +42,16 @@ function createPageInstance(definition) {
   return instance
 }
 
-test('登录页有本地 token 时也先展示登录页，不自动跳走', () => {
-  const redirects = []
+test('登录页有本地 token 时自动进入总览 tab', () => {
+  const switchTabs = []
   globalThis.wx = {
     getStorageSync(key) {
       return key === 'ricefinanceu.sessionToken' ? 'stored-token' : ''
     },
     setStorageSync() {},
     removeStorageSync() {},
-    redirectTo(options) {
-      redirects.push(options)
+    switchTab(options) {
+      switchTabs.push(options)
     },
   }
 
@@ -65,8 +65,14 @@ test('登录页有本地 token 时也先展示登录页，不自动跳走', () =
 
   page.onLoad()
 
-  assert.equal(page.data.hasToken, true)
-  assert.deepEqual(redirects, [])
+  assert.deepEqual(switchTabs, [{ url: '/pages/index/index' }])
+})
+
+test('登录页不展示已登录确认入口', () => {
+  const wxml = readFileSync(path.resolve(rootDir, 'pages/login/login.wxml'), 'utf8')
+
+  assert.equal(wxml.includes('resume-panel'), false)
+  assert.equal(wxml.includes('bindtap="goDashboard"'), false)
 })
 
 test('登录成功后进入总览 tab', async () => {

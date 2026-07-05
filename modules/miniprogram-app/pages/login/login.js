@@ -8,13 +8,12 @@ Page({
     canSubmit: false,
     submitting: false,
     error: '',
-    hasToken: false,
   },
 
   onLoad() {
-    this.setData({
-      hasToken: session.hasSessionToken(),
-    })
+    if (session.hasSessionToken()) {
+      wx.switchTab({ url: '/pages/index/index' })
+    }
   },
 
   onEmailInput(event) {
@@ -50,7 +49,4 @@ Page({
     }
   },
 
-  goDashboard() {
-    wx.switchTab({ url: '/pages/index/index' })
-  },
 })

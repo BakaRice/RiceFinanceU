@@ -34,39 +34,8 @@
   line-height: 1.1;
 }
 
-.resume-panel {
-  margin-top: 58rpx;
-  min-height: 78rpx;
-  padding: 0 18rpx 0 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #ffffff;
-  border: 1rpx solid #dfe3e8;
-  border-radius: 12rpx;
-}
-
-.resume-title {
-  color: #20262d;
-  font-size: 26rpx;
-  font-weight: 700;
-}
-
-.resume-button {
-  width: 112rpx;
-  height: 54rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #2d5f7e;
-  background: #f5f8fa;
-  border: 1rpx solid #d8dee5;
-  border-radius: 10rpx;
-  font-size: 24rpx;
-}
-
 .login-form {
-  margin-top: 42rpx;
+  margin-top: 58rpx;
 }
 
 .field {
