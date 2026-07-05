@@ -1,5 +1,5 @@
 // src/api/client.ts
-import type { Asset, AssetProfile, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates } from '../types/finance'
+import type { Asset, AssetDcaPlan, AssetProfile, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates } from '../types/finance'
 import { clearSessionToken, getSessionToken, setSessionToken } from './session'
 
 const BASE = '/api'
@@ -54,7 +54,7 @@ export const api = {
 
   // Assets
   getAssets: () => request<Asset[]>('/assets'),
-  createAsset: (data: { name: string; type: string; currency?: string; institution?: string; note?: string; profile?: AssetProfile }) =>
+  createAsset: (data: { name: string; type: string; currency?: string; institution?: string; note?: string; profile?: AssetProfile; dcaPlan?: AssetDcaPlan }) =>
     request<Asset>('/assets', { method: 'POST', body: JSON.stringify(data) }),
   updateAsset: (id: string, data: Partial<Asset>) =>
     request<Asset>(`/assets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Asset, AssetProfile, AssetProfileKey, AssetType, Currency, SnapshotValue } from '../types/finance'
+import type { Asset, AssetDcaPlan, AssetProfile, AssetProfileKey, AssetType, Currency, DcaFrequency, SnapshotValue } from '../types/finance'
 import {
   ASSET_TYPE_LABELS,
   formatAssetProfileIdentifier,
@@ -9,6 +9,7 @@ import {
   isInvestmentType,
   sanitizeAssetProfile,
 } from '../domain/assets'
+import { DCA_FREQUENCY_LABELS, sanitizeDcaPlan } from '../domain/dca'
 import MoneyDisplay from '../components/MoneyDisplay'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetsPage.css'
@@ -31,6 +32,14 @@ export default function AssetsPage() {
   const [institution, setInstitution] = useState('')
   const [note, setNote] = useState('')
   const [profileDraft, setProfileDraft] = useState<AssetProfile>({})
+  const [dcaEnabled, setDcaEnabled] = useState(false)
+  const [dcaFrequency, setDcaFrequency] = useState<DcaFrequency>('monthly')
+  const [dcaExcludeWeekends, setDcaExcludeWeekends] = useState(true)
+  const [dcaPlannedContribution, setDcaPlannedContribution] = useState('')
+  const [dcaTargetAmount, setDcaTargetAmount] = useState('')
+  const [dcaTargetDate, setDcaTargetDate] = useState('')
+  const [dcaTolerancePercent, setDcaTolerancePercent] = useState('')
+  const [dcaNote, setDcaNote] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('type')
   const [sortDir, setSortDir] = useState<1 | -1>(1)
 
@@ -69,6 +78,7 @@ export default function AssetsPage() {
     setInstitution('')
     setNote('')
     setProfileDraft({})
+    resetDcaDraft()
     setShowForm(true)
   }
 
@@ -80,12 +90,14 @@ export default function AssetsPage() {
     setInstitution(a.institution || '')
     setNote(a.note || '')
     setProfileDraft(a.profile || {})
+    setDcaDraft(a.dcaPlan)
     setShowForm(true)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const profile = sanitizeAssetProfile(type, profileDraft)
+    const dcaPlan = buildDcaPlanPayload()
     const payload = {
       name,
       type,
@@ -95,6 +107,11 @@ export default function AssetsPage() {
       // Send {} when the form has no usable dossier fields so editing can clear
       // an older profile instead of silently keeping hidden values on the server.
       profile: profile || {},
+      ...(editingId
+        ? { dcaPlan: dcaPlan || ({} as AssetDcaPlan) }
+        : dcaPlan
+          ? { dcaPlan }
+          : {}),
     }
     try {
       if (editingId) {
@@ -113,6 +130,50 @@ export default function AssetsPage() {
 
   function updateProfileDraft(key: AssetProfileKey, value: string) {
     setProfileDraft((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function resetDcaDraft() {
+    setDcaEnabled(false)
+    setDcaFrequency('monthly')
+    setDcaExcludeWeekends(true)
+    setDcaPlannedContribution('')
+    setDcaTargetAmount('')
+    setDcaTargetDate('')
+    setDcaTolerancePercent('')
+    setDcaNote('')
+  }
+
+  function setDcaDraft(plan: AssetDcaPlan | undefined) {
+    if (!plan?.enabled) {
+      resetDcaDraft()
+      return
+    }
+
+    setDcaEnabled(true)
+    setDcaFrequency(plan.frequency)
+    setDcaExcludeWeekends(plan.excludeWeekends !== false)
+    setDcaPlannedContribution(String(plan.plannedContribution))
+    setDcaTargetAmount(plan.targetAmount === undefined ? '' : String(plan.targetAmount))
+    setDcaTargetDate(plan.targetDate || '')
+    setDcaTolerancePercent(
+      plan.toleranceRate === undefined ? '' : String(plan.toleranceRate * 100),
+    )
+    setDcaNote(plan.note || '')
+  }
+
+  function buildDcaPlanPayload(): AssetDcaPlan | undefined {
+    if (!dcaEnabled || !isInvestmentType(type)) return undefined
+
+    return sanitizeDcaPlan(type, {
+      enabled: true,
+      frequency: dcaFrequency,
+      excludeWeekends: dcaFrequency === 'daily' ? dcaExcludeWeekends : undefined,
+      plannedContribution: dcaPlannedContribution,
+      targetAmount: dcaTargetAmount,
+      targetDate: dcaTargetDate,
+      toleranceRate: dcaTolerancePercent === '' ? undefined : Number(dcaTolerancePercent) / 100,
+      note: dcaNote,
+    })
   }
 
   async function handleDeactivate(a: Asset) {
@@ -249,6 +310,7 @@ export default function AssetsPage() {
                   >
                     {a.name}
                   </a>
+                  {a.dcaPlan?.enabled && <span className="asset-dca-tag">定投</span>}
                 </td>
                 <td>
                   <span className={`type-badge type-${a.type}`}>
@@ -420,6 +482,107 @@ export default function AssetsPage() {
                   ))}
                 </div>
               </div>
+              {isInvestmentType(type) && (
+                <div className="dca-fields">
+                  <div className="profile-fields-title">定投计划</div>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={dcaEnabled}
+                      onChange={(e) => setDcaEnabled(e.target.checked)}
+                    />
+                    <span>启用定投计划</span>
+                  </label>
+                  {dcaEnabled && (
+                    <>
+                      <div className="profile-field-grid">
+                        <label className="profile-field" htmlFor="dca-frequency">
+                          <span className="form-label">定投周期</span>
+                          <select
+                            id="dca-frequency"
+                            className="form-input"
+                            value={dcaFrequency}
+                            onChange={(e) => setDcaFrequency(e.target.value as DcaFrequency)}
+                          >
+                            {Object.entries(DCA_FREQUENCY_LABELS).map(([value, label]) => (
+                              <option value={value} key={value}>{label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="profile-field" htmlFor="dca-planned-contribution">
+                          <span className="form-label">每期计划投入</span>
+                          <input
+                            id="dca-planned-contribution"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="form-input"
+                            value={dcaPlannedContribution}
+                            onChange={(e) => setDcaPlannedContribution(e.target.value)}
+                            required={dcaEnabled}
+                          />
+                        </label>
+                        <label className="profile-field" htmlFor="dca-target-amount">
+                          <span className="form-label">目标金额</span>
+                          <input
+                            id="dca-target-amount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="form-input"
+                            value={dcaTargetAmount}
+                            onChange={(e) => setDcaTargetAmount(e.target.value)}
+                          />
+                        </label>
+                        <label className="profile-field" htmlFor="dca-target-date">
+                          <span className="form-label">目标日期</span>
+                          <input
+                            id="dca-target-date"
+                            type="date"
+                            className="form-input"
+                            value={dcaTargetDate}
+                            onChange={(e) => setDcaTargetDate(e.target.value)}
+                          />
+                        </label>
+                        <label className="profile-field" htmlFor="dca-tolerance">
+                          <span className="form-label">容忍偏差 (%)</span>
+                          <input
+                            id="dca-tolerance"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="form-input"
+                            value={dcaTolerancePercent}
+                            onChange={(e) => setDcaTolerancePercent(e.target.value)}
+                            placeholder="默认 20"
+                          />
+                        </label>
+                        <label className="profile-field" htmlFor="dca-note">
+                          <span className="form-label">定投备注</span>
+                          <input
+                            id="dca-note"
+                            type="text"
+                            className="form-input"
+                            value={dcaNote}
+                            onChange={(e) => setDcaNote(e.target.value)}
+                            placeholder="如：工资到账后投入"
+                          />
+                        </label>
+                      </div>
+                      {dcaFrequency === 'daily' && (
+                        <label className="checkbox-row dca-weekend-row">
+                          <input
+                            type="checkbox"
+                            checked={dcaExcludeWeekends}
+                            onChange={(e) => setDcaExcludeWeekends(e.target.checked)}
+                          />
+                          <span>排除周末</span>
+                        </label>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               <div className="form-buttons">
                 <button type="submit" className="btn-primary">保存</button>
                 <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>

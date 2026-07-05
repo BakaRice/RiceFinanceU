@@ -19,6 +19,7 @@ const DEFAULT_RATES = {
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
 const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
 const INVESTMENT_TYPES = ['fund', 'stock', 'gold']
+const VALID_DCA_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly']
 // 镜像 src/domain/assets.ts。Worker 是生产 API，不能假设所有客户端都会先
 // 按前端逻辑清理资产档案字段。
 const ASSET_PROFILE_FIELDS = {
@@ -161,6 +162,65 @@ function sanitizeAssetProfile(type, profile) {
   }
 
   return Object.keys(cleaned).length > 0 ? cleaned : undefined
+}
+
+function sanitizeDcaPlan(type, plan) {
+  if (!isInvestmentType(type)) return undefined
+  if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return undefined
+  if (plan.enabled !== true) return undefined
+
+  const frequency = VALID_DCA_FREQUENCIES.includes(plan.frequency) ? plan.frequency : ''
+  const plannedContribution = parsePositiveNumber(plan.plannedContribution)
+  if (!frequency || plannedContribution === undefined) return undefined
+
+  const targetAmount = parsePositiveNumber(plan.targetAmount)
+  const targetDate = parseDateOnly(plan.targetDate)
+  const toleranceRate = parseNonNegativeNumber(plan.toleranceRate)
+  const note = typeof plan.note === 'string' ? plan.note.trim() : ''
+
+  return {
+    enabled: true,
+    frequency,
+    ...(frequency === 'daily'
+      ? { excludeWeekends: typeof plan.excludeWeekends === 'boolean' ? plan.excludeWeekends : true }
+      : {}),
+    plannedContribution,
+    ...(targetAmount !== undefined ? { targetAmount } : {}),
+    ...(targetDate ? { targetDate } : {}),
+    ...(toleranceRate !== undefined ? { toleranceRate } : {}),
+    ...(note ? { note } : {}),
+  }
+}
+
+function parsePositiveNumber(value) {
+  if (value === undefined || value === null || value === '') return undefined
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined
+}
+
+function parseNonNegativeNumber(value) {
+  if (value === undefined || value === null || value === '') return undefined
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : undefined
+}
+
+function parseDateOnly(value) {
+  if (typeof value !== 'string') return undefined
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return undefined
+
+  const year = Number(match[1])
+  const monthIndex = Number(match[2]) - 1
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, monthIndex, day))
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== monthIndex ||
+    date.getUTCDate() !== day
+  ) {
+    return undefined
+  }
+  return value
 }
 
 // 浏览器和小程序客户端都以 Worker 生成的 ID 为准。
@@ -313,7 +373,7 @@ async function handleAssets(request, env, segments) {
 
     if (request.method === 'POST') {
       const body = await readJsonBody(request)
-      const { name, type, currency, institution, note, profile } = body || {}
+      const { name, type, currency, institution, note, profile, dcaPlan } = body || {}
 
       if (!name || typeof name !== 'string' || !name.trim()) {
         return badRequest('name is required and must be non-empty')
@@ -324,6 +384,7 @@ async function handleAssets(request, env, segments) {
 
       const now = new Date().toISOString()
       const assetProfile = sanitizeAssetProfile(type, profile)
+      const assetDcaPlan = sanitizeDcaPlan(type, dcaPlan)
       const asset = {
         id: createId(),
         name: name.trim(),
@@ -331,6 +392,7 @@ async function handleAssets(request, env, segments) {
         currency: normalizeCurrency(currency),
         institution,
         ...(assetProfile ? { profile: assetProfile } : {}),
+        ...(assetDcaPlan ? { dcaPlan: assetDcaPlan } : {}),
         isActive: true,
         note,
         createdAt: now,
@@ -361,6 +423,10 @@ async function handleAssets(request, env, segments) {
         nextType,
         body?.profile !== undefined ? body.profile : data.assets[assetIndex].profile,
       )
+      const nextDcaPlan = sanitizeDcaPlan(
+        nextType,
+        body?.dcaPlan !== undefined ? body.dcaPlan : data.assets[assetIndex].dcaPlan,
+      )
       const nextAsset = {
         ...data.assets[assetIndex],
         ...(body || {}),
@@ -372,6 +438,11 @@ async function handleAssets(request, env, segments) {
         nextAsset.profile = nextProfile
       } else {
         delete nextAsset.profile
+      }
+      if (nextDcaPlan) {
+        nextAsset.dcaPlan = nextDcaPlan
+      } else {
+        delete nextAsset.dcaPlan
       }
       data.assets[assetIndex] = nextAsset
       await writeData(env, data)
@@ -459,6 +530,7 @@ async function handleSnapshots(request, env, segments) {
           // 主界面仍应优先在资产管理里维护主数据。
           const id = createId()
           const profile = sanitizeAssetProfile(value.asset.type, value.asset.profile)
+          const dcaPlan = sanitizeDcaPlan(value.asset.type, value.asset.dcaPlan)
           data.assets.push({
             id,
             name: value.asset.name.trim(),
@@ -466,6 +538,7 @@ async function handleSnapshots(request, env, segments) {
             currency: normalizeCurrency(value.asset.currency),
             institution: value.asset.institution,
             ...(profile ? { profile } : {}),
+            ...(dcaPlan ? { dcaPlan } : {}),
             isActive: true,
             note: value.asset.note,
             createdAt: now,
@@ -578,11 +651,17 @@ async function handleImport(request, env) {
     meta: { schemaVersion: 2, updatedAt: new Date().toISOString() },
     assets: body.assets.map((asset) => {
       const profile = sanitizeAssetProfile(asset.type, asset.profile)
+      const dcaPlan = sanitizeDcaPlan(asset.type, asset.dcaPlan)
       const normalizedAsset = { ...asset }
       if (profile) {
         normalizedAsset.profile = profile
       } else {
         delete normalizedAsset.profile
+      }
+      if (dcaPlan) {
+        normalizedAsset.dcaPlan = dcaPlan
+      } else {
+        delete normalizedAsset.dcaPlan
       }
       return normalizedAsset
     }),

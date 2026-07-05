@@ -110,4 +110,61 @@ describe('AssetsPage asset profile fields', () => {
       }))
     })
   })
+
+  it('submits a daily DCA plan for investment assets with weekends excluded by default', async () => {
+    mockedApi.getAssets.mockResolvedValue([])
+    mockedApi.createAsset.mockResolvedValue({
+      id: 'fund-1',
+      name: '纳指基金',
+      type: 'fund',
+      currency: 'CNY',
+      isActive: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    } as any)
+
+    const { container } = renderAssetsPage()
+
+    await screen.findByText('资产管理')
+    fireEvent.click(screen.getByRole('button', { name: '+ 新增资产' }))
+    fireEvent.change(container.querySelector('input[required]') as HTMLInputElement, {
+      target: { value: '纳指基金' },
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: '启用定投计划' }))
+    fireEvent.change(screen.getByLabelText('定投周期'), {
+      target: { value: 'daily' },
+    })
+    fireEvent.change(screen.getByLabelText('每期计划投入'), {
+      target: { value: '100.50' },
+    })
+    fireEvent.change(screen.getByLabelText('目标金额'), {
+      target: { value: '10000' },
+    })
+    fireEvent.change(screen.getByLabelText('目标日期'), {
+      target: { value: '2026-12-31' },
+    })
+    fireEvent.change(screen.getByLabelText('容忍偏差 (%)'), {
+      target: { value: '15' },
+    })
+    fireEvent.change(screen.getByLabelText('定投备注'), {
+      target: { value: ' 长期定投 ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => {
+      expect(mockedApi.createAsset).toHaveBeenCalledWith(expect.objectContaining({
+        name: '纳指基金',
+        dcaPlan: {
+          enabled: true,
+          frequency: 'daily',
+          excludeWeekends: true,
+          plannedContribution: 100.5,
+          targetAmount: 10000,
+          targetDate: '2026-12-31',
+          toleranceRate: 0.15,
+          note: '长期定投',
+        },
+      }))
+    })
+  })
 })

@@ -229,6 +229,127 @@ test('资产接口会清理并保存类型档案字段', async () => {
   assert.equal(updatedAsset.profile, undefined)
 })
 
+test('资产接口只为投资类资产保存清理后的定投计划', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const fundResponse = await authedRequest(env, '/api/assets', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      name: '纳指基金',
+      type: 'fund',
+      currency: 'CNY',
+      dcaPlan: {
+        enabled: true,
+        frequency: 'daily',
+        plannedContribution: '100.50',
+        targetAmount: '10000',
+        targetDate: '2026-12-31',
+        toleranceRate: '0.15',
+        note: ' 长期定投 ',
+      },
+    }),
+  })
+
+  assert.equal(fundResponse.status, 201)
+  const fund = await fundResponse.json()
+  assert.deepEqual(fund.dcaPlan, {
+    enabled: true,
+    frequency: 'daily',
+    excludeWeekends: true,
+    plannedContribution: 100.5,
+    targetAmount: 10000,
+    targetDate: '2026-12-31',
+    toleranceRate: 0.15,
+    note: '长期定投',
+  })
+
+  const cashResponse = await authedRequest(env, '/api/assets', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      name: '现金',
+      type: 'cash',
+      currency: 'CNY',
+      dcaPlan: {
+        enabled: true,
+        frequency: 'monthly',
+        plannedContribution: 500,
+      },
+    }),
+  })
+
+  assert.equal(cashResponse.status, 201)
+  const cash = await cashResponse.json()
+  assert.equal(cash.dcaPlan, undefined)
+})
+
+test('导入导出会保留投资类资产的结构化定投计划并清理余额类计划', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const importResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      meta: { schemaVersion: 2, updatedAt: '2026-07-01T00:00:00.000Z' },
+      assets: [
+        {
+          id: 'fund-1',
+          name: '指数基金',
+          type: 'fund',
+          currency: 'CNY',
+          isActive: true,
+          dcaPlan: {
+            enabled: true,
+            frequency: 'daily',
+            excludeWeekends: false,
+            plannedContribution: '200',
+            targetAmount: '20000',
+            targetDate: '2026-12-31',
+          },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'cash-1',
+          name: '现金',
+          type: 'cash',
+          currency: 'CNY',
+          isActive: true,
+          dcaPlan: {
+            enabled: true,
+            frequency: 'monthly',
+            plannedContribution: 500,
+          },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      snapshots: [],
+      snapshotValues: [],
+    }),
+  })
+
+  assert.equal(importResponse.status, 200)
+
+  const exportResponse = await authedRequest(env, '/api/export', { token })
+  const exported = await exportResponse.json()
+  const fund = exported.assets.find((asset) => asset.id === 'fund-1')
+  const cash = exported.assets.find((asset) => asset.id === 'cash-1')
+
+  assert.deepEqual(fund.dcaPlan, {
+    enabled: true,
+    frequency: 'daily',
+    excludeWeekends: false,
+    plannedContribution: 200,
+    targetAmount: 20000,
+    targetDate: '2026-12-31',
+  })
+  assert.equal(cash.dcaPlan, undefined)
+})
+
 test('可以创建快照，并在第二次快照中继承未提交资产的上一次数值', async () => {
   const env = createEnv()
   const token = await login(env)

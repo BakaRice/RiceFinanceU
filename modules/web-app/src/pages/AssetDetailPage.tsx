@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import type { Asset, SnapshotValue } from '../types/finance'
 import { CURRENCY_SYMBOLS } from '../types/finance'
 import { ASSET_TYPE_LABELS, getAssetProfileFields, isInvestmentType } from '../domain/assets'
+import { DCA_FREQUENCY_LABELS, estimateDcaPlan } from '../domain/dca'
 import MoneyDisplay from '../components/MoneyDisplay'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetDetailPage.css'
@@ -128,6 +129,13 @@ export default function AssetDetailPage() {
   const costBasis = latestValue && isInvestment && latestValue.profit !== undefined
     ? latestValue.amount - latestValue.profit
     : undefined
+  const dcaEstimate = isInvestment && asset.dcaPlan
+    ? estimateDcaPlan({
+      asset,
+      latestAmount: latestValue?.amount,
+      asOfDate: latestSnapshotTime || new Date(),
+    })
+    : undefined
 
   return (
     <div className="asset-detail">
@@ -246,6 +254,69 @@ export default function AssetDetailPage() {
             </dl>
           )}
         </div>
+
+        {isInvestment && asset.dcaPlan?.enabled && (
+          <div className="detail-info-section dca-detail-section">
+            <h3 className="section-title">定投计划</h3>
+            <div className={`dca-status dca-status-${dcaEstimate?.status || 'insufficient_data'}`}>
+              {dcaEstimate?.message}
+            </div>
+            <dl className="detail-dl">
+              <dt>周期</dt>
+              <dd>{DCA_FREQUENCY_LABELS[asset.dcaPlan.frequency]}</dd>
+              {asset.dcaPlan.frequency === 'daily' && (
+                <>
+                  <dt>排除周末</dt>
+                  <dd>{asset.dcaPlan.excludeWeekends === false ? '否' : '是'}</dd>
+                </>
+              )}
+              <dt>每期计划投入</dt>
+              <dd><MoneyDisplay value={asset.dcaPlan.plannedContribution} currency={asset.currency} /></dd>
+              {asset.dcaPlan.targetAmount !== undefined && (
+                <>
+                  <dt>目标金额</dt>
+                  <dd><MoneyDisplay value={asset.dcaPlan.targetAmount} currency={asset.currency} /></dd>
+                </>
+              )}
+              {asset.dcaPlan.targetDate && (
+                <>
+                  <dt>目标日期</dt>
+                  <dd>{asset.dcaPlan.targetDate}</dd>
+                </>
+              )}
+              {dcaEstimate?.periodsRemaining !== undefined && (
+                <>
+                  <dt>剩余周期</dt>
+                  <dd>{dcaEstimate.periodsRemaining}</dd>
+                </>
+              )}
+              {dcaEstimate?.remainingAmount !== undefined && (
+                <>
+                  <dt>剩余目标金额</dt>
+                  <dd><MoneyDisplay value={dcaEstimate.remainingAmount} currency={asset.currency} /></dd>
+                </>
+              )}
+              {dcaEstimate?.suggestedContribution !== undefined && (
+                <>
+                  <dt>建议每期投入</dt>
+                  <dd><MoneyDisplay value={dcaEstimate.suggestedContribution} currency={asset.currency} /></dd>
+                </>
+              )}
+              {dcaEstimate?.contributionGap !== undefined && (
+                <>
+                  <dt>计划偏差</dt>
+                  <dd><MoneyDisplay value={dcaEstimate.contributionGap} isProfit /></dd>
+                </>
+              )}
+              {asset.dcaPlan.note && (
+                <>
+                  <dt>备注</dt>
+                  <dd>{asset.dcaPlan.note}</dd>
+                </>
+              )}
+            </dl>
+          </div>
+        )}
 
         {/* History */}
         <div className="detail-info-section">

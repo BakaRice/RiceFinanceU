@@ -89,4 +89,50 @@ describe('AssetDetailPage asset profile', () => {
     expect(await screen.findByText('资产档案')).toBeTruthy()
     expect(screen.getByText('未补充档案信息')).toBeTruthy()
   })
+
+  it('renders a DCA estimate for investment assets with saved plans', async () => {
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'fund-1',
+        name: '指数基金',
+        type: 'fund',
+        currency: 'CNY',
+        isActive: true,
+        dcaPlan: {
+          enabled: true,
+          frequency: 'daily',
+          excludeWeekends: true,
+          plannedContribution: 100,
+          targetAmount: 1500,
+          targetDate: '2026-07-10',
+          toleranceRate: 0.2,
+        },
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ] as any)
+    mockedApi.getSnapshots.mockResolvedValue([
+      {
+        id: 'snapshot-1',
+        recordedAt: '2026-07-03T00:00:00.000Z',
+        createdAt: '2026-07-03T00:00:00.000Z',
+      },
+    ] as any)
+    mockedApi.getSnapshotValues.mockResolvedValue([
+      {
+        id: 'value-1',
+        snapshotId: 'snapshot-1',
+        assetId: 'fund-1',
+        amount: 500,
+      },
+    ] as any)
+
+    renderAssetDetail('fund-1')
+
+    expect(await screen.findByText('定投计划')).toBeTruthy()
+    expect(screen.getByText('建议每期投入')).toBeTruthy()
+    expect(screen.getByText('计划投入低于目标倒推金额，后续可能需要提高每期投入。')).toBeTruthy()
+    expect(screen.getByText('剩余周期')).toBeTruthy()
+    expect(screen.getByText('5')).toBeTruthy()
+  })
 })

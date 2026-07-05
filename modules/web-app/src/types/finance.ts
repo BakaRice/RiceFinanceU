@@ -11,6 +11,8 @@ export type AssetType =
 
 export type Currency = 'CNY' | 'USD' | 'HKD'
 
+export type DcaFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly'
+
 // Asset profile fields are master-data identifiers, not valuation inputs.
 // They help describe "what this asset is"; SnapshotValue describes "what it is worth now".
 export type AssetProfileKey =
@@ -43,6 +45,17 @@ export type AssetProfileKey =
 
 export type AssetProfile = Partial<Record<AssetProfileKey, string>>
 
+export type AssetDcaPlan = {
+  enabled: boolean
+  frequency: DcaFrequency
+  excludeWeekends?: boolean
+  plannedContribution: number
+  targetAmount?: number
+  targetDate?: string
+  toleranceRate?: number
+  note?: string
+}
+
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   CNY: '¥',
   USD: '$',
@@ -65,6 +78,8 @@ export type Asset = {
   note?: string
   // Optional type-specific asset dossier. Kept out of snapshot calculations by design.
   profile?: AssetProfile
+  // Optional investment plan metadata. Kept out of valuation and snapshot calculations.
+  dcaPlan?: AssetDcaPlan
   createdAt: string
   updatedAt: string
 }

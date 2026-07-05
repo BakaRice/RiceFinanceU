@@ -124,6 +124,30 @@
   padding: 12px 0;
 }
 
+.dca-detail-section {
+  grid-column: 1 / -1;
+}
+
+.dca-status {
+  margin-bottom: var(--space-md);
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+  font-size: var(--font-size-sm);
+}
+
+.dca-status-underfunded {
+  border-color: rgba(185, 70, 70, 0.25);
+  color: var(--color-loss);
+}
+
+.dca-status-overfunded {
+  border-color: rgba(45, 95, 126, 0.25);
+  color: var(--color-primary);
+}
+
 @media (max-width: 768px) {
   .detail-metrics {
     flex-direction: column;
