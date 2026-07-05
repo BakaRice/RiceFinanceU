@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { api } from '../api/client'
 import {
   calculateSnapshotTotal,
   calculateAllocation,
   compareSnapshots,
-  buildTotalAssetSeries,
+  buildScaledTotalAssetSeries,
 } from '../domain/snapshots'
 import type {
   SnapshotTotal,
   AllocationItem,
   SnapshotComparison as SnapshotComparisonType,
   TotalAssetPoint,
+  TrendScale,
 } from '../domain/snapshots'
 import { ASSET_TYPE_LABELS } from '../domain/assets'
 import MoneyDisplay from '../components/MoneyDisplay'
@@ -27,6 +28,58 @@ import {
 } from 'recharts'
 import './DashboardPage.css'
 
+const TREND_SCALE_OPTIONS: Array<{ value: TrendScale; label: string }> = [
+  { value: 'day', label: '日' },
+  { value: 'week', label: '周' },
+  { value: 'month', label: '月' },
+  { value: 'quarter', label: '季' },
+  { value: 'year', label: '年' },
+]
+
+function formatChartDateTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatChartMoney(value: unknown): string {
+  return Number(value).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+function TrendTooltip({ active, payload, label }: any) {
+  if (!active || !payload || payload.length === 0) return null
+
+  const point = payload[0].payload as TotalAssetPoint
+
+  return (
+    <div className="trend-tooltip">
+      <div className="trend-tooltip-row">
+        <span>周期</span>
+        <strong>{label}</strong>
+      </div>
+      <div className="trend-tooltip-row">
+        <span>实际快照</span>
+        <strong>{formatChartDateTime(point.recordedAt)}</strong>
+      </div>
+      {payload.map((item: any) => (
+        <div key={item.dataKey} className="trend-tooltip-row">
+          <span>{item.name}</span>
+          <strong>{formatChartMoney(item.value)}</strong>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const { toast, confirm } = useFeedback()
 
@@ -35,7 +88,7 @@ export default function DashboardPage() {
   const [total, setTotal] = useState<SnapshotTotal | null>(null)
   const [allocation, setAllocation] = useState<AllocationItem[]>([])
   const [comparison, setComparison] = useState<SnapshotComparisonType | null>(null)
-  const [chartData, setChartData] = useState<TotalAssetPoint[]>([])
+  const [trendScale, setTrendScale] = useState<TrendScale>('day')
   const [hasSnapshots, setHasSnapshots] = useState(false)
   const [allSnapshots, setAllSnapshots] = useState<Snapshot[]>([])
   const [allValues, setAllValues] = useState<SnapshotValue[]>([])
@@ -91,10 +144,6 @@ export default function DashboardPage() {
         list.push(v)
         valuesBySnapshot.set(v.snapshotId, list)
       }
-      setChartData(
-        buildTotalAssetSeries(sortedSnapshots, valuesBySnapshot, activeAssets, ratesData)
-      )
-
       if (sortedSnapshots.length >= 2) {
         const latest = sortedSnapshots[sortedSnapshots.length - 1]
         const previous = sortedSnapshots[sortedSnapshots.length - 2]
@@ -108,6 +157,33 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }
+
+  const activeAssetsForChart = useMemo(
+    () => allAssets.filter((asset) => asset.isActive),
+    [allAssets]
+  )
+
+  const chartValuesBySnapshot = useMemo(() => {
+    const map = new Map<string, SnapshotValue[]>()
+    for (const value of allValues) {
+      const list = map.get(value.snapshotId) || []
+      list.push(value)
+      map.set(value.snapshotId, list)
+    }
+    return map
+  }, [allValues])
+
+  const chartData = useMemo(
+    () =>
+      buildScaledTotalAssetSeries(
+        allSnapshots,
+        chartValuesBySnapshot,
+        activeAssetsForChart,
+        trendScale,
+        rates
+      ),
+    [allSnapshots, chartValuesBySnapshot, activeAssetsForChart, trendScale, rates]
+  )
 
   async function handleDelete(id: string) {
     const ok = await confirm({
@@ -349,26 +425,34 @@ export default function DashboardPage() {
       {/* Chart */}
       {chartData.length > 0 && (
         <div className="dash-section" style={{ marginTop: 16 }}>
-          <h3 className="section-title">总资产走势</h3>
+          <div className="chart-section-head">
+            <h3 className="section-title">总资产走势</h3>
+            <div className="trend-scale-control" aria-label="走势图尺度">
+              {TREND_SCALE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`trend-scale-btn ${trendScale === option.value ? 'active' : ''}`}
+                  aria-pressed={trendScale === option.value}
+                  onClick={() => setTrendScale(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="recordedAt" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="periodLabel" tick={{ fontSize: 11 }} />
                 <YAxis
                   tick={{ fontSize: 11 }}
                   tickFormatter={(v) =>
                     v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
                   }
                 />
-                <Tooltip
-                  formatter={((value: any) => [
-                    Number(value).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }),
-                  ]) as any}
-                />
+                <Tooltip content={<TrendTooltip />} />
                 <Line
                   type="monotone"
                   dataKey="totalAmount"

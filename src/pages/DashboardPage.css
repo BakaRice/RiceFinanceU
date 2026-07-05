@@ -137,6 +137,88 @@
   margin-top: 4px;
 }
 
+.chart-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.chart-section-head .section-title {
+  margin-bottom: 0;
+}
+
+.trend-scale-control {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface-muted);
+  flex-shrink: 0;
+}
+
+.trend-scale-btn {
+  height: 26px;
+  min-width: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  line-height: 26px;
+}
+
+.trend-scale-btn:last-child {
+  border-right: 0;
+}
+
+.trend-scale-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+
+.trend-scale-btn.active,
+.trend-scale-btn[aria-pressed='true'] {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.trend-tooltip {
+  min-width: 190px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-overlay);
+  font-size: var(--font-size-sm);
+}
+
+.trend-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.trend-tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.trend-tooltip-row span {
+  color: var(--color-text-muted);
+}
+
+.trend-tooltip-row strong {
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* History */
 .history-list {
   display: flex;
@@ -281,5 +363,15 @@
   .history-item-actions {
     width: 100%;
     justify-content: space-between;
+  }
+  .chart-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .trend-scale-control {
+    width: 100%;
+  }
+  .trend-scale-btn {
+    flex: 1;
   }
 }
