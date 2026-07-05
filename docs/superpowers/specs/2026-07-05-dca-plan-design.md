@@ -56,11 +56,12 @@ RiceFinanceU 当前是个人资产快照账本，不是交易流水系统。资�
 示意：
 
 ```ts
-type DcaFrequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly'
+type DcaFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly'
 
 type AssetDcaPlan = {
   enabled: boolean
   frequency: DcaFrequency
+  excludeWeekends?: boolean
   plannedContribution: number
   targetAmount?: number
   targetDate?: string
@@ -86,7 +87,8 @@ type Asset = {
 字段说明：
 
 - `enabled`：是否启用定投计划。关闭时保留字段也可以，但页面不展示估算结果。
-- `frequency`：定投周期。第一版支持每周、每两周、每月、每季度。
+- `frequency`：定投周期。第一版支持每日、每周、每两周、每月、每季度。
+- `excludeWeekends`：每日定投估算时是否排除周六和周日，缺省为 `true`。非每日周期第一版不使用这个字段。
 - `plannedContribution`：当前计划每期投入金额，使用资产原币种。
 - `targetAmount`：目标金额，使用资产原币种。
 - `targetDate`：目标日期，使用 `YYYY-MM-DD`。
@@ -128,6 +130,16 @@ contributionGapRate = suggestedContribution > 0
   : 0
 ```
 
+剩余周期数按定投周期计算：
+
+- 每日：从当前日期之后到目标日期当天，按天计数；`excludeWeekends` 缺省为 `true`，默认不把周六和周日计入周期。
+- 每周：按 7 天为一个周期估算。
+- 每两周：按 14 天为一个周期估算。
+- 每月：按自然月近似估算。
+- 每季度：按 3 个自然月近似估算。
+
+每日周期的周末排除只影响 `periodsRemaining`。它不代表真实交易日历，也不处理节假日，避免把第一版做成精密日历系统。
+
 状态规则：
 
 - 缺少 `targetAmount`、`targetDate`、`plannedContribution` 或最新金额时，状态为 `insufficient_data`。
@@ -154,6 +166,7 @@ contributionGapRate = suggestedContribution > 0
 
 - 启用定投计划。
 - 周期。
+- 排除周末。只在选择每日周期时显示或启用，默认勾选。
 - 每期计划投入。
 - 目标金额。
 - 目标日期。
@@ -169,6 +182,7 @@ contributionGapRate = suggestedContribution > 0
 资产详情页新增“定投计划”区域。展示内容：
 
 - 周期。
+- 每日计划是否排除周末。
 - 每期计划投入。
 - 目标金额。
 - 目标日期。
@@ -187,7 +201,7 @@ contributionGapRate = suggestedContribution > 0
 2. 新建或编辑投资类资产时可以提交 `dcaPlan`。
 3. 后端保存资产时清理 `dcaPlan`，只保留投资类资产上的有效字段。
 4. 导入备份时允许 `dcaPlan` 缺失。
-5. 导入备份时如果 `dcaPlan` 存在，必须按字段类型清理：金额和比例必须是有限数字，日期必须是有效日期字符串，备注必须是非空字符串。
+5. 导入备份时如果 `dcaPlan` 存在，必须按字段类型清理：周期必须在允许枚举内，金额和比例必须是有限数字，日期必须是有效日期字符串，`excludeWeekends` 必须是布尔值，备注必须是非空字符串。
 6. 导出备份保留 `dcaPlan`，让 AI 可以读取计划上下文。
 7. schema 版本第一版可以保持 `2`，因为新增字段是向后兼容的可选资产属性。
 
@@ -211,6 +225,7 @@ Worker API 负责生产数据守门：
 ## 错误处理
 
 - 无效周期：清理为默认 `monthly` 或丢弃计划，推荐丢弃计划并由前端表单避免提交。
+- 每日周期缺少 `excludeWeekends`：按 `true` 处理，默认排除周末。
 - 非法金额：不保存该数字字段。
 - 目标日期无效：不保存目标日期。
 - 目标日期已经过去：允许保存，详情页估算显示偏差状态。
@@ -220,9 +235,11 @@ Worker API 负责生产数据守门：
 
 1. 投资类资产可以保存、编辑、清空定投计划。
 2. 余额类资产不会保存定投计划。
-3. 资产详情页可以基于最新快照金额、目标金额和目标日期估算建议每期投入。
-4. 估算结果能区分数据不足、计划偏低、计划偏高和接近目标。
-5. 定投计划不会影响快照录入、资产汇总、趋势和收益计算。
-6. 导出 JSON 保留资产上的 `dcaPlan` 字段。
-7. 导入 JSON 时会清理非法 `dcaPlan` 字段。
-8. 新增领域测试、页面测试和 Worker 测试覆盖核心行为。
+3. 定投周期支持每日、每周、每两周、每月和每季度。
+4. 每日定投默认排除周六和周日，且这个设置能被保存和导出。
+5. 资产详情页可以基于最新快照金额、目标金额和目标日期估算建议每期投入。
+6. 估算结果能区分数据不足、计划偏低、计划偏高和接近目标。
+7. 定投计划不会影响快照录入、资产汇总、趋势和收益计算。
+8. 导出 JSON 保留资产上的 `dcaPlan` 字段。
+9. 导入 JSON 时会清理非法 `dcaPlan` 字段。
+10. 新增领域测试、页面测试和 Worker 测试覆盖核心行为。
