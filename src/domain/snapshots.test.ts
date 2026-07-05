@@ -1,5 +1,5 @@
 // src/domain/snapshots.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   completeSnapshotValues,
   calculateSnapshotTotal,
@@ -286,8 +286,7 @@ describe('buildTotalAssetSeries', () => {
 
 describe('buildScaledTotalAssetSeries', () => {
   it('treats date-only snapshot strings as local dates', () => {
-    const originalTimeZone = process.env.TZ
-    process.env.TZ = 'America/New_York'
+    vi.stubEnv('TZ', 'America/New_York')
 
     try {
       const assets = [makeAsset({ id: 'a1', type: 'fund' })]
@@ -304,11 +303,7 @@ describe('buildScaledTotalAssetSeries', () => {
       expect(series[0].periodKey).toBe('2026-01-01')
       expect(series[0].periodLabel).toBe('2026-01-01')
     } finally {
-      if (originalTimeZone === undefined) {
-        delete process.env.TZ
-      } else {
-        process.env.TZ = originalTimeZone
-      }
+      vi.unstubAllEnvs()
     }
   })
 
