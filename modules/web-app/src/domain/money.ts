@@ -11,9 +11,8 @@ export function truncateDecimal(value: number, decimals: number): number {
 }
 
 export function normalizeStoredProfitRate(value: unknown): number | null {
-  const rate = Number(value)
-  if (!Number.isFinite(rate) || rate < -1) return null
-  return truncateDecimal(rate, 4)
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < -1) return null
+  return truncateDecimal(value, 4)
 }
 
 export function formatProfitRateInput(value: number | undefined | null): string {

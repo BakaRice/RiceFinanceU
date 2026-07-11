@@ -350,6 +350,72 @@ test('导入导出会保留投资类资产的结构化定投计划并清理余�
   assert.equal(cash.dcaPlan, undefined)
 })
 
+test('导入会截断高精度收益率并拒绝非法收益率', async () => {
+  const env = createEnv()
+  const token = await login(env)
+  const baseBackup = {
+    meta: { schemaVersion: 2, updatedAt: '2026-07-01T00:00:00.000Z' },
+    assets: [
+      {
+        id: 'fund-precision',
+        name: '精度测试基金',
+        type: 'fund',
+        currency: 'CNY',
+        isActive: true,
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+      },
+    ],
+    snapshots: [
+      {
+        id: 'snapshot-precision',
+        recordedAt: '2026-07-01T00:00:00.000Z',
+      },
+    ],
+  }
+
+  const importResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      ...baseBackup,
+      snapshotValues: [
+        {
+          id: 'value-precision',
+          snapshotId: 'snapshot-precision',
+          assetId: 'fund-precision',
+          amount: 1000,
+          profitRate: 0.3076923076923077,
+        },
+      ],
+    }),
+  })
+
+  assert.equal(importResponse.status, 200)
+  const exportResponse = await authedRequest(env, '/api/export', { token })
+  const exported = await exportResponse.json()
+  assert.equal(exported.snapshotValues[0].profitRate, 0.3076)
+
+  const invalidResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      ...baseBackup,
+      snapshotValues: [
+        {
+          id: 'value-invalid',
+          snapshotId: 'snapshot-precision',
+          assetId: 'fund-precision',
+          amount: 1000,
+          profitRate: -1.01,
+        },
+      ],
+    }),
+  })
+
+  assert.equal(invalidResponse.status, 400)
+})
+
 test('可以创建快照，并在第二次快照中继承未提交资产的上一次数值', async () => {
   const env = createEnv()
   const token = await login(env)

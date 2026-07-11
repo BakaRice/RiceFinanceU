@@ -46,3 +46,43 @@ describe('DataManagementPage preValidate monthly incomes', () => {
     expect(result.issues).toContain('monthlyIncomes 应为数组')
   })
 })
+
+describe('DataManagementPage preValidate profit rates', () => {
+  it('reports invalid rates and counts valid high-precision rates for normalization', () => {
+    const result = preValidate(backup({
+      assets: [
+        {
+          id: 'fund-1',
+          name: '指数基金',
+          type: 'fund',
+          currency: 'CNY',
+          isActive: true,
+        },
+      ],
+      snapshots: [
+        { id: 'snapshot-1', recordedAt: '2026-07-01T00:00:00.000Z' },
+      ],
+      snapshotValues: [
+        {
+          id: 'value-normalized',
+          snapshotId: 'snapshot-1',
+          assetId: 'fund-1',
+          amount: 100,
+          profitRate: 0.3076923076923077,
+        },
+        {
+          id: 'value-invalid',
+          snapshotId: 'snapshot-1',
+          assetId: 'fund-1',
+          amount: 100,
+          profitRate: -1.01,
+        },
+      ],
+    }))
+
+    expect(result.normalizedProfitRateCount).toBe(1)
+    expect(result.issues).toContain('1 个收益率将在导入时截断为百分比两位小数')
+    expect(result.issues).toContain('快照值[1] "value-invalid": 收益率无效 (-1.01)')
+    expect(result.hasCriticalIssues).toBe(true)
+  })
+})

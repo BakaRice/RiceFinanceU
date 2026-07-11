@@ -84,5 +84,6 @@ describe('profit rate precision', () => {
     expect(normalizeStoredProfitRate(-0.3076923076923077)).toBe(-0.3076)
     expect(normalizeStoredProfitRate(-1.01)).toBeNull()
     expect(normalizeStoredProfitRate(Number.NaN)).toBeNull()
+    expect(normalizeStoredProfitRate('0.3076')).toBeNull()
   })
 })

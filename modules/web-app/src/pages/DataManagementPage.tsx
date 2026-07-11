@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api/client'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
+import { normalizeStoredProfitRate } from '../domain/money'
 import './DataManagementPage.css'
 
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
@@ -14,6 +15,7 @@ interface ImportSummary {
   incomeCount: number
   assetIdSet: Set<string>
   snapIdSet: Set<string>
+  normalizedProfitRateCount: number
   issues: string[]
   hasCriticalIssues: boolean
 }
@@ -94,6 +96,8 @@ export function preValidate(data: any): ImportSummary {
   let badValueCount = 0
   let orphanSnapCount = 0
   let orphanAssetCount = 0
+  let normalizedProfitRateCount = 0
+  let invalidProfitRateCount = 0
   for (let i = 0; i < values.length; i++) {
     const v = values[i]
     if (!v || typeof v !== 'object' || typeof v.id !== 'string' || !v.id.trim()) {
@@ -109,10 +113,22 @@ export function preValidate(data: any): ImportSummary {
     if (typeof v.amount !== 'number' || !Number.isFinite(v.amount) || v.amount < 0) {
       issues.push(`快照值[${i}] "${v.id}": 金额无效 (${v.amount})`)
     }
+    if (v.profitRate !== undefined) {
+      const normalizedProfitRate = normalizeStoredProfitRate(v.profitRate)
+      if (normalizedProfitRate === null) {
+        invalidProfitRateCount++
+        issues.push(`快照值[${i}] "${v.id}": 收益率无效 (${v.profitRate})`)
+      } else if (normalizedProfitRate !== v.profitRate) {
+        normalizedProfitRateCount++
+      }
+    }
   }
   if (badValueCount > 0) issues.push(`${badValueCount} 个快照值缺少有效 ID`)
   if (orphanSnapCount > 0) issues.push(`${orphanSnapCount} 个快照值引用了不存在的快照`)
   if (orphanAssetCount > 0) issues.push(`${orphanAssetCount} 个快照值引用了不存在的资产`)
+  if (normalizedProfitRateCount > 0) {
+    issues.push(`${normalizedProfitRateCount} 个收益率将在导入时截断为百分比两位小数`)
+  }
 
   // Check monthly incomes
   for (let i = 0; i < monthlyIncomes.length; i++) {
@@ -140,7 +156,8 @@ export function preValidate(data: any): ImportSummary {
   const shown = issues.slice(0, maxIssues)
   if (issues.length > maxIssues) shown.push(`... 还有 ${issues.length - maxIssues} 个问题`)
 
-  const hasCriticalIssues = badAssetCount > 0 || badSnapCount > 0 || badValueCount > 0
+  const hasCriticalIssues =
+    badAssetCount > 0 || badSnapCount > 0 || badValueCount > 0 || invalidProfitRateCount > 0
 
   return {
     schemaVersion: data.meta?.schemaVersion || 0,
@@ -150,6 +167,7 @@ export function preValidate(data: any): ImportSummary {
     incomeCount: monthlyIncomes.length,
     assetIdSet,
     snapIdSet,
+    normalizedProfitRateCount,
     issues: shown,
     hasCriticalIssues,
   }

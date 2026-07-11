@@ -355,6 +355,11 @@ function validateImportData(data) {
   return ''
 }
 
+function normalizeStoredProfitRate(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < -1) return null
+  return Math.trunc(value * 10000) / 10000
+}
+
 function getBearerToken(request) {
   const header = request.headers.get('authorization') || ''
   const [scheme, token] = header.split(' ')
@@ -796,6 +801,20 @@ async function handleImport(request, env) {
   const validationError = validateImportData(body)
   if (validationError) return badRequest(validationError)
 
+  const snapshotValues = []
+  for (let index = 0; index < body.snapshotValues.length; index++) {
+    const value = body.snapshotValues[index]
+    const normalizedValue = { ...value }
+    if (value?.profitRate !== undefined) {
+      const normalizedProfitRate = normalizeStoredProfitRate(value.profitRate)
+      if (normalizedProfitRate === null) {
+        return badRequest(`Invalid backup: snapshotValues[${index}].profitRate is invalid`)
+      }
+      normalizedValue.profitRate = normalizedProfitRate
+    }
+    snapshotValues.push(normalizedValue)
+  }
+
   const imported = normalizeData({
     meta: { schemaVersion: 2, updatedAt: new Date().toISOString() },
     assets: body.assets.map((asset) => {
@@ -815,7 +834,7 @@ async function handleImport(request, env) {
       return normalizedAsset
     }),
     snapshots: body.snapshots || body.transactions || [],
-    snapshotValues: body.snapshotValues,
+    snapshotValues,
     monthlyIncomes: Array.isArray(body.monthlyIncomes)
       ? body.monthlyIncomes
           .map((income) => sanitizeImportedMonthlyIncome(income))
