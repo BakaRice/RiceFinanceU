@@ -52,9 +52,12 @@ export default function EntryPage() {
 
   return (
     <div className="entry-page">
-      <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, marginBottom: 16 }}>
-        快照录入
-      </h1>
+      <header className="page-header">
+        <div className="page-heading">
+          <h1 className="page-title">快照录入</h1>
+          <p className="page-subtitle">记录这一时点的资产状态，未变化的数据继续沿用</p>
+        </div>
+      </header>
 
       <div className="entry-layout">
         <div className="entry-form-col">
@@ -62,7 +65,7 @@ export default function EntryPage() {
         </div>
 
         <div className="entry-side-col">
-          <div className="recent-tx">
+          <div className="recent-tx section-panel">
             <h3 className="section-title">最近快照</h3>
             {recentSnapshots.length === 0 ? (
               <p className="text-muted" style={{ fontSize: 13, padding: '8px 0' }}>

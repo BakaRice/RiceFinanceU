@@ -377,16 +377,17 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
             const statusLabel = !r.included
               ? '沿用'
               : isLargeChange(r)
-                ? '⚠ 大额'
+                ? '大额变化'
                 : r.status === 'modified'
                   ? '已修改'
-                  : ''
+                  : '未变化'
 
             return (
               <tr key={r.assetId} className={rowClass}>
                 <td>
                   <input
                     type="checkbox"
+                    aria-label={`${r.included ? '不纳入' : '纳入'} ${r.name}`}
                     checked={r.included}
                     onChange={() => globalIdx >= 0 && toggleIncluded(globalIdx)}
                   />
@@ -479,38 +480,44 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
         <div className="snapshot-sticky-bar">
           <div className="snapshot-sticky-left">
             <div className="snapshot-meta-inline">
-              <label className="snap-label">日期</label>
-              <input
-                type="date"
-                className="snap-date-input"
-                value={recordedAt}
-                onChange={(e) => {
-                  setRecordedAt(e.target.value)
-                  markDirty()
-                }}
-                required
-              />
-              <label className="snap-label">时间</label>
-              <input
-                type="time"
-                className="snap-time-input"
-                value={recordingTime}
-                onChange={(e) => {
-                  setRecordingTime(e.target.value)
-                  markDirty()
-                }}
-              />
-              <label className="snap-label">备注</label>
-              <input
-                type="text"
-                className="snap-note-input"
-                value={note}
-                onChange={(e) => {
-                  setNote(e.target.value)
-                  markDirty()
-                }}
-                placeholder="如：月末盘点"
-              />
+              <label className="snap-field">
+                <span className="snap-label">日期</span>
+                <input
+                  type="date"
+                  className="snap-date-input"
+                  value={recordedAt}
+                  onChange={(e) => {
+                    setRecordedAt(e.target.value)
+                    markDirty()
+                  }}
+                  required
+                />
+              </label>
+              <label className="snap-field">
+                <span className="snap-label">时间</span>
+                <input
+                  type="time"
+                  className="snap-time-input"
+                  value={recordingTime}
+                  onChange={(e) => {
+                    setRecordingTime(e.target.value)
+                    markDirty()
+                  }}
+                />
+              </label>
+              <label className="snap-field snap-field-note">
+                <span className="snap-label">备注</span>
+                <input
+                  type="text"
+                  className="snap-note-input"
+                  value={note}
+                  onChange={(e) => {
+                    setNote(e.target.value)
+                    markDirty()
+                  }}
+                  placeholder="如：月末盘点"
+                />
+              </label>
             </div>
           </div>
           <div className="snapshot-sticky-right">
@@ -518,6 +525,9 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
               更新 {includedRows.length} 项 · 变化 {changedRows.length} 项
               {largeChangeRows.length > 0 && ` · 大额 ${largeChangeRows.length}`}
             </span>
+            <button type="button" className="btn-secondary" onClick={handleManageAssets}>
+              管理资产
+            </button>
             <button type="submit" className="btn-primary" disabled={submitting}>
               {submitting ? '保存中...' : '保存快照'}
             </button>
