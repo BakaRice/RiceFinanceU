@@ -277,7 +277,7 @@ export default function AssetDetailPage() {
           <div className="detail-trend-chart">
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={trendData} margin={{ top: 12, right: 12, bottom: 2, left: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#edf0ed" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
                 <XAxis
                   dataKey="timestamp"
                   type="number"

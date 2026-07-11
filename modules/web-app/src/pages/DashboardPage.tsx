@@ -556,7 +556,7 @@ export default function DashboardPage() {
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eceefa" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
                 <XAxis dataKey="periodLabel" tick={{ fontSize: 11 }} />
                 <YAxis
                   yAxisId="asset"
@@ -581,7 +581,7 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="totalAmount"
                   name="总资产"
-                  stroke="#4f46f5"
+                  stroke="var(--chart-total)"
                   strokeWidth={2.6}
                   dot={{ r: 2.5 }}
                 />
@@ -590,7 +590,7 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="investmentAmount"
                   name="投资类"
-                  stroke="#06b6d4"
+                  stroke="var(--chart-investment)"
                   strokeWidth={1.6}
                   dot={false}
                   strokeDasharray="5 5"
@@ -600,7 +600,7 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="balanceAmount"
                   name="余额类"
-                  stroke="#f59e0b"
+                  stroke="var(--chart-balance)"
                   strokeWidth={1.6}
                   dot={false}
                 />
@@ -610,7 +610,7 @@ export default function DashboardPage() {
                     type="monotone"
                     dataKey="incomeAmount"
                     name={getIncomeLineLabel(trendScale)}
-                    stroke="#8b5cf6"
+                    stroke="var(--chart-income)"
                     strokeWidth={1.9}
                     dot={{ r: 3 }}
                     connectNulls={false}

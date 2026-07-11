@@ -15,7 +15,7 @@
 }
 
 .assets-section-inactive {
-  background: rgba(255, 255, 255, 0.58);
+  background: color-mix(in srgb, var(--color-surface) 58%, transparent);
 }
 
 .table-container {
@@ -83,10 +83,10 @@
   align-items: center;
   min-height: 20px;
   padding: 0 6px;
-  border: 1px solid rgba(236, 72, 153, 0.25);
+  border: 1px solid var(--color-restricted-border);
   border-radius: var(--radius-sm);
-  background: rgba(236, 72, 153, 0.07);
-  color: #be286f;
+  background: var(--color-restricted-bg);
+  color: var(--color-restricted);
   font-size: 11px;
   line-height: 18px;
   white-space: nowrap;
@@ -165,7 +165,7 @@
 .form-input:focus {
   outline: none;
   border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 2px rgba(45, 95, 126, 0.1);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .form-buttons {

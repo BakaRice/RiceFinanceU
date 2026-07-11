@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
+import ThemeSelector from '../components/ThemeSelector'
 import './LoginPage.css'
 
 interface LoginPageProps {
@@ -29,6 +30,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   return (
     <main className="login-page">
+      <ThemeSelector variant="floating" />
       <form className="login-panel" onSubmit={handleSubmit}>
         <div className="login-brand">
           <span className="login-brand-mark" aria-hidden="true">RF</span>

@@ -69,6 +69,7 @@ describe('authenticated application shell', () => {
     expect(screen.getByRole('link', { name: '定投管理' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '快照录入' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '数据管理' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: '界面主题' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
   })
 })

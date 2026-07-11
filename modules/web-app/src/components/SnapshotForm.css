@@ -7,7 +7,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(245, 246, 255, 0.96);
+  background: color-mix(in srgb, var(--color-canvas) 94%, transparent);
   padding: 10px 0 12px;
   margin-bottom: 14px;
   display: flex;

@@ -28,6 +28,6 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid rgba(79, 70, 245, 0.48);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }

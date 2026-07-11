@@ -48,10 +48,10 @@
   align-items: center;
   min-height: 22px;
   padding: 0 7px;
-  border: 1px solid rgba(236, 72, 153, 0.25);
+  border: 1px solid var(--color-restricted-border);
   border-radius: var(--radius-sm);
-  background: rgba(236, 72, 153, 0.07);
-  color: #be286f;
+  background: var(--color-restricted-bg);
+  color: var(--color-restricted);
   font-size: 11px;
   line-height: 20px;
   white-space: nowrap;
@@ -74,8 +74,8 @@
   align-items: flex-start;
   margin-bottom: 14px;
   padding: 16px 18px;
-  border-color: rgba(79, 70, 245, 0.18);
-  background: linear-gradient(105deg, #ffffff, #f6f4ff 65%, #f0fbff);
+  border-color: var(--surface-emphasis-border);
+  background: linear-gradient(105deg, var(--surface-gradient-start), var(--surface-gradient-mid) 65%, var(--surface-gradient-end));
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);

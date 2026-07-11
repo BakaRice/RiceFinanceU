@@ -22,8 +22,8 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-primary);
-  background: rgba(79, 70, 245, 0.06);
-  border-color: rgba(79, 70, 245, 0.16);
+  background: var(--color-primary-light);
+  border-color: var(--surface-emphasis-border);
   font-size: var(--font-size-xs);
   letter-spacing: 0.02em;
 }
@@ -33,8 +33,8 @@
   position: relative;
   display: flex;
   gap: 0;
-  background: linear-gradient(105deg, #ffffff 0%, #f5f3ff 52%, #eef8ff 100%);
-  border: 1px solid rgba(79, 70, 245, 0.22);
+  background: linear-gradient(105deg, var(--surface-gradient-start), var(--surface-gradient-mid) 52%, var(--surface-gradient-end));
+  border: 1px solid var(--surface-emphasis-border);
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 0;
@@ -44,7 +44,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
-  background: linear-gradient(#4f46f5, #8b5cf6, #06b6d4);
+  background: var(--accent-gradient);
   content: '';
 }
 
@@ -62,7 +62,7 @@
 
 .dash-stat-primary {
   flex: 1.35;
-  background: linear-gradient(90deg, rgba(79, 70, 245, 0.08), transparent);
+  background: linear-gradient(90deg, var(--surface-emphasis), transparent);
 }
 
 .dash-stat-primary .money-display {
@@ -108,7 +108,7 @@
 }
 
 .rates-trigger:hover {
-  border-color: rgba(79, 70, 245, 0.35);
+  border-color: var(--color-border-focus);
   color: var(--color-primary);
   background: var(--color-primary-light);
 }
@@ -182,11 +182,11 @@
   padding: 10px 12px;
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-sm);
-  background: #fafaff;
+  background: var(--color-surface-subtle);
 }
 
 .income-summary-main {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(79, 70, 245, 0.04));
+  background: linear-gradient(135deg, var(--surface-income-emphasis), var(--surface-emphasis));
 }
 
 .income-summary-item > span:first-child:not(.income-summary-item-head) {
@@ -207,7 +207,7 @@
 }
 
 .income-summary-restricted {
-  background: #fff7fb;
+  background: var(--color-surface-restricted);
 }
 
 .income-availability-badge {
@@ -215,10 +215,10 @@
   align-items: center;
   min-height: 18px;
   padding: 0 6px;
-  border: 1px solid rgba(236, 72, 153, 0.28);
+  border: 1px solid var(--color-restricted-border);
   border-radius: var(--radius-sm);
-  background: rgba(236, 72, 153, 0.08);
-  color: #be286f;
+  background: var(--color-restricted-bg);
+  color: var(--color-restricted);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
@@ -361,17 +361,17 @@
 
 .allocation-bar-fill {
   height: 100%;
-  background: #4f46f5;
+  background: var(--chart-category-1);
   border-radius: 3px;
   transition: width 0.4s ease;
   opacity: 0.86;
 }
 
-.allocation-row:nth-child(2) .allocation-bar-fill { background: #8b5cf6; }
-.allocation-row:nth-child(3) .allocation-bar-fill { background: #06b6d4; }
-.allocation-row:nth-child(4) .allocation-bar-fill { background: #f59e0b; }
-.allocation-row:nth-child(5) .allocation-bar-fill { background: #ec4899; }
-.allocation-row:nth-child(6) .allocation-bar-fill { background: #10b981; }
+.allocation-row:nth-child(2) .allocation-bar-fill { background: var(--chart-category-2); }
+.allocation-row:nth-child(3) .allocation-bar-fill { background: var(--chart-category-3); }
+.allocation-row:nth-child(4) .allocation-bar-fill { background: var(--chart-category-4); }
+.allocation-row:nth-child(5) .allocation-bar-fill { background: var(--chart-category-5); }
+.allocation-row:nth-child(6) .allocation-bar-fill { background: var(--chart-category-6); }
 
 .allocation-pct {
   width: 40px;
@@ -486,7 +486,7 @@
 }
 
 .history-item.expanded {
-  background: #fafaff;
+  background: var(--color-surface-subtle);
 }
 
 .history-item-header {
