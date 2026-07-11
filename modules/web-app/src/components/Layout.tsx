@@ -41,7 +41,7 @@ const navItems = [
 
 export default function Layout({ onLogout }: LayoutProps) {
   return (
-    <div className="layout">
+    <div className="layout" data-testid="financial-workbench" data-density="dense">
       <nav className="sidebar" aria-label="主导航">
         <div className="sidebar-brand">
           <span className="sidebar-mark" aria-hidden="true">RF</span>

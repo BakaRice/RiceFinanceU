@@ -4,16 +4,27 @@
 }
 
 .dca-summary-strip {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  margin-bottom: var(--space-xl);
+  margin-bottom: 14px;
   overflow: hidden;
+  border-color: rgba(6, 182, 212, 0.22);
+  background: linear-gradient(105deg, #ffffff 0%, #f3f5ff 55%, #ecfcff 100%);
+}
+
+.dca-summary-strip::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(#06b6d4, #4f46f5, #8b5cf6);
+  content: '';
 }
 
 .dca-summary-item {
-  min-height: 76px;
-  padding: var(--space-md) var(--space-lg);
+  min-height: 68px;
+  padding: 11px var(--space-lg);
   border-left: 1px solid var(--color-border-light);
 }
 

@@ -228,6 +228,31 @@ describe('DashboardPage trend scale controls', () => {
     })
   })
 
+  it('groups related dashboard panels into two semantic rows', async () => {
+    renderDashboard()
+
+    await screen.findByText('总资产走势')
+
+    const flowRow = screen.getByTestId('flow-structure-row')
+    expect(flowRow.textContent).toContain('收入流入')
+    expect(flowRow.textContent).toContain('资产结构')
+
+    const activityRow = screen.getByTestId('snapshot-change-row')
+    expect(activityRow.textContent).toContain('快照历史')
+    expect(activityRow.textContent).toContain('最近变化')
+  })
+
+  it('keeps the exchange-rate controls in the compact dashboard header', async () => {
+    const { container } = renderDashboard()
+
+    await screen.findByText('总资产走势')
+
+    const header = container.querySelector('.dashboard-header')
+    expect(header?.textContent).toContain('汇率')
+    expect(header?.textContent).toContain('USD 7.20')
+    expect(header?.textContent).toContain('HKD 0.92')
+  })
+
   it('presents snapshot context and unambiguous history actions', async () => {
     renderDashboard()
 

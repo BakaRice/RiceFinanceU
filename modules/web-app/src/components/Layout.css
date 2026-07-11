@@ -7,12 +7,12 @@
 .sidebar {
   position: sticky;
   top: 0;
-  width: 188px;
+  width: 180px;
   height: 100vh;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 14px 12px 12px;
+  padding: 12px 10px 10px;
   background: var(--color-sidebar);
   color: #9eacb7;
   border-right: 1px solid rgba(255, 255, 255, 0.04);
@@ -22,8 +22,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 52px;
-  padding: 5px 6px 15px;
+  min-height: 46px;
+  padding: 4px 7px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -33,10 +33,11 @@
   width: 32px;
   height: 32px;
   flex: 0 0 32px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 6px;
   color: #f1f5f6;
-  background: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(135deg, #4f46f5 0%, #8b5cf6 55%, #06b6d4 100%);
+  box-shadow: 0 0 22px rgba(109, 93, 252, 0.24);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -67,8 +68,8 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
-  padding-top: 18px;
+  gap: 2px;
+  padding-top: 14px;
 }
 
 .nav-item {
@@ -76,7 +77,7 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 40px;
+  min-height: 38px;
   padding: 0 11px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -109,7 +110,7 @@
 }
 
 .nav-item.active::before {
-  background: #79a8ba;
+  background: linear-gradient(#8b5cf6, #38bdf8);
 }
 
 .nav-icon {
@@ -161,9 +162,9 @@
 }
 
 .content-canvas {
-  width: min(100%, calc(var(--content-wide) + 64px));
+  width: min(100%, calc(var(--content-wide) + 48px));
   min-height: 100vh;
-  padding: 28px 32px 48px;
+  padding: 20px 24px 32px;
 }
 
 @media (max-width: 1100px) {
@@ -172,7 +173,7 @@
   }
 
   .content-canvas {
-    padding: 24px 24px 40px;
+    padding: 18px 20px 30px;
   }
 }
 

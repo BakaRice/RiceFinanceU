@@ -4,7 +4,7 @@
   min-height: 100vh;
   place-items: center;
   overflow: hidden;
-  padding: 28px;
+  padding: 24px;
   background: var(--color-canvas);
 }
 
@@ -12,8 +12,10 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(rgba(49, 95, 115, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(49, 95, 115, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(79, 70, 245, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 70, 245, 0.05) 1px, transparent 1px),
+    radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.14), transparent 32%),
+    radial-gradient(circle at 82% 75%, rgba(6, 182, 212, 0.12), transparent 30%);
   background-size: 48px 48px;
   content: '';
   mask-image: radial-gradient(circle at center, black, transparent 72%);
@@ -22,7 +24,7 @@
 .login-panel {
   position: relative;
   width: min(100%, 376px);
-  padding: 28px;
+  padding: 24px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.92);
@@ -44,7 +46,7 @@
   height: 34px;
   place-items: center;
   border-radius: 6px;
-  background: var(--color-sidebar);
+  background: linear-gradient(135deg, #4f46f5, #8b5cf6 58%, #06b6d4);
   color: #f5f7f7;
   font-size: 11px;
   font-weight: 700;
@@ -110,7 +112,7 @@
 
 .login-field input:focus {
   border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 3px rgba(49, 95, 115, 0.11);
+  box-shadow: 0 0 0 3px rgba(79, 70, 245, 0.12);
 }
 
 .login-error {

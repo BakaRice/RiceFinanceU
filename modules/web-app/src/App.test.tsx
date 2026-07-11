@@ -58,6 +58,9 @@ describe('authenticated application shell', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: '主导航' })
+    const shell = screen.getByTestId('financial-workbench')
+    expect(shell.getAttribute('data-density')).toBe('dense')
+    expect(screen.getByRole('main').classList.contains('content')).toBe(true)
     expect(navigation).toBeTruthy()
     expect(screen.getByText('Rice Finance')).toBeTruthy()
     expect(screen.getByRole('link', { name: '总览' })).toBeTruthy()
