@@ -90,8 +90,21 @@
 
 /* Table overrides */
 .snapshot-table {
-  min-width: 860px;
+  min-width: 980px;
   font-size: var(--font-size-sm);
+}
+
+.snapshot-grid-wrap {
+  overflow-x: auto;
+}
+
+.snapshot-na-cell {
+  background: var(--color-surface-muted);
+}
+
+.snapshot-na-cell .money-input {
+  color: var(--color-text-muted);
+  background: transparent;
 }
 
 .snapshot-table td {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../api/client'
-import type { SnapshotValue } from '../types/finance'
+import type { AssetType, SnapshotValue } from '../types/finance'
 import { isInvestmentType } from '../domain/assets'
 import {
   isValidCurrencyAmount,
@@ -314,8 +314,6 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
     }
   }
 
-  const investmentRows = rows.filter((r) => isInvestmentType(r.type as any))
-  const balanceRows = rows.filter((r) => !isInvestmentType(r.type as any))
   const includedRows = rows.filter((r) => r.included)
   const changedRows = includedRows.filter((r) => {
     if (r.previousAmount === undefined) return true
@@ -340,9 +338,9 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
     return ''
   }
 
-  function renderTable(assetRows: AssetRow[], isInvestment: boolean) {
+  function renderTable() {
     return (
-      <table className="fin-table snapshot-table">
+      <table className="fin-table snapshot-table" aria-label="快照录入表">
         <thead>
           <tr>
             <th style={{ width: 32 }}>☑</th>
@@ -351,19 +349,16 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
             <th className="align-right" style={{ width: 100 }}>上次金额</th>
             <th className="align-right" style={{ width: 125 }}>本次金额</th>
             <th className="align-right" style={{ width: 75 }}>变化</th>
-            {isInvestment && (
-              <>
-                <th className="align-right" style={{ width: 125 }}>收益</th>
-                <th className="align-right" style={{ width: 105 }}>收益率</th>
-              </>
-            )}
+            <th className="align-right" style={{ width: 125 }}>收益</th>
+            <th className="align-right" style={{ width: 105 }}>收益率</th>
             <th style={{ width: 55 }}>状态</th>
           </tr>
         </thead>
         <tbody>
-          {assetRows.map((r) => {
+          {rows.map((r) => {
             const globalIdx = rows.findIndex((x) => x.assetId === r.assetId)
             const rowClass = getRowClass(r)
+            const investment = isInvestmentType(r.type as AssetType)
 
             // Calculate delta
             const curAmount = Number(r.amount)
@@ -409,6 +404,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
                 </td>
                 <td className="align-right">
                   <MoneyInput
+                    ariaLabel={`${r.name} 本次金额`}
                     value={r.amount}
                     onChange={(v) => globalIdx >= 0 && updateRow(globalIdx, 'amount', v)}
                     unit={r.currency}
@@ -424,32 +420,30 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
                     <span className="text-muted">-</span>
                   )}
                 </td>
-                {isInvestment && (
-                  <>
-                    <td className="align-right">
-                      <MoneyInput
-                        value={r.profit}
-                        onChange={(v) => globalIdx >= 0 && updateRow(globalIdx, 'profit', v)}
-                        allowNegative
-                        placeholder="0.00"
-                        disabled={!r.included}
-                        status={r.status}
-                      />
-                    </td>
-                    <td className="align-right">
-                      <MoneyInput
-                        value={r.profitRate}
-                        onChange={(v) => globalIdx >= 0 && updateRow(globalIdx, 'profitRate', v)}
-                        unit="%"
-                        allowNegative
-                        minValue={-100}
-                        placeholder="0.00"
-                        disabled={!r.included}
-                        status={r.status}
-                      />
-                    </td>
-                  </>
-                )}
+                <td className={`align-right ${investment ? '' : 'snapshot-na-cell'}`}>
+                  <MoneyInput
+                    ariaLabel={`${r.name} 收益`}
+                    value={investment ? r.profit : ''}
+                    onChange={(v) => globalIdx >= 0 && updateRow(globalIdx, 'profit', v)}
+                    allowNegative
+                    placeholder={investment ? '0.00' : '-'}
+                    disabled={!investment || !r.included}
+                    status={r.status}
+                  />
+                </td>
+                <td className={`align-right ${investment ? '' : 'snapshot-na-cell'}`}>
+                  <MoneyInput
+                    ariaLabel={`${r.name} 收益率`}
+                    value={investment ? r.profitRate : ''}
+                    onChange={(v) => globalIdx >= 0 && updateRow(globalIdx, 'profitRate', v)}
+                    unit={investment ? '%' : undefined}
+                    allowNegative
+                    minValue={-100}
+                    placeholder={investment ? '0.00' : '-'}
+                    disabled={!investment || !r.included}
+                    status={r.status}
+                  />
+                </td>
                 <td>
                   {statusLabel && (
                     <span
@@ -547,19 +541,9 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
           </div>
         )}
 
-        {/* Investment assets */}
-        {investmentRows.length > 0 && (
-          <div className="snapshot-group">
-            <h3 className="section-title">投资类资产 ({investmentRows.length})</h3>
-            <div className="table-container">{renderTable(investmentRows, true)}</div>
-          </div>
-        )}
-
-        {/* Balance assets */}
-        {balanceRows.length > 0 && (
-          <div className="snapshot-group">
-            <h3 className="section-title">余额类资产 ({balanceRows.length})</h3>
-            <div className="table-container">{renderTable(balanceRows, false)}</div>
+        {rows.length > 0 && (
+          <div className="snapshot-grid-wrap">
+            {renderTable()}
           </div>
         )}
 

@@ -3,6 +3,7 @@ import { useRef, useCallback } from 'react'
 type InputStatus = 'default' | 'modified' | 'auto-calc' | 'error'
 
 interface MoneyInputProps {
+  ariaLabel?: string
   value: string
   onChange: (value: string) => void
   unit?: string
@@ -26,6 +27,7 @@ interface MoneyInputProps {
  * - Empty stays empty, never auto-fills "0.00"
  */
 export default function MoneyInput({
+  ariaLabel,
   value,
   onChange,
   unit,
@@ -115,6 +117,7 @@ export default function MoneyInput({
   return (
     <span className={`money-input-wrapper ${unit ? 'has-unit' : ''}`}>
       <input
+        aria-label={ariaLabel}
         ref={inputRef}
         type="text"
         inputMode="decimal"

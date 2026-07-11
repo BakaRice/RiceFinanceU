@@ -34,6 +34,15 @@ describe('SnapshotForm imported profit rate precision', () => {
         createdAt: '2026-07-01T00:00:00.000Z',
         updatedAt: '2026-07-01T00:00:00.000Z',
       },
+      {
+        id: 'cash-1',
+        name: '现金',
+        type: 'cash',
+        currency: 'CNY',
+        isActive: true,
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+      },
     ] as any)
     mockedApi.getLatestSnapshot.mockResolvedValue({
       snapshot: {
@@ -49,6 +58,12 @@ describe('SnapshotForm imported profit rate precision', () => {
           amount: 1000,
           profit: 200,
           profitRate: 0.3076923076923077,
+        },
+        {
+          id: 'value-2',
+          snapshotId: 'snapshot-1',
+          assetId: 'cash-1',
+          amount: 5000,
         },
       ],
     } as any)
@@ -68,5 +83,27 @@ describe('SnapshotForm imported profit rate precision', () => {
 
     expect(await screen.findByRole('heading', { name: '确认保存快照' })).toBeTruthy()
     expect(screen.queryByText(/收益率无效/)).toBeNull()
+  })
+
+  it('shows investment and balance assets in one prefilled table', async () => {
+    render(
+      <FeedbackProvider>
+        <SnapshotForm onSuccess={vi.fn()} onManageAssets={vi.fn()} />
+      </FeedbackProvider>,
+    )
+
+    expect(await screen.findByRole('table', { name: '快照录入表' })).toBeTruthy()
+    expect(screen.getAllByRole('table')).toHaveLength(1)
+    expect(screen.getByText('指数基金')).toBeTruthy()
+    expect(screen.getByText('现金')).toBeTruthy()
+    expect(screen.getByDisplayValue('1000')).toBeTruthy()
+    expect(screen.getByDisplayValue('5000')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: /投资类资产/ })).toBeNull()
+    expect(screen.queryByRole('heading', { name: /余额类资产/ })).toBeNull()
+
+    const investmentProfit = screen.getByLabelText('指数基金 收益') as HTMLInputElement
+    const cashProfit = screen.getByLabelText('现金 收益') as HTMLInputElement
+    expect(investmentProfit.disabled).toBe(false)
+    expect(cashProfit.disabled).toBe(true)
   })
 })
