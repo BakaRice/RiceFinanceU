@@ -6,6 +6,7 @@ import './DataManagementPage.css'
 
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
 const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
+const VALID_INCOME_CATEGORIES = ['salary', 'bonus', 'side_income', 'housing_fund', 'investment', 'other']
 
 interface ImportSummary {
   schemaVersion: number
@@ -30,6 +31,22 @@ function isValidMonthKey(value: unknown): value is string {
   return month >= 1 && month <= 12
 }
 
+function isValidDateKey(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+
+  const year = Number(match[1])
+  const monthIndex = Number(match[2]) - 1
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, monthIndex, day))
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === monthIndex &&
+    date.getUTCDate() === day
+  )
+}
+
 function isValidIncomeAmount(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
@@ -41,11 +58,19 @@ export function preValidate(data: any): ImportSummary {
   const assets: any[] = data.assets || []
   const snapshots: any[] = data.snapshots || data.transactions || []
   const values: any[] = data.snapshotValues || []
+  const incomeRecords: any[] = data.incomeRecords === undefined
+    ? []
+    : Array.isArray(data.incomeRecords)
+      ? data.incomeRecords
+      : []
   const monthlyIncomes: any[] = data.monthlyIncomes === undefined
     ? []
     : Array.isArray(data.monthlyIncomes)
       ? data.monthlyIncomes
       : []
+  if (data.incomeRecords !== undefined && !Array.isArray(data.incomeRecords)) {
+    issues.push('incomeRecords 应为数组')
+  }
   if (data.monthlyIncomes !== undefined && !Array.isArray(data.monthlyIncomes)) {
     issues.push('monthlyIncomes 应为数组')
   }
@@ -130,7 +155,34 @@ export function preValidate(data: any): ImportSummary {
     issues.push(`${normalizedProfitRateCount} 个收益率将在导入时截断为百分比两位小数`)
   }
 
-  // Check monthly incomes
+  // Check income records
+  let badIncomeCount = 0
+  for (let i = 0; i < incomeRecords.length; i++) {
+    const income = incomeRecords[i]
+    const label = income && typeof income.id === 'string' && income.id.trim()
+      ? income.id
+      : `第 ${i + 1} 条`
+
+    if (!income || typeof income !== 'object' || Array.isArray(income)) {
+      badIncomeCount++
+      issues.push(`收入记录[${i}] "${label}": 记录格式无效`)
+      continue
+    }
+    if (!isValidDateKey(income.occurredAt)) {
+      badIncomeCount++
+      issues.push(`收入记录[${i}] "${label}": 日期无效 "${income.occurredAt}"`)
+    }
+    if (!isValidIncomeAmount(income.amount)) {
+      badIncomeCount++
+      issues.push(`收入记录[${i}] "${label}": 金额无效 (${income.amount})`)
+    }
+    if (!VALID_INCOME_CATEGORIES.includes(income.category)) {
+      badIncomeCount++
+      issues.push(`收入记录[${i}] "${label}": 分类无效 "${income.category}"`)
+    }
+  }
+
+  // Check legacy monthly incomes
   for (let i = 0; i < monthlyIncomes.length; i++) {
     const income = monthlyIncomes[i]
     const label = income && typeof income.id === 'string' && income.id.trim()
@@ -138,14 +190,17 @@ export function preValidate(data: any): ImportSummary {
       : `第 ${i + 1} 条`
 
     if (!income || typeof income !== 'object' || Array.isArray(income)) {
+      badIncomeCount++
       issues.push(`月收入[${i}] "${label}": 记录格式无效`)
       continue
     }
     if (!isValidMonthKey(income.month)) {
+      badIncomeCount++
       issues.push(`月收入[${i}] "${label}": 月份无效 "${income.month}"`)
     }
     for (const field of INCOME_AMOUNT_FIELDS) {
       if (!isValidIncomeAmount(income[field])) {
+        badIncomeCount++
         issues.push(`月收入[${i}] "${label}": ${field} 金额无效 (${income[field]})`)
       }
     }
@@ -157,14 +212,18 @@ export function preValidate(data: any): ImportSummary {
   if (issues.length > maxIssues) shown.push(`... 还有 ${issues.length - maxIssues} 个问题`)
 
   const hasCriticalIssues =
-    badAssetCount > 0 || badSnapCount > 0 || badValueCount > 0 || invalidProfitRateCount > 0
+    badAssetCount > 0 ||
+    badSnapCount > 0 ||
+    badValueCount > 0 ||
+    invalidProfitRateCount > 0 ||
+    badIncomeCount > 0
 
   return {
     schemaVersion: data.meta?.schemaVersion || 0,
     assetCount: assets.length,
     snapshotCount: snapshots.length,
     valueCount: values.length,
-    incomeCount: monthlyIncomes.length,
+    incomeCount: incomeRecords.length || monthlyIncomes.length,
     assetIdSet,
     snapIdSet,
     normalizedProfitRateCount,
@@ -302,7 +361,7 @@ export default function DataManagementPage() {
               <div>Schema v{importSummary.schemaVersion}</div>
               <div>
                 资产: {importSummary.assetCount} | 快照: {importSummary.snapshotCount} | 记录:{' '}
-                {importSummary.valueCount} | 月收入: {importSummary.incomeCount}
+                {importSummary.valueCount} | 收入记录: {importSummary.incomeCount}
               </div>
             </div>
 

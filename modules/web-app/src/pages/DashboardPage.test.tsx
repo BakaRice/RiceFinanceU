@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
 import { FeedbackProvider } from '../components/Feedback/FeedbackContext'
@@ -13,10 +14,14 @@ vi.mock('../api/client', () => ({
     getLatestSnapshot: vi.fn(),
     getSnapshots: vi.fn(),
     getSnapshotValues: vi.fn(),
+    getIncomeRecords: vi.fn(),
     getMonthlyIncomes: vi.fn(),
     getRates: vi.fn(),
     deleteSnapshot: vi.fn(),
     updateRates: vi.fn(),
+    createIncomeRecord: vi.fn(),
+    updateIncomeRecord: vi.fn(),
+    deleteIncomeRecord: vi.fn(),
     createMonthlyIncome: vi.fn(),
     updateMonthlyIncome: vi.fn(),
     deleteMonthlyIncome: vi.fn(),
@@ -51,9 +56,11 @@ afterEach(() => {
 
 function renderDashboard() {
   return render(
-    <FeedbackProvider>
-      <DashboardPage />
-    </FeedbackProvider>,
+    <MemoryRouter>
+      <FeedbackProvider>
+        <DashboardPage />
+      </FeedbackProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -108,28 +115,36 @@ describe('DashboardPage trend scale controls', () => {
     const currentMonth = new Date().toISOString().slice(0, 7)
     const chartIncomeMonth = currentMonth === '2026-07' ? '2026-10' : '2026-07'
 
-    mockedApi.getMonthlyIncomes.mockResolvedValue([
+    mockedApi.getIncomeRecords.mockResolvedValue([
       {
-        id: 'income-1',
-        month: chartIncomeMonth,
-        salary: 10000,
-        extraIncome: 500,
-        housingFund: 2000,
-        otherIncome: 0,
-        createdAt: `${chartIncomeMonth}-01T00:00:00`,
-        updatedAt: `${chartIncomeMonth}-01T00:00:00`,
+        id: 'record-1',
+        occurredAt: `${chartIncomeMonth}-05`,
+        amount: 10000,
+        category: 'salary',
+        sourceName: '公司',
+        createdAt: `${chartIncomeMonth}-05T00:00:00`,
+        updatedAt: `${chartIncomeMonth}-05T00:00:00`,
+      },
+      {
+        id: 'record-2',
+        occurredAt: `${chartIncomeMonth}-20`,
+        amount: 2500,
+        category: 'housing_fund',
+        createdAt: `${chartIncomeMonth}-20T00:00:00`,
+        updatedAt: `${chartIncomeMonth}-20T00:00:00`,
       },
     ] as any)
+    mockedApi.getMonthlyIncomes.mockResolvedValue([])
     mockedApi.getRates.mockResolvedValue({ USD: 7.2, HKD: 0.92, updatedAt: '2026-07-05T00:00:00' })
-    mockedApi.createMonthlyIncome.mockResolvedValue({
-      id: 'income-current',
-      month: '2026-11',
-      salary: 100,
-      extraIncome: 20,
-      housingFund: 30,
-      otherIncome: 40,
-      createdAt: '2026-11-01T00:00:00',
-      updatedAt: '2026-11-01T00:00:00',
+    mockedApi.createIncomeRecord.mockResolvedValue({
+      id: 'record-current',
+      occurredAt: '2026-11-05',
+      amount: 100,
+      category: 'bonus',
+      sourceName: '奖金',
+      note: '本月补录',
+      createdAt: '2026-11-05T00:00:00',
+      updatedAt: '2026-11-05T00:00:00',
     } as any)
   })
 
@@ -183,25 +198,31 @@ describe('DashboardPage trend scale controls', () => {
     expect(screen.getByTestId('line-incomeAmount').getAttribute('data-y-axis-id')).toBe('income')
   })
 
-  it('creates current-month income from the dashboard panel', async () => {
-    renderDashboard()
+  it('creates an income record from the dashboard panel', async () => {
+    const { container } = renderDashboard()
 
-    await screen.findByText('月收入')
+    await screen.findByText('收入流入')
+    expect(screen.getByRole('link', { name: '收入管理' }).getAttribute('href')).toBe('/income')
+    expect(screen.getByText('最近月可支配')).toBeTruthy()
+    expect(container.textContent).toContain('10,000.00')
+    expect(screen.getByText('受限流入')).toBeTruthy()
+    expect(container.textContent).toContain('2,500.00')
+    expect(screen.getByText('不可支配')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '记录本月收入' }))
-    fireEvent.change(screen.getByLabelText('工资'), { target: { value: '100' } })
-    fireEvent.change(screen.getByLabelText('额外收入'), { target: { value: '20' } })
-    fireEvent.change(screen.getByLabelText('公积金'), { target: { value: '30' } })
-    fireEvent.change(screen.getByLabelText('其他收入'), { target: { value: '40' } })
+    fireEvent.click(screen.getByRole('button', { name: '记录收入' }))
+    fireEvent.change(screen.getByLabelText('发生日期'), { target: { value: '2026-11-05' } })
+    fireEvent.change(screen.getByLabelText('分类'), { target: { value: 'bonus' } })
+    fireEvent.change(screen.getByLabelText('金额'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('来源'), { target: { value: '奖金' } })
     fireEvent.change(screen.getByLabelText('备注'), { target: { value: '本月补录' } })
     fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
 
     await waitFor(() => {
-      expect(mockedApi.createMonthlyIncome).toHaveBeenCalledWith(expect.objectContaining({
-        salary: 100,
-        extraIncome: 20,
-        housingFund: 30,
-        otherIncome: 40,
+      expect(mockedApi.createIncomeRecord).toHaveBeenCalledWith(expect.objectContaining({
+        occurredAt: '2026-11-05',
+        category: 'bonus',
+        amount: 100,
+        sourceName: '奖金',
         note: '本月补录',
       }))
     })

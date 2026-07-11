@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage'
 import AssetsPage from './pages/AssetsPage'
 import AssetDetailPage from './pages/AssetDetailPage'
 import DcaManagementPage from './pages/DcaManagementPage'
+import IncomeManagementPage from './pages/IncomeManagementPage'
 import EntryPage from './pages/EntryPage'
 import DataManagementPage from './pages/DataManagementPage'
 import LoginPage from './pages/LoginPage'
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/assets" element={<AssetsPage />} />
         <Route path="/assets/:id" element={<AssetDetailPage />} />
+        <Route path="/income" element={<IncomeManagementPage />} />
         <Route path="/dca" element={<DcaManagementPage />} />
         <Route path="/entry" element={<EntryPage />} />
         <Route path="/data" element={<DataManagementPage />} />

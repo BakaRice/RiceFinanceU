@@ -62,6 +62,10 @@ export function isBalanceType(type: AssetType): boolean {
   return !isInvestmentType(type)
 }
 
+export function isRestrictedAssetType(type: AssetType): boolean {
+  return type === 'housing_fund'
+}
+
 export function filterActiveAssets(assets: Asset[]): Asset[] {
   return assets.filter((a) => a.isActive)
 }

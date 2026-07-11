@@ -505,6 +505,157 @@ test('汇率更新会写入导出 JSON，导入旧备份时会补默认汇率', 
   assert.equal(importedRates.HKD, 0.92)
 })
 
+test('可以创建、更新、删除收入记录，并按发生日期倒序列出', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const salaryResponse = await authedRequest(env, '/api/income-records', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      occurredAt: '2026-07-05',
+      amount: '12000.235',
+      category: 'salary',
+      sourceName: ' 公司 ',
+      note: ' 7月工资 ',
+    }),
+  })
+  assert.equal(salaryResponse.status, 201)
+  const salary = await salaryResponse.json()
+  assert.equal(salary.occurredAt, '2026-07-05')
+  assert.equal(salary.amount, 12000.24)
+  assert.equal(salary.category, 'salary')
+  assert.equal(salary.sourceName, '公司')
+  assert.equal(salary.note, '7月工资')
+
+  const bonusResponse = await authedRequest(env, '/api/income-records', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      occurredAt: '2026-08-01',
+      amount: 3000,
+      category: 'bonus',
+    }),
+  })
+  assert.equal(bonusResponse.status, 201)
+
+  const listResponse = await authedRequest(env, '/api/income-records', { token })
+  assert.equal(listResponse.status, 200)
+  const records = await listResponse.json()
+  assert.deepEqual(records.map((record) => record.occurredAt), ['2026-08-01', '2026-07-05'])
+
+  const updateResponse = await authedRequest(env, `/api/income-records/${salary.id}`, {
+    token,
+    method: 'PATCH',
+    body: JSON.stringify({
+      amount: 12500,
+      category: 'side_income',
+      sourceName: '',
+      note: '',
+    }),
+  })
+  assert.equal(updateResponse.status, 200)
+  const updated = await updateResponse.json()
+  assert.equal(updated.amount, 12500)
+  assert.equal(updated.category, 'side_income')
+  assert.equal(updated.sourceName, undefined)
+  assert.equal(updated.note, undefined)
+
+  const deleteResponse = await authedRequest(env, `/api/income-records/${salary.id}`, {
+    token,
+    method: 'DELETE',
+  })
+  assert.equal(deleteResponse.status, 200)
+  assert.deepEqual(await deleteResponse.json(), { success: true })
+
+  const afterDeleteResponse = await authedRequest(env, '/api/income-records', { token })
+  const remaining = await afterDeleteResponse.json()
+  assert.deepEqual(remaining.map((record) => record.category), ['bonus'])
+})
+
+test('收入记录接口会拒绝非法日期、非法分类和负数金额', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const invalidDateResponse = await authedRequest(env, '/api/income-records', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      occurredAt: '2026-02-31',
+      amount: 12000,
+      category: 'salary',
+    }),
+  })
+  assert.equal(invalidDateResponse.status, 400)
+  assert.deepEqual(await invalidDateResponse.json(), { error: 'occurredAt must use a valid YYYY-MM-DD date' })
+
+  const invalidCategoryResponse = await authedRequest(env, '/api/income-records', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      occurredAt: '2026-07-05',
+      amount: 12000,
+      category: 'unexpected',
+    }),
+  })
+  assert.equal(invalidCategoryResponse.status, 400)
+  assert.deepEqual(await invalidCategoryResponse.json(), { error: 'category must be a valid income category' })
+
+  const negativeAmountResponse = await authedRequest(env, '/api/income-records', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      occurredAt: '2026-07-05',
+      amount: -1,
+      category: 'salary',
+    }),
+  })
+  assert.equal(negativeAmountResponse.status, 400)
+  assert.deepEqual(await negativeAmountResponse.json(), { error: 'amount must be a non-negative finite number' })
+})
+
+test('导入旧月收入会迁移为收入记录，导出新账本包含收入记录', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const importResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      meta: { schemaVersion: 2, updatedAt: '2026-07-01T00:00:00.000Z' },
+      assets: [],
+      snapshots: [],
+      snapshotValues: [],
+      monthlyIncomes: [
+        {
+          id: 'legacy-income',
+          month: '2026-07',
+          salary: '12000.235',
+          extraIncome: 800,
+          housingFund: 1800,
+          otherIncome: 0,
+          note: ' 7月收入 ',
+          createdAt: '2026-07-01T00:00:00.000Z',
+          updatedAt: '2026-07-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  })
+  assert.equal(importResponse.status, 200)
+
+  const exportResponse = await authedRequest(env, '/api/export', { token })
+  const exported = await exportResponse.json()
+  assert.deepEqual(
+    exported.incomeRecords.map((record) => [record.id, record.occurredAt, record.category, record.amount]),
+    [
+      ['legacy-income-salary', '2026-07-01', 'salary', 12000.24],
+      ['legacy-income-extraIncome', '2026-07-01', 'side_income', 800],
+      ['legacy-income-housingFund', '2026-07-01', 'housing_fund', 1800],
+    ],
+  )
+  assert.equal(exported.incomeRecords[0].note, '7月收入')
+})
+
 test('可以创建、更新、删除月收入记录，并按月份倒序列出', async () => {
   const env = createEnv()
   const token = await login(env)

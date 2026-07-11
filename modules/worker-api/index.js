@@ -20,6 +20,7 @@ const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_
 const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
 const INVESTMENT_TYPES = ['fund', 'stock', 'gold']
 const VALID_DCA_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly']
+const VALID_INCOME_CATEGORIES = ['salary', 'bonus', 'side_income', 'housing_fund', 'investment', 'other']
 // 镜像 src/domain/assets.ts。Worker 是生产 API，不能假设所有客户端都会先
 // 按前端逻辑清理资产档案字段。
 const ASSET_PROFILE_FIELDS = {
@@ -90,6 +91,7 @@ function createDefaultData() {
     assets: [],
     snapshots: [],
     snapshotValues: [],
+    incomeRecords: [],
     monthlyIncomes: [],
     rates: { ...DEFAULT_RATES, updatedAt: now },
   }
@@ -102,6 +104,17 @@ function normalizeData(data) {
     return createDefaultData()
   }
 
+  const monthlyIncomes = Array.isArray(data.monthlyIncomes)
+    ? data.monthlyIncomes
+        .map((income) => sanitizeImportedMonthlyIncome(income))
+        .filter(Boolean)
+    : []
+  const incomeRecords = Array.isArray(data.incomeRecords)
+    ? data.incomeRecords
+        .map((record) => sanitizeImportedIncomeRecord(record))
+        .filter(Boolean)
+    : migrateMonthlyIncomesToIncomeRecords(monthlyIncomes)
+
   return {
     meta: data.meta && typeof data.meta === 'object'
       ? { schemaVersion: 2, updatedAt: String(data.meta.updatedAt || new Date().toISOString()) }
@@ -109,7 +122,8 @@ function normalizeData(data) {
     assets: Array.isArray(data.assets) ? data.assets : [],
     snapshots: Array.isArray(data.snapshots) ? data.snapshots : [],
     snapshotValues: Array.isArray(data.snapshotValues) ? data.snapshotValues : [],
-    monthlyIncomes: Array.isArray(data.monthlyIncomes) ? data.monthlyIncomes : [],
+    incomeRecords,
+    monthlyIncomes,
     rates: data.rates && typeof data.rates === 'object'
       ? { ...DEFAULT_RATES, ...data.rates }
       : { ...DEFAULT_RATES, updatedAt: new Date().toISOString() },
@@ -296,6 +310,107 @@ function sanitizeImportedMonthlyIncome(record) {
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : now,
     updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : now,
   }
+}
+
+function parseIncomeRecordAmount(body, key = 'amount', defaultValue = undefined) {
+  if (body?.[key] === undefined || body?.[key] === null || body?.[key] === '') {
+    return defaultValue === undefined ? { error: `${key} must be a non-negative finite number` } : { value: defaultValue }
+  }
+
+  const numberValue = Number(body[key])
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    return { error: `${key} must be a non-negative finite number` }
+  }
+
+  return { value: roundMoney(numberValue) }
+}
+
+function sanitizeIncomeRecordInput(body, existing = undefined) {
+  const occurredAt = body?.occurredAt === undefined
+    ? existing?.occurredAt
+    : String(body.occurredAt || '').trim()
+  if (!parseDateOnly(occurredAt)) {
+    return { error: 'occurredAt must use a valid YYYY-MM-DD date' }
+  }
+
+  const category = body?.category === undefined
+    ? existing?.category
+    : String(body.category || '').trim()
+  if (!VALID_INCOME_CATEGORIES.includes(category)) {
+    return { error: 'category must be a valid income category' }
+  }
+
+  const amount = parseIncomeRecordAmount(body, 'amount', existing?.amount)
+  if (amount.error) return { error: amount.error }
+
+  const sourceName = typeof body?.sourceName === 'string'
+    ? body.sourceName.trim()
+    : typeof existing?.sourceName === 'string'
+      ? existing.sourceName
+      : ''
+  const note = typeof body?.note === 'string'
+    ? body.note.trim()
+    : typeof existing?.note === 'string'
+      ? existing.note
+      : ''
+
+  return {
+    value: {
+      occurredAt,
+      amount: amount.value,
+      category,
+      ...(sourceName ? { sourceName } : {}),
+      ...(note ? { note } : {}),
+    },
+  }
+}
+
+function sanitizeImportedIncomeRecord(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return null
+
+  const sanitized = sanitizeIncomeRecordInput(record)
+  if (sanitized.error) return null
+
+  const now = new Date().toISOString()
+  return {
+    id: typeof record.id === 'string' && record.id.trim() ? record.id : createId(),
+    ...sanitized.value,
+    createdAt: typeof record.createdAt === 'string' ? record.createdAt : now,
+    updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : now,
+  }
+}
+
+function migrateMonthlyIncomesToIncomeRecords(monthlyIncomes) {
+  const records = []
+
+  for (const income of monthlyIncomes) {
+    if (!income || !isValidMonthKey(income.month)) continue
+
+    const occurredAt = `${income.month}-01`
+    const mappings = [
+      { key: 'salary', category: 'salary' },
+      { key: 'extraIncome', category: 'side_income' },
+      { key: 'housingFund', category: 'housing_fund' },
+      { key: 'otherIncome', category: 'other' },
+    ]
+
+    for (const mapping of mappings) {
+      const amount = roundMoney(Number(income[mapping.key] || 0))
+      if (!Number.isFinite(amount) || amount <= 0) continue
+
+      records.push({
+        id: `${income.id}-${mapping.key}`,
+        occurredAt,
+        amount,
+        category: mapping.category,
+        ...(income.note ? { note: income.note } : {}),
+        createdAt: income.createdAt,
+        updatedAt: income.updatedAt,
+      })
+    }
+  }
+
+  return records
 }
 
 // 浏览器和小程序客户端都以 Worker 生成的 ID 为准。
@@ -785,6 +900,75 @@ async function handleMonthlyIncomes(request, env, segments) {
   return json({ error: '接口不存在' }, { status: 404 })
 }
 
+async function handleIncomeRecords(request, env, segments) {
+  const data = await readData(env)
+
+  if (segments.length === 1) {
+    if (request.method === 'GET') {
+      return json([...data.incomeRecords].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)))
+    }
+
+    if (request.method === 'POST') {
+      const body = await readJsonBody(request)
+      const sanitized = sanitizeIncomeRecordInput(body)
+      if (sanitized.error) return badRequest(sanitized.error)
+
+      const now = new Date().toISOString()
+      const record = {
+        id: createId(),
+        ...sanitized.value,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      data.incomeRecords.push(record)
+      await writeData(env, data)
+      return json(record, { status: 201 })
+    }
+
+    return methodNotAllowed()
+  }
+
+  if (segments.length === 2) {
+    const id = segments[1]
+    const recordIndex = data.incomeRecords.findIndex((record) => record.id === id)
+    if (recordIndex === -1) return json({ error: 'Income record not found' }, { status: 404 })
+
+    if (request.method === 'PATCH') {
+      const body = await readJsonBody(request)
+      const existing = data.incomeRecords[recordIndex]
+      const sanitized = sanitizeIncomeRecordInput(body, existing)
+      if (sanitized.error) return badRequest(sanitized.error)
+
+      const nextRecord = {
+        ...existing,
+        ...sanitized.value,
+        updatedAt: new Date().toISOString(),
+      }
+      if (!sanitized.value.sourceName) {
+        delete nextRecord.sourceName
+      }
+      if (!sanitized.value.note) {
+        delete nextRecord.note
+      }
+
+      data.incomeRecords[recordIndex] = nextRecord
+      await writeData(env, data)
+      return json(nextRecord)
+    }
+
+    if (request.method === 'DELETE') {
+      data.incomeRecords.splice(recordIndex, 1)
+      await writeData(env, data)
+      return json({ success: true })
+    }
+
+    return methodNotAllowed()
+  }
+
+  return json({ error: '接口不存在' }, { status: 404 })
+}
+
 // 导出返回标准化后的完整 KV 文档，用于备份和手动迁移。
 // 这里不要隐藏字段，因为这份 JSON 本身就是恢复介质。
 async function handleExport(request, env) {
@@ -835,6 +1019,17 @@ async function handleImport(request, env) {
     }),
     snapshots: body.snapshots || body.transactions || [],
     snapshotValues,
+    incomeRecords: Array.isArray(body.incomeRecords)
+      ? body.incomeRecords
+          .map((record) => sanitizeImportedIncomeRecord(record))
+          .filter(Boolean)
+      : Array.isArray(body.monthlyIncomes)
+        ? migrateMonthlyIncomesToIncomeRecords(
+            body.monthlyIncomes
+              .map((income) => sanitizeImportedMonthlyIncome(income))
+              .filter(Boolean),
+          )
+        : [],
     monthlyIncomes: Array.isArray(body.monthlyIncomes)
       ? body.monthlyIncomes
           .map((income) => sanitizeImportedMonthlyIncome(income))
@@ -846,7 +1041,7 @@ async function handleImport(request, env) {
   await writeData(env, imported)
   return json({
     success: true,
-    message: `Data imported: ${imported.assets.length} assets, ${imported.snapshots.length} snapshots, ${imported.snapshotValues.length} values, ${imported.monthlyIncomes.length} monthly incomes`,
+    message: `Data imported: ${imported.assets.length} assets, ${imported.snapshots.length} snapshots, ${imported.snapshotValues.length} values, ${imported.incomeRecords.length} income records`,
   })
 }
 
@@ -881,6 +1076,7 @@ async function handleApi(request, env) {
     return json(data.snapshotValues)
   }
   if (segments[0] === 'rates' && segments.length === 1) return handleRates(request, env)
+  if (segments[0] === 'income-records') return handleIncomeRecords(request, env, segments)
   if (segments[0] === 'monthly-incomes') return handleMonthlyIncomes(request, env, segments)
   if (segments[0] === 'export' && segments.length === 1) return handleExport(request, env)
   if (segments[0] === 'import' && segments.length === 1) return handleImport(request, env)

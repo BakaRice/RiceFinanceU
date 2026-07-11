@@ -11,39 +11,55 @@ function backup(overrides: Record<string, unknown> = {}) {
   }
 }
 
-describe('DataManagementPage preValidate monthly incomes', () => {
-  it('treats missing monthlyIncomes as an empty compatible list', () => {
+describe('DataManagementPage preValidate income records', () => {
+  it('treats missing incomeRecords as an empty compatible list', () => {
     const result = preValidate(backup())
 
     expect(result.incomeCount).toBe(0)
-    expect(result.issues).not.toContain('monthlyIncomes 应为数组')
+    expect(result.issues).not.toContain('incomeRecords 应为数组')
   })
 
-  it('reports malformed monthly income backup data', () => {
+  it('reports malformed income record backup data', () => {
+    const result = preValidate(backup({
+      incomeRecords: [
+        {
+          id: 'record-1',
+          occurredAt: '2026-02-31',
+          amount: -1,
+          category: 'unexpected',
+        },
+      ],
+    }))
+
+    expect(result.incomeCount).toBe(1)
+    expect(result.issues).toContain('收入记录[0] "record-1": 日期无效 "2026-02-31"')
+    expect(result.issues).toContain('收入记录[0] "record-1": 金额无效 (-1)')
+    expect(result.issues).toContain('收入记录[0] "record-1": 分类无效 "unexpected"')
+  })
+
+  it('reports incomeRecords when it is not an array', () => {
+    const result = preValidate(backup({ incomeRecords: {} }))
+
+    expect(result.incomeCount).toBe(0)
+    expect(result.issues).toContain('incomeRecords 应为数组')
+  })
+
+  it('keeps legacy monthlyIncomes backups compatible', () => {
     const result = preValidate(backup({
       monthlyIncomes: [
         {
-          id: 'income-1',
-          month: '2026-13',
-          salary: -1,
-          extraIncome: Number.NaN,
-          housingFund: 0,
+          id: 'legacy-income',
+          month: '2026-07',
+          salary: 12000,
+          extraIncome: 800,
+          housingFund: 1800,
           otherIncome: 0,
         },
       ],
     }))
 
     expect(result.incomeCount).toBe(1)
-    expect(result.issues).toContain('月收入[0] "income-1": 月份无效 "2026-13"')
-    expect(result.issues).toContain('月收入[0] "income-1": salary 金额无效 (-1)')
-    expect(result.issues).toContain('月收入[0] "income-1": extraIncome 金额无效 (NaN)')
-  })
-
-  it('reports monthlyIncomes when it is not an array', () => {
-    const result = preValidate(backup({ monthlyIncomes: {} }))
-
-    expect(result.incomeCount).toBe(0)
-    expect(result.issues).toContain('monthlyIncomes 应为数组')
+    expect(result.issues).not.toContain('incomeRecords 应为数组')
   })
 })
 

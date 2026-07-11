@@ -18,6 +18,11 @@ const navItems = [
     icon: <><path d="M5 7.5h14v11H5z" /><path d="M8 7.5v-3h8v3M8 12h8M8 15.5h5" /></>,
   },
   {
+    to: '/income',
+    label: '收入管理',
+    icon: <><path d="M5 18V6" /><path d="M5 18h14" /><path d="M8 14l3-3 2 2 4-6" /><path d="M15 7h2v2" /></>,
+  },
+  {
     to: '/dca',
     label: '定投管理',
     icon: <><path d="M6 12a6 6 0 0 1 10.2-4.3" /><path d="M16.5 4.5v3.8h-3.8" /><path d="M18 12a6 6 0 0 1-10.2 4.3" /><path d="M7.5 19.5v-3.8h3.8" /><path d="M12 9v6M9.8 11.2 12 9l2.2 2.2" /></>,

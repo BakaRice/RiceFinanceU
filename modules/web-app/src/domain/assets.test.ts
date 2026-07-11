@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   formatAssetProfileIdentifier,
   getAssetProfileFields,
+  isRestrictedAssetType,
   isInvestmentType,
   isBalanceType,
   filterActiveAssets,
@@ -35,6 +36,14 @@ describe('isInvestmentType', () => {
 describe('isBalanceType', () => {
   it('fund is not balance', () => { expect(isBalanceType('fund')).toBe(false) })
   it('deposit is balance', () => { expect(isBalanceType('deposit')).toBe(true) })
+})
+
+describe('isRestrictedAssetType', () => {
+  it('marks housing fund as restricted and leaves cash/deposit spendable by default', () => {
+    expect(isRestrictedAssetType('housing_fund')).toBe(true)
+    expect(isRestrictedAssetType('cash')).toBe(false)
+    expect(isRestrictedAssetType('deposit')).toBe(false)
+  })
 })
 
 describe('filterActiveAssets', () => {

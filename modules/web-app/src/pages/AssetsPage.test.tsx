@@ -63,6 +63,37 @@ describe('AssetsPage asset profile fields', () => {
     expect(screen.getByRole('button', { name: '停用 Apple' })).toBeTruthy()
   })
 
+  it('marks housing fund assets as restricted in the asset list', async () => {
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'housing-fund-1',
+        name: '上海公积金',
+        type: 'housing_fund',
+        currency: 'CNY',
+        isActive: true,
+        profile: { contributionCity: '上海' },
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'cash-1',
+        name: '微信零钱',
+        type: 'cash',
+        currency: 'CNY',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ] as any)
+
+    renderAssetsPage()
+
+    expect(await screen.findByRole('link', { name: '上海公积金' })).toBeTruthy()
+    expect(screen.getByText('受限资产')).toBeTruthy()
+    expect(screen.getByText('不可随意提取')).toBeTruthy()
+    expect(screen.getByRole('link', { name: '微信零钱' })).toBeTruthy()
+  })
+
   it('shows type-specific profile inputs in the asset form', async () => {
     mockedApi.getAssets.mockResolvedValue([])
 

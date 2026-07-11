@@ -62,6 +62,7 @@ describe('authenticated application shell', () => {
     expect(screen.getByText('Rice Finance')).toBeTruthy()
     expect(screen.getByRole('link', { name: '总览' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '资产管理' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '收入管理' }).getAttribute('href')).toBe('/income')
     expect(screen.getByRole('link', { name: '定投管理' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '快照录入' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '数据管理' })).toBeTruthy()

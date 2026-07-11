@@ -102,6 +102,25 @@ export type SnapshotValue = {
   note?: string
 }
 
+export type IncomeCategory =
+  | 'salary'
+  | 'bonus'
+  | 'side_income'
+  | 'housing_fund'
+  | 'investment'
+  | 'other'
+
+export type IncomeRecord = {
+  id: string
+  occurredAt: string
+  amount: number
+  category: IncomeCategory
+  sourceName?: string
+  note?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type MonthlyIncome = {
   id: string
   month: string
@@ -139,6 +158,7 @@ export type ExportData = {
   assets: Asset[]
   snapshots: Snapshot[]
   snapshotValues: SnapshotValue[]
+  incomeRecords?: IncomeRecord[]
   monthlyIncomes?: MonthlyIncome[]
   rates?: ExchangeRates
 }

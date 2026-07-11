@@ -108,6 +108,26 @@ describe('AssetDetailPage asset profile', () => {
     expect(screen.getByText('未补充档案信息')).toBeTruthy()
   })
 
+  it('marks housing fund assets as restricted in the detail header', async () => {
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'housing-fund-1',
+        name: '上海公积金',
+        type: 'housing_fund',
+        currency: 'CNY',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ] as any)
+
+    renderAssetDetail('housing-fund-1')
+
+    expect(await screen.findByText('上海公积金')).toBeTruthy()
+    expect(screen.getByText('受限资产')).toBeTruthy()
+    expect(screen.getByText('不可随意提取')).toBeTruthy()
+  })
+
   it('renders a DCA estimate for investment assets with saved plans', async () => {
     mockedApi.getAssets.mockResolvedValue([
       {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import {
   calculateSnapshotTotal,
@@ -8,7 +9,11 @@ import {
 } from '../domain/snapshots'
 import {
   buildIncomeSeriesByScale,
-  calculateMonthlyIncomeTotal,
+  calculateIncomeRecordTotal,
+  calculateRestrictedIncomeRecordTotal,
+  calculateSpendableIncomeRecordTotal,
+  getIncomeLineLabel,
+  INCOME_CATEGORY_LABELS,
 } from '../domain/income'
 import type {
   SnapshotTotal,
@@ -20,7 +25,7 @@ import type {
 import { ASSET_TYPE_LABELS } from '../domain/assets'
 import MoneyDisplay from '../components/MoneyDisplay'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
-import type { Asset, Snapshot, SnapshotValue, ExchangeRates, MonthlyIncome } from '../types/finance'
+import type { Asset, Snapshot, SnapshotValue, ExchangeRates, IncomeCategory, IncomeRecord } from '../types/finance'
 import {
   LineChart,
   Line,
@@ -46,13 +51,21 @@ type DashboardTrendPoint = TotalAssetPoint & {
 
 type IncomeFormState = {
   id?: string
-  month: string
-  salary: string
-  extraIncome: string
-  housingFund: string
-  otherIncome: string
+  occurredAt: string
+  amount: string
+  category: IncomeCategory
+  sourceName: string
   note: string
 }
+
+const INCOME_CATEGORY_OPTIONS: Array<{ value: IncomeCategory; label: string }> = [
+  { value: 'salary', label: INCOME_CATEGORY_LABELS.salary },
+  { value: 'bonus', label: INCOME_CATEGORY_LABELS.bonus },
+  { value: 'side_income', label: INCOME_CATEGORY_LABELS.side_income },
+  { value: 'housing_fund', label: INCOME_CATEGORY_LABELS.housing_fund },
+  { value: 'investment', label: INCOME_CATEGORY_LABELS.investment },
+  { value: 'other', label: INCOME_CATEGORY_LABELS.other },
+]
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0')
@@ -62,25 +75,27 @@ function formatMonthKey(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`
 }
 
-function createEmptyIncomeForm(month = formatMonthKey(new Date())): IncomeFormState {
+function formatDateKey(date: Date): string {
+  return `${formatMonthKey(date)}-${pad2(date.getDate())}`
+}
+
+function createEmptyIncomeForm(date = formatDateKey(new Date())): IncomeFormState {
   return {
-    month,
-    salary: '0',
-    extraIncome: '0',
-    housingFund: '0',
-    otherIncome: '0',
+    occurredAt: date,
+    amount: '',
+    category: 'salary',
+    sourceName: '',
     note: '',
   }
 }
 
-function incomeToForm(income: MonthlyIncome): IncomeFormState {
+function incomeToForm(income: IncomeRecord): IncomeFormState {
   return {
     id: income.id,
-    month: income.month,
-    salary: String(income.salary),
-    extraIncome: String(income.extraIncome),
-    housingFund: String(income.housingFund),
-    otherIncome: String(income.otherIncome),
+    occurredAt: income.occurredAt,
+    amount: String(income.amount),
+    category: income.category,
+    sourceName: income.sourceName || '',
     note: income.note || '',
   }
 }
@@ -154,7 +169,7 @@ export default function DashboardPage() {
   const [allSnapshots, setAllSnapshots] = useState<Snapshot[]>([])
   const [allValues, setAllValues] = useState<SnapshotValue[]>([])
   const [allAssets, setAllAssets] = useState<Asset[]>([])
-  const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([])
+  const [incomeRecords, setIncomeRecords] = useState<IncomeRecord[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [incomeFormOpen, setIncomeFormOpen] = useState(false)
@@ -179,7 +194,7 @@ export default function DashboardPage() {
         api.getLatestSnapshot(),
         api.getSnapshots(),
         api.getSnapshotValues(),
-        api.getMonthlyIncomes(),
+        api.getIncomeRecords(),
         api.getRates(),
       ])
 
@@ -189,7 +204,7 @@ export default function DashboardPage() {
       setAllSnapshots(snapshots)
       setAllValues(values)
       setAllAssets(assets)
-      setMonthlyIncomes(incomeData)
+      setIncomeRecords(incomeData)
 
       if (!latestData || latestData.values.length === 0) {
         setHasSnapshots(false)
@@ -249,24 +264,42 @@ export default function DashboardPage() {
       trendScale,
       rates,
     )
-    const incomeSeries = buildIncomeSeriesByScale(monthlyIncomes, trendScale)
+    const incomeSeries = buildIncomeSeriesByScale(incomeRecords, trendScale)
 
     return assetSeries.map((point) => ({
       ...point,
       incomeAmount: incomeSeries.get(point.periodKey),
     }))
-  }, [allSnapshots, chartValuesBySnapshot, activeAssetsForChart, trendScale, rates, monthlyIncomes])
+  }, [allSnapshots, chartValuesBySnapshot, activeAssetsForChart, trendScale, rates, incomeRecords])
 
-  const currentMonth = useMemo(() => formatMonthKey(new Date()), [])
-  const currentMonthIncome = useMemo(
-    () => monthlyIncomes.find((income) => income.month === currentMonth),
-    [monthlyIncomes, currentMonth],
+  const currentDate = useMemo(() => formatDateKey(new Date()), [])
+  const latestIncomeRecord = useMemo(
+    () => [...incomeRecords].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0],
+    [incomeRecords],
   )
-  const latestIncome = useMemo(
-    () => [...monthlyIncomes].sort((a, b) => b.month.localeCompare(a.month))[0],
-    [monthlyIncomes],
+  const latestIncomeMonth = latestIncomeRecord?.occurredAt.slice(0, 7)
+  const latestMonthIncomeRecords = useMemo(
+    () => latestIncomeMonth
+      ? incomeRecords.filter((income) => income.occurredAt.slice(0, 7) === latestIncomeMonth)
+      : [],
+    [incomeRecords, latestIncomeMonth],
   )
-  const latestIncomeTotal = latestIncome ? calculateMonthlyIncomeTotal(latestIncome) : undefined
+  const latestIncomeTotal = latestMonthIncomeRecords.length > 0
+    ? calculateIncomeRecordTotal(latestMonthIncomeRecords)
+    : undefined
+  const latestSpendableIncomeTotal = latestMonthIncomeRecords.length > 0
+    ? calculateSpendableIncomeRecordTotal(latestMonthIncomeRecords)
+    : undefined
+  const latestRestrictedIncomeTotal = latestMonthIncomeRecords.length > 0
+    ? calculateRestrictedIncomeRecordTotal(latestMonthIncomeRecords)
+    : undefined
+  const latestMonthIncomeByCategory = useMemo(() => {
+    const totals = new Map<IncomeCategory, number>()
+    for (const income of latestMonthIncomeRecords) {
+      totals.set(income.category, (totals.get(income.category) || 0) + income.amount)
+    }
+    return totals
+  }, [latestMonthIncomeRecords])
   const shouldShowIncomeLine =
     trendScale !== 'day' &&
     trendScale !== 'week' &&
@@ -313,26 +346,21 @@ export default function DashboardPage() {
       }, 0)
   }
 
-  function updateIncomeFormField(key: keyof IncomeFormState, value: string) {
+  function updateIncomeFormField<K extends keyof IncomeFormState>(key: K, value: IncomeFormState[K]) {
     setIncomeForm((form) => ({ ...form, [key]: value }))
   }
 
-  function openIncomeForm() {
-    setIncomeForm(
-      currentMonthIncome ? incomeToForm(currentMonthIncome) : createEmptyIncomeForm(currentMonth),
-    )
+  function openIncomeForm(record?: IncomeRecord) {
+    setIncomeForm(record ? incomeToForm(record) : createEmptyIncomeForm(currentDate))
     setIncomeFormOpen(true)
   }
 
   async function handleSaveIncome(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
-    const salary = parseIncomeAmount(incomeForm.salary)
-    const extraIncome = parseIncomeAmount(incomeForm.extraIncome)
-    const housingFund = parseIncomeAmount(incomeForm.housingFund)
-    const otherIncome = parseIncomeAmount(incomeForm.otherIncome)
+    const amount = parseIncomeAmount(incomeForm.amount)
 
-    if ([salary, extraIncome, housingFund, otherIncome].some((value) => value === null)) {
+    if (amount === null) {
       toast('收入金额必须是大于等于 0 的数字', 'error')
       return
     }
@@ -340,26 +368,25 @@ export default function DashboardPage() {
     setIncomeSaving(true)
     try {
       const payload = {
-        month: incomeForm.month,
-        salary: salary as number,
-        extraIncome: extraIncome as number,
-        housingFund: housingFund as number,
-        otherIncome: otherIncome as number,
+        occurredAt: incomeForm.occurredAt,
+        amount,
+        category: incomeForm.category,
+        ...(incomeForm.sourceName.trim() ? { sourceName: incomeForm.sourceName.trim() } : {}),
         ...(incomeForm.note.trim() ? { note: incomeForm.note.trim() } : {}),
       }
 
       if (incomeForm.id) {
-        await api.updateMonthlyIncome(incomeForm.id, payload)
-        toast('月收入已更新')
+        await api.updateIncomeRecord(incomeForm.id, payload)
+        toast('收入已更新')
       } else {
-        await api.createMonthlyIncome(payload)
-        toast('月收入已记录')
+        await api.createIncomeRecord(payload)
+        toast('收入已记录')
       }
 
       setIncomeFormOpen(false)
       await load()
     } catch (e: any) {
-      toast('保存月收入失败: ' + e.message, 'error')
+      toast('保存收入失败: ' + e.message, 'error')
     } finally {
       setIncomeSaving(false)
     }
@@ -369,8 +396,8 @@ export default function DashboardPage() {
     if (!incomeForm.id) return
 
     const ok = await confirm({
-      title: '删除月收入',
-      message: `确定删除 ${incomeForm.month} 的收入记录吗？`,
+      title: '删除收入',
+      message: `确定删除 ${incomeForm.occurredAt} 的收入记录吗？`,
       confirmLabel: '删除',
       cancelLabel: '取消',
       variant: 'danger',
@@ -379,12 +406,12 @@ export default function DashboardPage() {
 
     setIncomeDeleting(true)
     try {
-      await api.deleteMonthlyIncome(incomeForm.id)
-      toast('月收入已删除')
+      await api.deleteIncomeRecord(incomeForm.id)
+      toast('收入已删除')
       setIncomeFormOpen(false)
       await load()
     } catch (e: any) {
-      toast('删除月收入失败: ' + e.message, 'error')
+      toast('删除收入失败: ' + e.message, 'error')
     } finally {
       setIncomeDeleting(false)
     }
@@ -513,35 +540,67 @@ export default function DashboardPage() {
       <div className="dash-section income-section dashboard-income">
         <div className="income-section-head">
           <div>
-            <h3 className="section-title">月收入</h3>
+            <h3 className="section-title">收入流入</h3>
             <p className="income-section-subtitle">
-              {latestIncome ? `${latestIncome.month} 收入汇总` : '暂无收入记录'}
+              {latestIncomeRecord
+                ? `${latestIncomeMonth} 税后收入 · 最近一笔 ${latestIncomeRecord.occurredAt}`
+                : '暂无收入记录'}
             </p>
           </div>
-          <button type="button" className="btn-secondary" onClick={openIncomeForm}>
-            {currentMonthIncome ? '编辑本月收入' : '记录本月收入'}
-          </button>
+          <div className="income-section-actions">
+            <Link className="btn-link" to="/income">
+              收入管理
+            </Link>
+            {latestIncomeRecord && (
+              <button type="button" className="btn-link" onClick={() => openIncomeForm(latestIncomeRecord)}>
+                编辑最近一笔
+              </button>
+            )}
+            <button type="button" className="btn-secondary" onClick={() => openIncomeForm()}>
+              记录收入
+            </button>
+          </div>
         </div>
         <div className="income-summary-grid">
           <div className="income-summary-main">
-            <span className="dash-stat-label">最近月收入</span>
-            <MoneyDisplay value={latestIncomeTotal} />
+            <span className="dash-stat-label">最近月可支配</span>
+            <MoneyDisplay value={latestSpendableIncomeTotal} />
+          </div>
+          <div className="income-summary-item">
+            <span>最近月总流入</span>
+            <MoneyDisplay value={latestIncomeTotal} showCurrency={false} />
+          </div>
+          <div className="income-summary-item income-summary-restricted">
+            <span className="income-summary-item-head">
+              <span>受限流入</span>
+              <span className="income-availability-badge">不可支配</span>
+            </span>
+            <MoneyDisplay value={latestRestrictedIncomeTotal} showCurrency={false} />
           </div>
           <div className="income-summary-item">
             <span>工资</span>
-            <MoneyDisplay value={latestIncome?.salary} showCurrency={false} />
+            <MoneyDisplay value={latestMonthIncomeByCategory.get('salary')} showCurrency={false} />
           </div>
           <div className="income-summary-item">
-            <span>额外收入</span>
-            <MoneyDisplay value={latestIncome?.extraIncome} showCurrency={false} />
+            <span>奖金</span>
+            <MoneyDisplay value={latestMonthIncomeByCategory.get('bonus')} showCurrency={false} />
           </div>
           <div className="income-summary-item">
-            <span>公积金</span>
-            <MoneyDisplay value={latestIncome?.housingFund} showCurrency={false} />
+            <span>副业/额外</span>
+            <MoneyDisplay value={latestMonthIncomeByCategory.get('side_income')} showCurrency={false} />
           </div>
           <div className="income-summary-item">
-            <span>其他收入</span>
-            <MoneyDisplay value={latestIncome?.otherIncome} showCurrency={false} />
+            <span>投资/其他</span>
+            <MoneyDisplay
+              value={
+                latestMonthIncomeByCategory.get('investment') !== undefined ||
+                latestMonthIncomeByCategory.get('other') !== undefined
+                  ? (latestMonthIncomeByCategory.get('investment') || 0) +
+                    (latestMonthIncomeByCategory.get('other') || 0)
+                  : undefined
+              }
+              showCurrency={false}
+            />
           </div>
         </div>
       </div>
@@ -554,64 +613,54 @@ export default function DashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="income-modal-head">
-              <h2>{incomeForm.id ? '编辑月收入' : '记录月收入'}</h2>
+              <h2>{incomeForm.id ? '编辑收入' : '记录收入'}</h2>
               <button type="button" className="btn-link" onClick={() => setIncomeFormOpen(false)}>
                 关闭
               </button>
             </div>
             <div className="income-form-grid">
-              <label className="income-form-field" htmlFor="income-month">
-                <span>月份</span>
+              <label className="income-form-field" htmlFor="income-date">
+                <span>发生日期</span>
                 <input
-                  id="income-month"
-                  type="month"
-                  value={incomeForm.month}
-                  onChange={(e) => updateIncomeFormField('month', e.target.value)}
+                  id="income-date"
+                  type="date"
+                  value={incomeForm.occurredAt}
+                  onChange={(e) => updateIncomeFormField('occurredAt', e.target.value)}
                   required
                 />
               </label>
-              <label className="income-form-field" htmlFor="income-salary">
-                <span>工资</span>
+              <label className="income-form-field" htmlFor="income-category">
+                <span>分类</span>
+                <select
+                  id="income-category"
+                  value={incomeForm.category}
+                  onChange={(e) => updateIncomeFormField('category', e.target.value as IncomeCategory)}
+                >
+                  {INCOME_CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="income-form-field" htmlFor="income-amount">
+                <span>金额</span>
                 <input
-                  id="income-salary"
+                  id="income-amount"
                   type="number"
                   min="0"
                   step="0.01"
-                  value={incomeForm.salary}
-                  onChange={(e) => updateIncomeFormField('salary', e.target.value)}
+                  value={incomeForm.amount}
+                  onChange={(e) => updateIncomeFormField('amount', e.target.value)}
                 />
               </label>
-              <label className="income-form-field" htmlFor="income-extra">
-                <span>额外收入</span>
+              <label className="income-form-field" htmlFor="income-source">
+                <span>来源</span>
                 <input
-                  id="income-extra"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={incomeForm.extraIncome}
-                  onChange={(e) => updateIncomeFormField('extraIncome', e.target.value)}
-                />
-              </label>
-              <label className="income-form-field" htmlFor="income-housing-fund">
-                <span>公积金</span>
-                <input
-                  id="income-housing-fund"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={incomeForm.housingFund}
-                  onChange={(e) => updateIncomeFormField('housingFund', e.target.value)}
-                />
-              </label>
-              <label className="income-form-field" htmlFor="income-other">
-                <span>其他收入</span>
-                <input
-                  id="income-other"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={incomeForm.otherIncome}
-                  onChange={(e) => updateIncomeFormField('otherIncome', e.target.value)}
+                  id="income-source"
+                  type="text"
+                  value={incomeForm.sourceName}
+                  onChange={(e) => updateIncomeFormField('sourceName', e.target.value)}
                 />
               </label>
               <label className="income-form-field income-form-field-full" htmlFor="income-note">
@@ -801,11 +850,11 @@ export default function DashboardPage() {
                 />
                 {shouldShowIncomeLine && (
                   <Line
-                    yAxisId="income"
-                    type="monotone"
-                    dataKey="incomeAmount"
-                    name="月收入"
-                    stroke="#6f5bd1"
+                  yAxisId="income"
+                  type="monotone"
+                  dataKey="incomeAmount"
+                    name={getIncomeLineLabel(trendScale)}
+                  stroke="#6f5bd1"
                     strokeWidth={1.8}
                     dot={{ r: 3 }}
                     connectNulls={false}

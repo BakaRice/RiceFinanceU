@@ -115,6 +115,14 @@
   margin-bottom: var(--space-md);
 }
 
+.income-section-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .income-section-head .section-title {
   margin-bottom: 2px;
 }
@@ -127,7 +135,7 @@
 
 .income-summary-grid {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(110px, 1fr));
+  grid-template-columns: minmax(180px, 1.3fr) repeat(6, minmax(96px, 1fr));
   gap: var(--space-sm);
 }
 
@@ -140,11 +148,39 @@
   background: #fafbf9;
 }
 
-.income-summary-item span:first-child {
+.income-summary-item > span:first-child:not(.income-summary-item-head) {
   display: block;
   margin-bottom: 4px;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+}
+
+.income-summary-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.income-summary-restricted {
+  background: #fbf7f5;
+}
+
+.income-availability-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border: 1px solid rgba(154, 125, 112, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(154, 125, 112, 0.08);
+  color: #7a5d51;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 .income-modal {
@@ -183,7 +219,8 @@
   font-size: var(--font-size-sm);
 }
 
-.income-form-field input {
+.income-form-field input,
+.income-form-field select {
   height: 34px;
   min-width: 0;
   padding: 6px 8px;
@@ -196,7 +233,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.income-form-field input:focus {
+.income-form-field input:focus,
+.income-form-field select:focus {
   outline: none;
   border-color: var(--color-border-focus);
 }

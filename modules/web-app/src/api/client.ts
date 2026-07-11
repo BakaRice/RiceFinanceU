@@ -1,5 +1,5 @@
 // src/api/client.ts
-import type { Asset, AssetDcaPlan, AssetProfile, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates, MonthlyIncome } from '../types/finance'
+import type { Asset, AssetDcaPlan, AssetProfile, Snapshot, SnapshotValue, CreateSnapshotInput, ExportData, ExchangeRates, IncomeCategory, IncomeRecord, MonthlyIncome } from '../types/finance'
 import { clearSessionToken, getSessionToken, setSessionToken } from './session'
 
 const BASE = '/api'
@@ -16,6 +16,14 @@ export type MonthlyIncomeInput = {
   extraIncome?: number
   housingFund?: number
   otherIncome?: number
+  note?: string
+}
+
+export type IncomeRecordInput = {
+  occurredAt: string
+  amount: number
+  category: IncomeCategory
+  sourceName?: string
   note?: string
 }
 
@@ -78,6 +86,15 @@ export const api = {
     request<{ snapshot: Snapshot; values: SnapshotValue[] }>('/snapshots', { method: 'POST', body: JSON.stringify(data) }),
   deleteSnapshot: (id: string) => request<{ success: boolean }>(`/snapshots/${id}`, { method: 'DELETE' }),
   getSnapshotValues: () => request<SnapshotValue[]>('/snapshot-values'),
+
+  // Income records
+  getIncomeRecords: () => request<IncomeRecord[]>('/income-records'),
+  createIncomeRecord: (data: IncomeRecordInput) =>
+    request<IncomeRecord>('/income-records', { method: 'POST', body: JSON.stringify(data) }),
+  updateIncomeRecord: (id: string, data: IncomeRecordInput) =>
+    request<IncomeRecord>(`/income-records/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteIncomeRecord: (id: string) =>
+    request<{ success: boolean }>(`/income-records/${id}`, { method: 'DELETE' }),
 
   // Monthly incomes
   getMonthlyIncomes: () => request<MonthlyIncome[]>('/monthly-incomes'),

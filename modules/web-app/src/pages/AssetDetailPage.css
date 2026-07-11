@@ -37,6 +37,31 @@
   color: var(--color-text-secondary);
 }
 
+.detail-restricted-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-restricted-marker > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 7px;
+  border: 1px solid rgba(154, 125, 112, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(154, 125, 112, 0.08);
+  color: #7a5d51;
+  font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.detail-restricted-marker small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
 .detail-header-right {
   display: flex;
   gap: var(--space-sm);

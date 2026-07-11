@@ -12,7 +12,12 @@ import {
 import { api } from '../api/client'
 import type { Asset, SnapshotValue } from '../types/finance'
 import { CURRENCY_SYMBOLS } from '../types/finance'
-import { ASSET_TYPE_LABELS, getAssetProfileFields, isInvestmentType } from '../domain/assets'
+import {
+  ASSET_TYPE_LABELS,
+  getAssetProfileFields,
+  isInvestmentType,
+  isRestrictedAssetType,
+} from '../domain/assets'
 import { DCA_FREQUENCY_LABELS, estimateDcaPlan } from '../domain/dca'
 import { formatProfitRateInput } from '../domain/money'
 import MoneyDisplay from '../components/MoneyDisplay'
@@ -192,6 +197,12 @@ export default function AssetDetailPage() {
             <span className={`type-badge type-${asset.type}`}>
               {ASSET_TYPE_LABELS[asset.type as keyof typeof ASSET_TYPE_LABELS] || asset.type}
             </span>
+            {isRestrictedAssetType(asset.type) && (
+              <span className="detail-restricted-marker">
+                <span>受限资产</span>
+                <small>不可随意提取</small>
+              </span>
+            )}
             {asset.institution && <span className="detail-institution">{asset.institution}</span>}
           </div>
         </div>

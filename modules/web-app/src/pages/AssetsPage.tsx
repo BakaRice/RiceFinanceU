@@ -7,6 +7,7 @@ import {
   formatAssetProfileIdentifier,
   getAssetProfileFields,
   isInvestmentType,
+  isRestrictedAssetType,
   sanitizeAssetProfile,
 } from '../domain/assets'
 import { DCA_FREQUENCY_LABELS, sanitizeDcaPlan } from '../domain/dca'
@@ -328,10 +329,16 @@ export default function AssetsPage() {
                   </a>
                   {a.dcaPlan?.enabled && <span className="asset-dca-tag">定投</span>}
                 </td>
-                <td>
+                <td className="asset-type-cell">
                   <span className={`type-badge type-${a.type}`}>
                     {ASSET_TYPE_LABELS[a.type as keyof typeof ASSET_TYPE_LABELS] || a.type}
                   </span>
+                  {isRestrictedAssetType(a.type) && (
+                    <span className="asset-restricted-marker">
+                      <span>受限资产</span>
+                      <small>不可随意提取</small>
+                    </span>
+                  )}
                 </td>
                 <td className="asset-profile-identifier">
                   {formatAssetProfileIdentifier(a)}
@@ -461,6 +468,11 @@ export default function AssetsPage() {
                 <option value="housing_fund">公积金</option>
                 <option value="other">其他</option>
               </select>
+              {isRestrictedAssetType(type) && (
+                <p className="asset-restricted-form-note">
+                  受限资产：这类余额纳入总资产，但通常不可随意提取或日常使用。
+                </p>
+              )}
               <label className="form-label">币种</label>
               <select
                 className="form-input"
