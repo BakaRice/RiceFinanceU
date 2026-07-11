@@ -130,6 +130,8 @@ describe('AssetDetailPage asset profile', () => {
     renderAssetDetail('fund-1')
 
     expect(await screen.findByText('定投计划')).toBeTruthy()
+    expect(screen.getByText(/最近快照/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: '编辑 指数基金' })).toBeTruthy()
     expect(screen.getByText('建议每期投入')).toBeTruthy()
     expect(screen.getByText('计划投入低于目标倒推金额，后续可能需要提高每期投入。')).toBeTruthy()
     expect(screen.getByText('剩余周期')).toBeTruthy()

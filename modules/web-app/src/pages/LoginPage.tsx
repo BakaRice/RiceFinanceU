@@ -30,9 +30,16 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   return (
     <main className="login-page">
       <form className="login-panel" onSubmit={handleSubmit}>
+        <div className="login-brand">
+          <span className="login-brand-mark" aria-hidden="true">RF</span>
+          <span>
+            <strong>Rice Finance</strong>
+            <small>PERSONAL LEDGER</small>
+          </span>
+        </div>
         <div className="login-heading">
-          <h1>资产快照账本</h1>
-          <p>使用你的个人账号继续</p>
+          <h1>欢迎回来</h1>
+          <p>登录你的资产快照账本</p>
         </div>
 
         <label className="login-field">
@@ -55,7 +62,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           />
         </label>
 
-        {error && <div className="login-error">{error}</div>}
+        {error && <div className="login-error" role="alert">{error}</div>}
 
         <button className="login-submit" type="submit" disabled={submitting}>
           {submitting ? '登录中...' : '登录'}

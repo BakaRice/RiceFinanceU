@@ -583,6 +583,7 @@
   color: var(--color-text-secondary);
   margin-bottom: var(--space-lg);
   line-height: var(--line-height-normal);
+  white-space: pre-line;
 }
 .confirm-modal .confirm-detail {
   font-size: var(--font-size-sm);

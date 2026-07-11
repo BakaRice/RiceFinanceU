@@ -259,12 +259,18 @@ export default function DataManagementPage() {
 
   return (
     <div className="data-page">
-      <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, marginBottom: 16 }}>
-        数据管理
-      </h1>
+      <header className="page-header">
+        <div className="page-heading">
+          <h1 className="page-title">数据管理</h1>
+          <p className="page-subtitle">导出完整备份，或从兼容的 JSON 备份恢复账本</p>
+        </div>
+      </header>
 
-      <section className="data-section">
-        <h3 className="section-title">JSON 备份</h3>
+      <section className="data-section section-panel">
+        <div className="data-section-copy">
+          <h3>账本备份</h3>
+          <p>备份包含资产、快照、收益率、收入记录和汇率。</p>
+        </div>
         <div className="data-actions">
           <button className="btn-secondary" onClick={handleExport}>
             导出 JSON 备份
@@ -280,6 +286,10 @@ export default function DataManagementPage() {
           </label>
         </div>
       </section>
+
+      <aside className="data-risk-note">
+        导入会覆盖当前全部数据。系统会先检查文件结构，并对兼容的高精度收益率执行截断规范化。
+      </aside>
 
       {showImportConfirm && importSummary && (
         <div className="modal-overlay" onClick={() => setShowImportConfirm(false)}>

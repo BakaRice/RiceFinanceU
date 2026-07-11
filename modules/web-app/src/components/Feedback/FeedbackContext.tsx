@@ -101,8 +101,14 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       {/* Confirm modal */}
       {confirmState && (
         <div className="modal-overlay" onClick={() => handleConfirmResult(false)}>
-          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{confirmState.title}</h2>
+          <div
+            className="modal confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`confirm-title-${confirmState.id}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id={`confirm-title-${confirmState.id}`}>{confirmState.title}</h2>
             <p className="confirm-body">{confirmState.message}</p>
             {confirmState.detail && (
               <div className="confirm-detail">{confirmState.detail}</div>

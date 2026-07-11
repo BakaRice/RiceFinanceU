@@ -5,6 +5,7 @@ import type { Asset, SnapshotValue } from '../types/finance'
 import { CURRENCY_SYMBOLS } from '../types/finance'
 import { ASSET_TYPE_LABELS, getAssetProfileFields, isInvestmentType } from '../domain/assets'
 import { DCA_FREQUENCY_LABELS, estimateDcaPlan } from '../domain/dca'
+import { formatProfitRateInput } from '../domain/money'
 import MoneyDisplay from '../components/MoneyDisplay'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetDetailPage.css'
@@ -159,7 +160,7 @@ export default function AssetDetailPage() {
           </div>
         </div>
         <div className="detail-header-right">
-          <button className="btn-secondary" onClick={() => navigate('/assets', { state: { editId: asset.id } })}>
+          <button className="btn-secondary" aria-label={`编辑 ${asset.name}`} onClick={() => navigate('/assets', { state: { editId: asset.id } })}>
             编辑
           </button>
           {asset.isActive && (
@@ -181,7 +182,7 @@ export default function AssetDetailPage() {
           />
           {latestSnapshotTime && (
             <div className="detail-update-time">
-              更新时间：{new Date(latestSnapshotTime).toLocaleString('zh-CN')}
+              最近快照：{new Date(latestSnapshotTime).toLocaleString('zh-CN')}
             </div>
           )}
           {!latestValue && (
@@ -199,7 +200,7 @@ export default function AssetDetailPage() {
               <div className="detail-metric-label">收益率</div>
               <span className={`money-display ${(latestValue?.profitRate || 0) >= 0 ? 'is-profit' : 'is-loss'}`}>
                 {latestValue?.profitRate !== undefined
-                  ? `${latestValue.profitRate >= 0 ? '+' : ''}${(latestValue.profitRate * 100).toFixed(2)}%`
+                  ? `${latestValue.profitRate >= 0 ? '+' : ''}${formatProfitRateInput(latestValue.profitRate)}%`
                   : '-'}
               </span>
             </div>
@@ -215,7 +216,7 @@ export default function AssetDetailPage() {
 
       {/* Detail info */}
       <div className="detail-info-grid">
-        <div className="detail-info-section">
+        <div className="detail-info-section detail-history-section">
           <h3 className="section-title">基础信息</h3>
           <dl className="detail-dl">
             <dt>类型</dt>
@@ -363,7 +364,7 @@ export default function AssetDetailPage() {
                           <td className="align-right">
                             {record.profitRate !== undefined ? (
                               <span className={`money-display ${record.profitRate >= 0 ? 'is-profit' : 'is-loss'}`}>
-                                {record.profitRate >= 0 ? '+' : ''}{(record.profitRate * 100).toFixed(2)}%
+                                {record.profitRate >= 0 ? '+' : ''}{formatProfitRateInput(record.profitRate)}%
                               </span>
                             ) : '-'}
                           </td>
