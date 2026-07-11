@@ -92,7 +92,9 @@ describe('SnapshotForm imported profit rate precision', () => {
       </FeedbackProvider>,
     )
 
-    expect(await screen.findByRole('table', { name: '快照录入表' })).toBeTruthy()
+    const table = await screen.findByRole('table', { name: '快照录入表' })
+    expect(table.classList.contains('resizable-table')).toBe(true)
+    expect(screen.getByRole('separator', { name: '调整本次金额列宽' })).toBeTruthy()
     expect(screen.getAllByRole('table')).toHaveLength(1)
     expect(screen.getByText('指数基金')).toBeTruthy()
     expect(screen.getByText('现金')).toBeTruthy()

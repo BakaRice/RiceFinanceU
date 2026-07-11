@@ -12,6 +12,8 @@ import {
 } from '../domain/money'
 import MoneyInput from './MoneyInput'
 import MoneyDisplay from './MoneyDisplay'
+import ColumnResizeHandle from './ColumnResizeHandle'
+import { useResizableColumns } from './useResizableColumns'
 import { useFeedback } from './Feedback/FeedbackContext'
 import './SnapshotForm.css'
 
@@ -36,6 +38,18 @@ interface AssetRow {
   status: 'default' | 'modified' | 'auto-calc'
 }
 
+const SNAPSHOT_COLUMN_WIDTHS = {
+  included: 72,
+  name: 180,
+  currency: 80,
+  previousAmount: 120,
+  amount: 135,
+  delta: 100,
+  profit: 130,
+  profitRate: 110,
+  status: 100,
+}
+
 export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotFormProps) {
   const latestValuesRef = useRef<Map<string, SnapshotValue>>(new Map())
   const [rows, setRows] = useState<AssetRow[]>([])
@@ -45,6 +59,10 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
   const [submitting, setSubmitting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const { toast, confirm } = useFeedback()
+  const { widths: columnWidths, startResize } = useResizableColumns(
+    'snapshot-entry',
+    SNAPSHOT_COLUMN_WIDTHS,
+  )
 
   function markDirty() {
     if (!isDirty) setIsDirty(true)
@@ -340,18 +358,23 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
 
   function renderTable() {
     return (
-      <table className="fin-table snapshot-table" aria-label="快照录入表">
+      <table className="fin-table snapshot-table resizable-table" aria-label="快照录入表">
+        <colgroup>
+          {Object.entries(columnWidths).map(([column, width]) => (
+            <col key={column} style={{ width }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
-            <th style={{ width: 32 }}>☑</th>
-            <th>名称</th>
-            <th style={{ width: 60 }}>币种</th>
-            <th className="align-right" style={{ width: 100 }}>上次金额</th>
-            <th className="align-right" style={{ width: 125 }}>本次金额</th>
-            <th className="align-right" style={{ width: 75 }}>变化</th>
-            <th className="align-right" style={{ width: 125 }}>收益</th>
-            <th className="align-right" style={{ width: 105 }}>收益率</th>
-            <th style={{ width: 55 }}>状态</th>
+            <th>☑<ColumnResizeHandle column="included" label="纳入" onResizeStart={startResize} /></th>
+            <th>名称<ColumnResizeHandle column="name" label="名称" onResizeStart={startResize} /></th>
+            <th>币种<ColumnResizeHandle column="currency" label="币种" onResizeStart={startResize} /></th>
+            <th className="align-right">上次金额<ColumnResizeHandle column="previousAmount" label="上次金额" onResizeStart={startResize} /></th>
+            <th className="align-right">本次金额<ColumnResizeHandle column="amount" label="本次金额" onResizeStart={startResize} /></th>
+            <th className="align-right">变化<ColumnResizeHandle column="delta" label="变化" onResizeStart={startResize} /></th>
+            <th className="align-right">收益<ColumnResizeHandle column="profit" label="收益" onResizeStart={startResize} /></th>
+            <th className="align-right">收益率<ColumnResizeHandle column="profitRate" label="收益率" onResizeStart={startResize} /></th>
+            <th>状态<ColumnResizeHandle column="status" label="状态" onResizeStart={startResize} /></th>
           </tr>
         </thead>
         <tbody>

@@ -108,7 +108,7 @@
 }
 
 .snapshot-table td {
-  height: 42px;
+  height: 36px;
   vertical-align: middle;
 }
 
@@ -118,7 +118,7 @@
 
 .snapshot-table .money-input {
   font-size: 12px;
-  height: 30px;
+  height: 29px;
   padding: 0 6px;
 }
 

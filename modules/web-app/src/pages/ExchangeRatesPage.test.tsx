@@ -40,7 +40,9 @@ describe('ExchangeRatesPage', () => {
       </FeedbackProvider>,
     )
 
-    expect(await screen.findByRole('table', { name: '汇率表' })).toBeTruthy()
+    const table = await screen.findByRole('table', { name: '汇率表' })
+    expect(table.classList.contains('resizable-table')).toBe(true)
+    expect(screen.getByRole('separator', { name: '调整币种列宽' })).toBeTruthy()
     expect(screen.getByText('USD')).toBeTruthy()
     expect(screen.getByText('HKD')).toBeTruthy()
 

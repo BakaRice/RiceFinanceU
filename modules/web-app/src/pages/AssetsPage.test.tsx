@@ -57,6 +57,8 @@ describe('AssetsPage asset profile fields', () => {
     renderAssetsPage()
 
     expect(await screen.findByText('标识')).toBeTruthy()
+    expect(screen.getByRole('table', { name: '资产表' }).classList.contains('resizable-table')).toBe(true)
+    expect(screen.getByRole('separator', { name: '调整名称列宽' })).toBeTruthy()
     expect(screen.getByText('NASDAQ AAPL')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Apple' }).getAttribute('href')).toBe('/assets/stock-1')
     expect(screen.getByRole('button', { name: '编辑 Apple' })).toBeTruthy()

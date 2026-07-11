@@ -14,10 +14,26 @@ import { DCA_FREQUENCY_LABELS, sanitizeDcaPlan } from '../domain/dca'
 import { formatProfitRateInput } from '../domain/money'
 import MoneyDisplay from '../components/MoneyDisplay'
 import TableWorkspace from '../components/TableWorkspace'
+import ColumnResizeHandle from '../components/ColumnResizeHandle'
+import { useResizableColumns } from '../components/useResizableColumns'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetsPage.css'
 
 type SortKey = 'name' | 'type' | 'currency' | 'amount' | 'profit' | 'profitRate' | 'institution'
+
+const ASSET_COLUMN_WIDTHS = {
+  name: 180,
+  type: 130,
+  identifier: 150,
+  institution: 140,
+  currency: 90,
+  amount: 130,
+  profit: 110,
+  profitRate: 100,
+  status: 90,
+  note: 180,
+  actions: 112,
+}
 
 type AssetDraft = {
   id: string
@@ -47,6 +63,7 @@ export default function AssetsPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { toast, confirm } = useFeedback()
+  const { widths: columnWidths, startResize } = useResizableColumns('assets', ASSET_COLUMN_WIDTHS)
 
   const [assets, setAssets] = useState<Asset[]>([])
   const [drafts, setDrafts] = useState<AssetDraft[]>([])
@@ -352,20 +369,25 @@ export default function AssetsPage() {
 
   function renderAssetTable() {
     return (
-      <table className="fin-table assets-table" aria-label="资产表">
+      <table className="fin-table assets-table resizable-table" aria-label="资产表">
+        <colgroup>
+          {Object.entries(columnWidths).map(([column, width]) => (
+            <col key={column} style={{ width }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
-            <th className="sortable" onClick={() => toggleSort('name')}>名称 {sortIcon('name')}</th>
-            <th className="sortable" onClick={() => toggleSort('type')}>类型 {sortIcon('type')}</th>
-            <th>标识</th>
-            <th className="sortable" onClick={() => toggleSort('institution')}>机构 {sortIcon('institution')}</th>
-            <th className="sortable" onClick={() => toggleSort('currency')}>币种 {sortIcon('currency')}</th>
-            <th className="sortable align-right" onClick={() => toggleSort('amount')}>最新金额 {sortIcon('amount')}</th>
-            <th className="sortable align-right" onClick={() => toggleSort('profit')}>收益 {sortIcon('profit')}</th>
-            <th className="sortable align-right" onClick={() => toggleSort('profitRate')}>收益率 {sortIcon('profitRate')}</th>
-            <th>状态</th>
-            <th>备注</th>
-            <th>更多</th>
+            <th className="sortable" onClick={() => toggleSort('name')}>名称 {sortIcon('name')}<ColumnResizeHandle column="name" label="名称" onResizeStart={startResize} /></th>
+            <th className="sortable" onClick={() => toggleSort('type')}>类型 {sortIcon('type')}<ColumnResizeHandle column="type" label="类型" onResizeStart={startResize} /></th>
+            <th>标识<ColumnResizeHandle column="identifier" label="标识" onResizeStart={startResize} /></th>
+            <th className="sortable" onClick={() => toggleSort('institution')}>机构 {sortIcon('institution')}<ColumnResizeHandle column="institution" label="机构" onResizeStart={startResize} /></th>
+            <th className="sortable" onClick={() => toggleSort('currency')}>币种 {sortIcon('currency')}<ColumnResizeHandle column="currency" label="币种" onResizeStart={startResize} /></th>
+            <th className="sortable align-right" onClick={() => toggleSort('amount')}>最新金额 {sortIcon('amount')}<ColumnResizeHandle column="amount" label="最新金额" onResizeStart={startResize} /></th>
+            <th className="sortable align-right" onClick={() => toggleSort('profit')}>收益 {sortIcon('profit')}<ColumnResizeHandle column="profit" label="收益" onResizeStart={startResize} /></th>
+            <th className="sortable align-right" onClick={() => toggleSort('profitRate')}>收益率 {sortIcon('profitRate')}<ColumnResizeHandle column="profitRate" label="收益率" onResizeStart={startResize} /></th>
+            <th>状态<ColumnResizeHandle column="status" label="状态" onResizeStart={startResize} /></th>
+            <th>备注<ColumnResizeHandle column="note" label="备注" onResizeStart={startResize} /></th>
+            <th>更多<ColumnResizeHandle column="actions" label="更多" onResizeStart={startResize} /></th>
           </tr>
         </thead>
         <tbody>

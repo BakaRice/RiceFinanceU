@@ -29,7 +29,7 @@
 }
 
 .assets-table td {
-  height: 42px;
+  height: 36px;
 }
 
 .asset-edit-cell {
@@ -40,7 +40,7 @@
 .asset-edit-cell > select {
   width: 100%;
   min-width: 92px;
-  height: 41px;
+  height: 35px;
   padding: 0 9px;
   border: 0;
   border-radius: 0;
@@ -118,7 +118,7 @@
 }
 
 .asset-type-cell {
-  min-width: 112px;
+  min-width: 0;
 }
 
 .asset-restricted-marker {
@@ -127,6 +127,7 @@
   align-items: center;
   gap: 5px;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .asset-restricted-marker > span {

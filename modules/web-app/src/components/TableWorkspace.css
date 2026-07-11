@@ -83,9 +83,28 @@
 
 .table-workspace-grid th,
 .table-workspace-grid td {
+  height: 36px;
   min-height: 36px;
+  overflow: hidden;
+  padding-block: 0;
   border-right: 1px solid var(--color-border-light);
   border-bottom: 1px solid var(--color-border-light);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-workspace-grid input,
+.table-workspace-grid select {
+  height: 35px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resizable-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
 }
 
 .table-workspace-grid tr:last-child td {

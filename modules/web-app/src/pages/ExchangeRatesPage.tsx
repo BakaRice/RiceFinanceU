@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import TableWorkspace from '../components/TableWorkspace'
+import ColumnResizeHandle from '../components/ColumnResizeHandle'
+import { useResizableColumns } from '../components/useResizableColumns'
 import type { ExchangeRates } from '../types/finance'
 import './ExchangeRatesPage.css'
 
 const DEFAULT_RATES: ExchangeRates = { USD: 7.2, HKD: 0.92, updatedAt: '' }
+const RATE_COLUMN_WIDTHS = { currency: 120, rate: 220, updatedAt: 240 }
 
 export default function ExchangeRatesPage() {
   const { toast } = useFeedback()
@@ -15,6 +18,10 @@ export default function ExchangeRatesPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { widths: columnWidths, startResize } = useResizableColumns(
+    'exchange-rates',
+    RATE_COLUMN_WIDTHS,
+  )
 
   async function load() {
     setLoading(true)
@@ -75,9 +82,18 @@ export default function ExchangeRatesPage() {
       primaryActionLabel={saving ? '保存中…' : '保存汇率'}
       onPrimaryAction={saveRates}
     >
-      <table className="fin-table rates-table" aria-label="汇率表">
+      <table className="fin-table rates-table resizable-table" aria-label="汇率表">
+        <colgroup>
+          {Object.entries(columnWidths).map(([column, width]) => (
+            <col key={column} style={{ width }} />
+          ))}
+        </colgroup>
         <thead>
-          <tr><th>币种</th><th>对人民币汇率</th><th>更新时间</th></tr>
+          <tr>
+            <th>币种<ColumnResizeHandle column="currency" label="币种" onResizeStart={startResize} /></th>
+            <th>对人民币汇率<ColumnResizeHandle column="rate" label="对人民币汇率" onResizeStart={startResize} /></th>
+            <th>更新时间<ColumnResizeHandle column="updatedAt" label="更新时间" onResizeStart={startResize} /></th>
+          </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
