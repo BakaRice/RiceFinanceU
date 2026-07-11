@@ -13,10 +13,35 @@ import {
 import { DCA_FREQUENCY_LABELS, sanitizeDcaPlan } from '../domain/dca'
 import { formatProfitRateInput } from '../domain/money'
 import MoneyDisplay from '../components/MoneyDisplay'
+import TableWorkspace from '../components/TableWorkspace'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetsPage.css'
 
 type SortKey = 'name' | 'type' | 'currency' | 'amount' | 'profit' | 'profitRate' | 'institution'
+
+type AssetDraft = {
+  id: string
+  name: string
+  type: AssetType
+  institution: string
+  currency: Currency
+  isActive: boolean
+  note: string
+  original: Asset
+}
+
+function assetToDraft(asset: Asset): AssetDraft {
+  return {
+    id: asset.id,
+    name: asset.name,
+    type: asset.type,
+    institution: asset.institution || '',
+    currency: asset.currency,
+    isActive: asset.isActive,
+    note: asset.note || '',
+    original: asset,
+  }
+}
 
 export default function AssetsPage() {
   const navigate = useNavigate()
@@ -24,7 +49,9 @@ export default function AssetsPage() {
   const { toast, confirm } = useFeedback()
 
   const [assets, setAssets] = useState<Asset[]>([])
+  const [drafts, setDrafts] = useState<AssetDraft[]>([])
   const [latestValues, setLatestValues] = useState<Map<string, SnapshotValue>>(new Map())
+  const [savingDrafts, setSavingDrafts] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -59,6 +86,7 @@ export default function AssetsPage() {
         api.getLatestSnapshot(),
       ])
       setAssets(allAssets)
+      setDrafts(allAssets.map(assetToDraft))
       const valMap = new Map<string, SnapshotValue>()
       if (latestData && latestData.values) {
         for (const v of latestData.values) {
@@ -192,6 +220,57 @@ export default function AssetsPage() {
     })
   }
 
+  function isDraftDirty(draft: AssetDraft): boolean {
+    return (
+      draft.name !== draft.original.name ||
+      draft.type !== draft.original.type ||
+      draft.institution !== (draft.original.institution || '') ||
+      draft.currency !== draft.original.currency ||
+      draft.isActive !== draft.original.isActive ||
+      draft.note !== (draft.original.note || '')
+    )
+  }
+
+  function updateDraft<K extends keyof Omit<AssetDraft, 'id' | 'original'>>(
+    id: string,
+    key: K,
+    value: AssetDraft[K],
+  ) {
+    setDrafts((current) => current.map((draft) => (
+      draft.id === id ? { ...draft, [key]: value } : draft
+    )))
+  }
+
+  const dirtyDrafts = drafts.filter(isDraftDirty)
+
+  async function saveDrafts() {
+    const invalidDraft = dirtyDrafts.find((draft) => !draft.name.trim())
+    if (invalidDraft) {
+      toast('资产名称不能为空', 'error')
+      return
+    }
+
+    setSavingDrafts(true)
+    try {
+      for (const draft of dirtyDrafts) {
+        await api.updateAsset(draft.id, {
+          name: draft.name.trim(),
+          type: draft.type,
+          institution: draft.institution.trim() || undefined,
+          currency: draft.currency,
+          isActive: draft.isActive,
+          note: draft.note.trim() || undefined,
+        })
+      }
+      toast(`已保存 ${dirtyDrafts.length} 项资产修改`)
+      await load()
+    } catch (e: any) {
+      toast('保存失败: ' + e.message, 'error')
+    } finally {
+      setSavingDrafts(false)
+    }
+  }
+
   async function handleDeactivate(a: Asset) {
     const ok = await confirm({
       title: '停用资产',
@@ -266,134 +345,126 @@ export default function AssetsPage() {
     })
   }
 
-  const hasInvestmentCol = assets.some((a) => isInvestmentType(a.type))
+  const draftsById = new Map(drafts.map((draft) => [draft.id, draft]))
+  const sortedDrafts = sortAssets(assets)
+    .map((asset) => draftsById.get(asset.id))
+    .filter((draft): draft is AssetDraft => Boolean(draft))
 
-  const activeAssets = sortAssets(assets.filter((a) => a.isActive))
-  const inactiveAssets = assets.filter((a) => !a.isActive)
-
-  const activeCount = activeAssets.length
-  const inactiveCount = inactiveAssets.length
-  const currencySet = new Set(assets.map((a) => a.currency))
-  const currencyList = Array.from(currencySet).join('/')
-
-  function renderTable(assetList: Asset[], isInactive: boolean) {
+  function renderAssetTable() {
     return (
-      <table className="fin-table assets-table">
+      <table className="fin-table assets-table" aria-label="资产表">
         <thead>
           <tr>
-            <th className="sortable" onClick={() => toggleSort('name')}>
-              名称 {sortIcon('name')}
-            </th>
-            <th className="sortable" onClick={() => toggleSort('type')}>
-              类型 {sortIcon('type')}
-            </th>
+            <th className="sortable" onClick={() => toggleSort('name')}>名称 {sortIcon('name')}</th>
+            <th className="sortable" onClick={() => toggleSort('type')}>类型 {sortIcon('type')}</th>
             <th>标识</th>
-            <th className="sortable" onClick={() => toggleSort('institution')}>
-              机构 {sortIcon('institution')}
-            </th>
-            <th className="sortable" onClick={() => toggleSort('currency')}>
-              币种 {sortIcon('currency')}
-            </th>
-            <th className="sortable align-right" onClick={() => toggleSort('amount')}>
-              最新金额 {sortIcon('amount')}
-            </th>
-            {hasInvestmentCol && (
-              <>
-                <th className="sortable align-right" onClick={() => toggleSort('profit')}>
-                  收益 {sortIcon('profit')}
-                </th>
-                <th className="sortable align-right" onClick={() => toggleSort('profitRate')}>
-                  收益率 {sortIcon('profitRate')}
-                </th>
-              </>
-            )}
+            <th className="sortable" onClick={() => toggleSort('institution')}>机构 {sortIcon('institution')}</th>
+            <th className="sortable" onClick={() => toggleSort('currency')}>币种 {sortIcon('currency')}</th>
+            <th className="sortable align-right" onClick={() => toggleSort('amount')}>最新金额 {sortIcon('amount')}</th>
+            <th className="sortable align-right" onClick={() => toggleSort('profit')}>收益 {sortIcon('profit')}</th>
+            <th className="sortable align-right" onClick={() => toggleSort('profitRate')}>收益率 {sortIcon('profitRate')}</th>
+            <th>状态</th>
             <th>备注</th>
-            <th>操作</th>
+            <th>更多</th>
           </tr>
         </thead>
         <tbody>
-          {assetList.map((a) => {
-            const lv = latestValues.get(a.id)
+          {sortedDrafts.map((draft) => {
+            const latest = latestValues.get(draft.id)
+            const investment = isInvestmentType(draft.type)
             return (
-              <tr key={a.id} className={isInactive ? 'row-inactive' : ''}>
-                <td>
+              <tr key={draft.id} className={`${draft.isActive ? '' : 'row-inactive'} ${isDraftDirty(draft) ? 'is-dirty' : ''}`.trim()}>
+                <td className="asset-edit-cell asset-name-edit-cell">
+                  <input
+                    aria-label={`${draft.original.name} 名称`}
+                    value={draft.name}
+                    onChange={(event) => updateDraft(draft.id, 'name', event.target.value)}
+                  />
                   <a
-                    className="asset-name-link"
-                    href={`/assets/${a.id}`}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      navigate(`/assets/${a.id}`)
+                    className="asset-detail-link"
+                    href={`/assets/${draft.id}`}
+                    aria-label={draft.original.name}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      navigate(`/assets/${draft.id}`)
                     }}
                   >
-                    {a.name}
+                    ↗
                   </a>
-                  {a.dcaPlan?.enabled && <span className="asset-dca-tag">定投</span>}
+                  {draft.original.dcaPlan?.enabled && <span className="asset-dca-tag">定投</span>}
                 </td>
-                <td className="asset-type-cell">
-                  <span className={`type-badge type-${a.type}`}>
-                    {ASSET_TYPE_LABELS[a.type as keyof typeof ASSET_TYPE_LABELS] || a.type}
-                  </span>
-                  {isRestrictedAssetType(a.type) && (
+                <td className="asset-edit-cell asset-type-cell">
+                  <select
+                    aria-label={`${draft.original.name} 类型`}
+                    value={draft.type}
+                    onChange={(event) => updateDraft(draft.id, 'type', event.target.value as AssetType)}
+                  >
+                    {Object.entries(ASSET_TYPE_LABELS).map(([value, label]) => (
+                      <option value={value} key={value}>{label}</option>
+                    ))}
+                  </select>
+                  {isRestrictedAssetType(draft.type) && (
                     <span className="asset-restricted-marker">
                       <span>受限资产</span>
                       <small>不可随意提取</small>
                     </span>
                   )}
                 </td>
-                <td className="asset-profile-identifier">
-                  {formatAssetProfileIdentifier(a)}
+                <td className="asset-profile-identifier is-readonly">
+                  {formatAssetProfileIdentifier(draft.original)}
                 </td>
-                <td className="text-muted" style={{ fontSize: 13 }}>
-                  {a.institution || '-'}
+                <td className="asset-edit-cell">
+                  <input
+                    aria-label={`${draft.original.name} 机构`}
+                    value={draft.institution}
+                    onChange={(event) => updateDraft(draft.id, 'institution', event.target.value)}
+                  />
                 </td>
-                <td>
-                  <span className="currency-tag">{a.currency}</span>
+                <td className="asset-edit-cell">
+                  <select
+                    aria-label={`${draft.original.name} 币种`}
+                    value={draft.currency}
+                    onChange={(event) => updateDraft(draft.id, 'currency', event.target.value as Currency)}
+                  >
+                    <option value="CNY">CNY</option>
+                    <option value="USD">USD</option>
+                    <option value="HKD">HKD</option>
+                  </select>
                 </td>
-                <td className="align-right asset-amount-cell">
-                  {lv ? (
-                    <MoneyDisplay value={lv.amount} currency={a.currency} showCurrency={false} />
-                  ) : (
-                    <span className="text-muted">-</span>
-                  )}
+                <td className="align-right asset-amount-cell is-readonly">
+                  {latest ? <MoneyDisplay value={latest.amount} currency={draft.currency} showCurrency={false} /> : <span className="text-muted">-</span>}
                 </td>
-                {hasInvestmentCol &&
-                  (isInvestmentType(a.type) ? (
-                    <>
-                      <td className="align-right">
-                        <MoneyDisplay value={lv?.profit} isProfit />
-                      </td>
-                      <td className="align-right">
-                        {lv?.profitRate !== undefined ? (
-                          <span className={`money-display ${lv.profitRate >= 0 ? 'is-profit' : 'is-loss'}`}>
-                            {lv.profitRate >= 0 ? '+' : ''}
-                            {formatProfitRateInput(lv.profitRate)}%
-                          </span>
-                        ) : (
-                          <span className="text-muted">-</span>
-                        )}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="align-right text-muted">-</td>
-                      <td className="align-right text-muted">-</td>
-                    </>
-                  ))}
-                <td className="asset-note" title={a.note || undefined}>
-                  {a.note || '-'}
+                <td className="align-right is-readonly">
+                  {investment ? <MoneyDisplay value={latest?.profit} isProfit /> : <span className="text-muted">-</span>}
+                </td>
+                <td className="align-right is-readonly">
+                  {investment && latest?.profitRate !== undefined ? (
+                    <span className={`money-display ${latest.profitRate >= 0 ? 'is-profit' : 'is-loss'}`}>
+                      {latest.profitRate >= 0 ? '+' : ''}{formatProfitRateInput(latest.profitRate)}%
+                    </span>
+                  ) : <span className="text-muted">-</span>}
+                </td>
+                <td className="asset-edit-cell">
+                  <select
+                    aria-label={`${draft.original.name} 状态`}
+                    value={draft.isActive ? 'active' : 'inactive'}
+                    onChange={(event) => updateDraft(draft.id, 'isActive', event.target.value === 'active')}
+                  >
+                    <option value="active">启用</option>
+                    <option value="inactive">停用</option>
+                  </select>
+                </td>
+                <td className="asset-edit-cell">
+                  <input
+                    aria-label={`${draft.original.name} 备注`}
+                    value={draft.note}
+                    onChange={(event) => updateDraft(draft.id, 'note', event.target.value)}
+                  />
                 </td>
                 <td className="asset-actions">
-                  <button className="btn-link" aria-label={`编辑 ${a.name}`} onClick={() => openEdit(a)}>
-                    编辑
-                  </button>
-                  {!isInactive && (
-                    <button
-                      className="btn-link btn-link-danger"
-                      aria-label={`停用 ${a.name}`}
-                      onClick={() => handleDeactivate(a)}
-                    >
-                      停用
-                    </button>
+                  <button className="btn-link" aria-label={`编辑 ${draft.original.name}`} onClick={() => openEdit(draft.original)}>档案</button>
+                  {draft.original.isActive && (
+                    <button className="btn-link btn-link-danger" aria-label={`停用 ${draft.original.name}`} onClick={() => handleDeactivate(draft.original)}>停用</button>
                   )}
                 </td>
               </tr>
@@ -406,40 +477,19 @@ export default function AssetsPage() {
 
   return (
     <div className="assets-page">
-      <div className="page-header">
-        <div className="page-heading">
-          <h1 className="page-title">资产管理</h1>
-          <p className="page-subtitle">维护长期资产资料，金额状态来自最近快照</p>
-          <div className="page-stats">
-            <span>启用 {activeCount}</span>
-            {inactiveCount > 0 && <span>· 停用 {inactiveCount}</span>}
-            <span>· {currencyList}</span>
-          </div>
-        </div>
-        <button className="btn-primary" onClick={openCreate}>
-          新增资产
-        </button>
-      </div>
-
-      {activeAssets.length === 0 && inactiveAssets.length === 0 && (
-        <div className="empty-state">
-          <p>暂无资产项。先新增资产，再录入快照。</p>
-        </div>
-      )}
-
-      {activeAssets.length > 0 && (
-        <div className="assets-section section-panel">
-          <h3 className="section-title">已启用 ({activeCount})</h3>
-          <div className="table-container">{renderTable(activeAssets, false)}</div>
-        </div>
-      )}
-
-      {inactiveAssets.length > 0 && (
-        <div className="assets-section section-panel assets-section-inactive">
-          <h3 className="section-title">已停用 ({inactiveCount})</h3>
-          <div className="table-container">{renderTable(inactiveAssets, true)}</div>
-        </div>
-      )}
+      <TableWorkspace
+        title="资产"
+        description="一行一个资产；金额、收益和收益率来自最新快照"
+        dirtyCount={dirtyDrafts.length}
+        saving={savingDrafts}
+        primaryActionLabel={savingDrafts ? '保存中…' : '保存资产'}
+        onPrimaryAction={saveDrafts}
+        secondaryActions={<button className="btn-secondary" type="button" onClick={openCreate}>新增资产</button>}
+      >
+        {sortedDrafts.length > 0 ? renderAssetTable() : (
+          <div className="empty-state"><p>暂无资产项。先新增资产，再录入快照。</p></div>
+        )}
+      </TableWorkspace>
 
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>

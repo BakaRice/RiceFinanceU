@@ -1,6 +1,6 @@
 .assets-page {
   width: 100%;
-  max-width: var(--content-wide);
+  min-width: 0;
 }
 
 .assets-section {
@@ -25,21 +25,72 @@
 }
 
 .assets-table {
-  min-width: 1020px;
+  min-width: 1380px;
 }
 
 .assets-table td {
   height: 42px;
 }
 
-.assets-table th:first-child,
-.assets-table td:first-child {
-  padding-left: 16px;
+.asset-edit-cell {
+  padding: 0;
 }
 
-.assets-table th:last-child,
-.assets-table td:last-child {
-  padding-right: 16px;
+.asset-edit-cell > input,
+.asset-edit-cell > select {
+  width: 100%;
+  min-width: 92px;
+  height: 41px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text);
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.asset-edit-cell > input:hover,
+.asset-edit-cell > select:hover {
+  background: var(--color-surface-hover);
+}
+
+.asset-name-edit-cell {
+  position: relative;
+  min-width: 168px;
+}
+
+.asset-name-edit-cell > input {
+  padding-right: 52px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.asset-detail-link {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-decoration: none;
+  transform: translateY(-50%);
+}
+
+.asset-detail-link:hover {
+  color: var(--color-primary);
+}
+
+.assets-table tr.is-dirty td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.assets-table .row-inactive td {
+  color: var(--color-text-muted);
+  background-color: color-mix(in srgb, var(--color-surface-muted) 72%, transparent);
+}
+
+.assets-table .row-inactive input,
+.assets-table .row-inactive select {
+  color: var(--color-text-muted);
 }
 
 .asset-name-link {
@@ -119,7 +170,7 @@
 }
 
 .asset-actions {
-  width: 104px;
+  width: 112px;
   white-space: nowrap;
 }
 

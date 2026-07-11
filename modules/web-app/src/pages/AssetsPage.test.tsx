@@ -99,7 +99,7 @@ describe('AssetsPage asset profile fields', () => {
 
     renderAssetsPage()
 
-    await screen.findByText('资产管理')
+    await screen.findByRole('heading', { name: '资产' })
     fireEvent.click(screen.getByRole('button', { name: '新增资产' }))
 
     expect(screen.getByText('类型档案')).toBeTruthy()
@@ -121,7 +121,7 @@ describe('AssetsPage asset profile fields', () => {
 
     const { container } = renderAssetsPage()
 
-    await screen.findByText('资产管理')
+    await screen.findByRole('heading', { name: '资产' })
     fireEvent.click(screen.getByRole('button', { name: '新增资产' }))
     fireEvent.change(container.querySelector('input[required]') as HTMLInputElement, {
       target: { value: '纳指基金' },
@@ -159,7 +159,7 @@ describe('AssetsPage asset profile fields', () => {
 
     const { container } = renderAssetsPage()
 
-    await screen.findByText('资产管理')
+    await screen.findByRole('heading', { name: '资产' })
     fireEvent.click(screen.getByRole('button', { name: '新增资产' }))
     fireEvent.change(container.querySelector('input[required]') as HTMLInputElement, {
       target: { value: '纳指基金' },
@@ -223,7 +223,59 @@ describe('AssetsPage asset profile fields', () => {
     renderAssetsPage([{ pathname: '/assets', state: { editId: 'fund-1' } }])
 
     expect(await screen.findByRole('heading', { name: '编辑资产' })).toBeTruthy()
-    expect(screen.getByDisplayValue('沪深300')).toBeTruthy()
+    expect((screen.getAllByDisplayValue('沪深300') as HTMLInputElement[]).some((input) => input.required)).toBe(true)
     expect(screen.getByRole('checkbox', { name: '启用定投计划' })).toBeTruthy()
+  })
+})
+
+describe('AssetsPage table editing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockedApi.getLatestSnapshot.mockResolvedValue(null)
+    mockedApi.updateAsset.mockResolvedValue({} as any)
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'asset-fund',
+        name: '指数基金',
+        type: 'fund',
+        currency: 'CNY',
+        institution: '基金平台',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'asset-cash',
+        name: '停用现金',
+        type: 'cash',
+        currency: 'CNY',
+        isActive: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ] as any)
+  })
+
+  it('keeps active and inactive assets in one editable table', async () => {
+    renderAssetsPage()
+
+    expect(await screen.findByRole('table', { name: '资产表' })).toBeTruthy()
+    expect(screen.getAllByRole('table')).toHaveLength(1)
+    expect(screen.getByDisplayValue('指数基金')).toBeTruthy()
+    expect(screen.getByDisplayValue('停用现金')).toBeTruthy()
+    expect((screen.getByLabelText('停用现金 状态') as HTMLSelectElement).value).toBe('inactive')
+
+    fireEvent.change(screen.getByLabelText('指数基金 名称'), {
+      target: { value: '沪深 300' },
+    })
+    expect(screen.getByText('1 项未保存')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '保存资产' }))
+
+    await waitFor(() => {
+      expect(mockedApi.updateAsset).toHaveBeenCalledWith(
+        'asset-fund',
+        expect.objectContaining({ name: '沪深 300' }),
+      )
+    })
   })
 })
