@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { preValidate } from './DataManagementPage'
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { FeedbackProvider } from '../components/Feedback/FeedbackContext'
+import DataManagementPage, { preValidate } from './DataManagementPage'
 
 function backup(overrides: Record<string, unknown> = {}) {
   return {
@@ -8,6 +13,21 @@ function backup(overrides: Record<string, unknown> = {}) {
     snapshots: [],
     snapshotValues: [],
     ...overrides,
+  }
+}
+
+afterEach(() => {
+  cleanup()
+})
+
+function investmentAsset(dcaPlan?: Record<string, unknown>) {
+  return {
+    id: 'fund-1',
+    name: '指数基金',
+    type: 'fund',
+    currency: 'CNY',
+    isActive: true,
+    ...(dcaPlan ? { dcaPlan } : {}),
   }
 }
 
@@ -100,5 +120,92 @@ describe('DataManagementPage preValidate profit rates', () => {
     expect(result.issues).toContain('1 个收益率将在导入时截断为百分比两位小数')
     expect(result.issues).toContain('快照值[1] "value-invalid": 收益率无效 (-1.01)')
     expect(result.hasCriticalIssues).toBe(true)
+  })
+})
+
+describe('DataManagementPage preValidate DCA plans', () => {
+  it('counts a valid DCA plan and keeps backups without plans compatible', () => {
+    const valid = preValidate(backup({
+      assets: [investmentAsset({
+        enabled: true,
+        frequency: 'daily',
+        excludeWeekends: false,
+        plannedContribution: '200',
+        targetAmount: '20000',
+        targetDate: '2026-12-31',
+        toleranceRate: '0.15',
+      })],
+    }))
+    const legacy = preValidate(backup({ assets: [investmentAsset()] }))
+
+    expect(valid.dcaPlanCount).toBe(1)
+    expect(valid.hasCriticalIssues).toBe(false)
+    expect(legacy.dcaPlanCount).toBe(0)
+    expect(legacy.hasCriticalIssues).toBe(false)
+  })
+
+  const invalidCases: Array<[string, { type?: string; dcaPlan: Record<string, unknown> }]> = [
+    ['余额类资产包含定投', { type: 'cash', dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100 } }],
+    ['定投频率无效', { dcaPlan: { enabled: true, frequency: 'yearly', plannedContribution: 100 } }],
+    ['每期投入为零', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 0 } }],
+    ['每期投入是布尔值', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: true } }],
+    ['目标金额无效', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100, targetAmount: -1 } }],
+    ['目标金额显式为空', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100, targetAmount: null } }],
+    ['目标日期无效', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100, targetDate: '2026-02-31' } }],
+    ['目标日期显式为空', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100, targetDate: '' } }],
+    ['容忍偏差无效', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100, toleranceRate: -1 } }],
+    ['容忍偏差显式为空', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100, toleranceRate: null } }],
+    ['工作日选项无效', { dcaPlan: { enabled: true, frequency: 'daily', plannedContribution: 100, excludeWeekends: 'no' } }],
+    ['工作日选项显式为空', { dcaPlan: { enabled: true, frequency: 'daily', plannedContribution: 100, excludeWeekends: null } }],
+    ['备注类型无效', { dcaPlan: { enabled: true, frequency: 'monthly', plannedContribution: 100, note: null } }],
+  ]
+
+  it.each(invalidCases)('reports %s as a critical issue', (_label, override) => {
+    const result = preValidate(backup({
+      assets: [{
+        ...investmentAsset(override.dcaPlan),
+        ...(override.type ? { type: override.type } : {}),
+      }],
+    }))
+
+    expect(result.hasCriticalIssues).toBe(true)
+    expect(result.issues.some((issue) => issue.includes('定投计划'))).toBe(true)
+  })
+})
+
+describe('DataManagementPage DCA backup visibility', () => {
+  function renderPage() {
+    return render(
+      <FeedbackProvider>
+        <DataManagementPage />
+      </FeedbackProvider>,
+    )
+  }
+
+  async function uploadBackup(data: unknown) {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File([JSON.stringify(data)], 'backup.json', { type: 'application/json' })
+    fireEvent.change(input, { target: { files: [file] } })
+    await screen.findByRole('heading', { name: '确认导入' })
+  }
+
+  it('describes and counts DCA plans in a backup', async () => {
+    renderPage()
+    expect(screen.getByText(/备份包含.*定投计划/)).toBeTruthy()
+
+    await uploadBackup(backup({
+      assets: [investmentAsset({ enabled: true, frequency: 'monthly', plannedContribution: 100 })],
+    }))
+
+    expect(screen.getByText(/定投计划: 1/)).toBeTruthy()
+  })
+
+  it('disables import confirmation when a DCA plan is invalid', async () => {
+    renderPage()
+    await uploadBackup(backup({
+      assets: [investmentAsset({ enabled: true, frequency: 'monthly', plannedContribution: 0 })],
+    }))
+
+    expect((screen.getByRole('button', { name: '确认导入' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

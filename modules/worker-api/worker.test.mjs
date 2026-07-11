@@ -285,7 +285,7 @@ test('资产接口只为投资类资产保存清理后的定投计划', async ()
   assert.equal(cash.dcaPlan, undefined)
 })
 
-test('导入导出会保留投资类资产的结构化定投计划并清理余额类计划', async () => {
+test('导入导出会保留投资类资产的结构化定投计划', async () => {
   const env = createEnv()
   const token = await login(env)
 
@@ -312,20 +312,6 @@ test('导入导出会保留投资类资产的结构化定投计划并清理余�
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
-        {
-          id: 'cash-1',
-          name: '现金',
-          type: 'cash',
-          currency: 'CNY',
-          isActive: true,
-          dcaPlan: {
-            enabled: true,
-            frequency: 'monthly',
-            plannedContribution: 500,
-          },
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        },
       ],
       snapshots: [],
       snapshotValues: [],
@@ -337,7 +323,6 @@ test('导入导出会保留投资类资产的结构化定投计划并清理余�
   const exportResponse = await authedRequest(env, '/api/export', { token })
   const exported = await exportResponse.json()
   const fund = exported.assets.find((asset) => asset.id === 'fund-1')
-  const cash = exported.assets.find((asset) => asset.id === 'cash-1')
 
   assert.deepEqual(fund.dcaPlan, {
     enabled: true,
@@ -347,7 +332,73 @@ test('导入导出会保留投资类资产的结构化定投计划并清理余�
     targetAmount: 20000,
     targetDate: '2026-12-31',
   })
-  assert.equal(cash.dcaPlan, undefined)
+})
+
+test('导入会拒绝非法定投计划并保持原账本不变', async () => {
+  const invalidCases = [
+    ['balance asset plan', 'cash', { enabled: true, frequency: 'monthly', plannedContribution: 100 }],
+    ['invalid frequency', 'fund', { enabled: true, frequency: 'yearly', plannedContribution: 100 }],
+    ['zero contribution', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 0 }],
+    ['boolean contribution', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: true }],
+    ['invalid target amount', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 100, targetAmount: -1 }],
+    ['null target amount', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 100, targetAmount: null }],
+    ['invalid target date', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 100, targetDate: '2026-02-31' }],
+    ['empty target date', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 100, targetDate: '' }],
+    ['invalid tolerance rate', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 100, toleranceRate: -1 }],
+    ['null tolerance rate', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 100, toleranceRate: null }],
+    ['invalid exclude weekends', 'fund', { enabled: true, frequency: 'daily', plannedContribution: 100, excludeWeekends: 'no' }],
+    ['null exclude weekends', 'fund', { enabled: true, frequency: 'daily', plannedContribution: 100, excludeWeekends: null }],
+    ['null note', 'fund', { enabled: true, frequency: 'monthly', plannedContribution: 100, note: null }],
+  ]
+
+  for (const [label, type, dcaPlan] of invalidCases) {
+    const env = createEnv()
+    const token = await login(env)
+    await authedRequest(env, '/api/assets', {
+      token,
+      method: 'POST',
+      body: JSON.stringify({ name: '原有资产', type: 'fund', currency: 'CNY' }),
+    })
+
+    const importResponse = await authedRequest(env, '/api/import', {
+      token,
+      method: 'POST',
+      body: JSON.stringify({
+        meta: { schemaVersion: 2, updatedAt: '2026-07-01T00:00:00.000Z' },
+        assets: [{ id: 'invalid-dca', name: label, type, currency: 'CNY', isActive: true, dcaPlan }],
+        snapshots: [],
+        snapshotValues: [],
+      }),
+    })
+
+    assert.equal(importResponse.status, 400, label)
+    const error = await importResponse.json()
+    assert.match(error.error, /assets\[0\]\.dcaPlan/, label)
+
+    const exportResponse = await authedRequest(env, '/api/export', { token })
+    const exported = await exportResponse.json()
+    assert.equal(exported.assets.length, 1, label)
+    assert.equal(exported.assets[0].name, '原有资产', label)
+  }
+})
+
+test('导入旧备份缺少定投计划时继续兼容', async () => {
+  const env = createEnv()
+  const token = await login(env)
+  const importResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      meta: { schemaVersion: 1, updatedAt: '2026-01-01T00:00:00.000Z' },
+      assets: [{ id: 'legacy-fund', name: '旧基金', type: 'fund', currency: 'CNY', isActive: true }],
+      transactions: [],
+      snapshotValues: [],
+    }),
+  })
+
+  assert.equal(importResponse.status, 200)
+  const exported = await (await authedRequest(env, '/api/export', { token })).json()
+  assert.equal(exported.assets[0].dcaPlan, undefined)
 })
 
 test('导入会截断高精度收益率并拒绝非法收益率', async () => {

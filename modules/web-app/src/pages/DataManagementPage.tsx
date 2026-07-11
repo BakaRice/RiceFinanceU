@@ -7,6 +7,8 @@ import './DataManagementPage.css'
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
 const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
 const VALID_INCOME_CATEGORIES = ['salary', 'bonus', 'side_income', 'housing_fund', 'investment', 'other']
+const INVESTMENT_ASSET_TYPES = ['fund', 'stock', 'gold']
+const VALID_DCA_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly']
 
 interface ImportSummary {
   schemaVersion: number
@@ -14,6 +16,7 @@ interface ImportSummary {
   snapshotCount: number
   valueCount: number
   incomeCount: number
+  dcaPlanCount: number
   assetIdSet: Set<string>
   snapIdSet: Set<string>
   normalizedProfitRateCount: number
@@ -51,6 +54,62 @@ function isValidIncomeAmount(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
+function hasOwnImportField(value: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key)
+}
+
+function isNumberLike(value: unknown): value is number | string {
+  return typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+}
+
+function isPositiveNumberLike(value: unknown): boolean {
+  if (!isNumberLike(value)) return false
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) && numberValue > 0
+}
+
+function isNonNegativeNumberLike(value: unknown): boolean {
+  if (!isNumberLike(value)) return false
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) && numberValue >= 0
+}
+
+function validateImportedDcaPlan(assetType: unknown, plan: unknown): string | null {
+  if (plan === undefined) return null
+  if (!INVESTMENT_ASSET_TYPES.includes(String(assetType))) {
+    return '非投资类资产不能包含定投计划'
+  }
+  if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
+    return '定投计划必须是对象'
+  }
+
+  const value = plan as Record<string, unknown>
+  if (value.enabled !== true) return '定投计划必须处于启用状态'
+  if (!VALID_DCA_FREQUENCIES.includes(String(value.frequency))) {
+    return '定投计划的频率无效'
+  }
+  if (!isPositiveNumberLike(value.plannedContribution)) {
+    return '定投计划的每期投入金额必须大于 0'
+  }
+  if (hasOwnImportField(value, 'targetAmount') && !isPositiveNumberLike(value.targetAmount)) {
+    return '定投计划的目标金额必须大于 0'
+  }
+  if (hasOwnImportField(value, 'targetDate') && !isValidDateKey(value.targetDate)) {
+    return '定投计划的目标日期无效'
+  }
+  if (hasOwnImportField(value, 'toleranceRate') && !isNonNegativeNumberLike(value.toleranceRate)) {
+    return '定投计划的容忍偏差不能小于 0'
+  }
+  if (hasOwnImportField(value, 'note') && typeof value.note !== 'string') {
+    return '定投计划的备注必须是字符串'
+  }
+  if (hasOwnImportField(value, 'excludeWeekends')) {
+    if (value.frequency !== 'daily') return '只有每日定投可以设置排除周末'
+    if (typeof value.excludeWeekends !== 'boolean') return '定投计划的排除周末选项必须是布尔值'
+  }
+  return null
+}
+
 export function preValidate(data: any): ImportSummary {
   const issues: string[] = []
 
@@ -80,6 +139,8 @@ export function preValidate(data: any): ImportSummary {
 
   // Check assets
   let badAssetCount = 0
+  let dcaPlanCount = 0
+  let invalidDcaPlanCount = 0
   for (let i = 0; i < assets.length; i++) {
     const a = assets[i]
     if (!a || typeof a !== 'object' || typeof a.id !== 'string' || !a.id.trim()) {
@@ -98,6 +159,15 @@ export function preValidate(data: any): ImportSummary {
     }
     if (typeof a.isActive !== 'boolean') {
       issues.push(`资产[${i}] "${a.name || a.id}": isActive 应为布尔值`)
+    }
+    if (a.dcaPlan !== undefined) {
+      const dcaIssue = validateImportedDcaPlan(a.type, a.dcaPlan)
+      if (dcaIssue) {
+        invalidDcaPlanCount++
+        issues.push(`资产[${i}] "${a.name || a.id}": ${dcaIssue}`)
+      } else {
+        dcaPlanCount++
+      }
     }
   }
   if (badAssetCount > 0) issues.push(`${badAssetCount} 个资产缺少有效 ID`)
@@ -216,7 +286,8 @@ export function preValidate(data: any): ImportSummary {
     badSnapCount > 0 ||
     badValueCount > 0 ||
     invalidProfitRateCount > 0 ||
-    badIncomeCount > 0
+    badIncomeCount > 0 ||
+    invalidDcaPlanCount > 0
 
   return {
     schemaVersion: data.meta?.schemaVersion || 0,
@@ -224,6 +295,7 @@ export function preValidate(data: any): ImportSummary {
     snapshotCount: snapshots.length,
     valueCount: values.length,
     incomeCount: incomeRecords.length || monthlyIncomes.length,
+    dcaPlanCount,
     assetIdSet,
     snapIdSet,
     normalizedProfitRateCount,
@@ -328,7 +400,7 @@ export default function DataManagementPage() {
       <section className="data-section section-panel">
         <div className="data-section-copy">
           <h3>账本备份</h3>
-          <p>备份包含资产、快照、收益率、收入记录和汇率。</p>
+          <p>备份包含资产、定投计划、快照、收益率、收入记录和汇率。</p>
         </div>
         <div className="data-actions">
           <button className="btn-secondary" onClick={handleExport}>
@@ -361,7 +433,8 @@ export default function DataManagementPage() {
               <div>Schema v{importSummary.schemaVersion}</div>
               <div>
                 资产: {importSummary.assetCount} | 快照: {importSummary.snapshotCount} | 记录:{' '}
-                {importSummary.valueCount} | 收入记录: {importSummary.incomeCount}
+                {importSummary.valueCount} | 收入记录: {importSummary.incomeCount} | 定投计划:{' '}
+                {importSummary.dcaPlanCount}
               </div>
             </div>
 
@@ -399,7 +472,7 @@ export default function DataManagementPage() {
               <button
                 className="btn-danger"
                 onClick={handleImport}
-                disabled={importing}
+                disabled={importing || importSummary.hasCriticalIssues}
               >
                 {importing ? '导入中...' : '确认导入'}
               </button>

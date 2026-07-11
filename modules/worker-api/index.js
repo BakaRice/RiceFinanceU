@@ -208,6 +208,45 @@ function sanitizeDcaPlan(type, plan) {
   }
 }
 
+function hasOwnImportField(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key)
+}
+
+function isImportNumberLike(value) {
+  return typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+}
+
+function validateImportedDcaPlan(type, plan) {
+  if (!isInvestmentType(type)) return 'is only allowed for investment assets'
+  if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return 'must be an object'
+  if (plan.enabled !== true) return 'must be enabled'
+  if (!VALID_DCA_FREQUENCIES.includes(plan.frequency)) return 'has an invalid frequency'
+  if (!isImportNumberLike(plan.plannedContribution) || parsePositiveNumber(plan.plannedContribution) === undefined) {
+    return 'plannedContribution must be greater than 0'
+  }
+  if (hasOwnImportField(plan, 'targetAmount') && (
+    !isImportNumberLike(plan.targetAmount) || parsePositiveNumber(plan.targetAmount) === undefined
+  )) {
+    return 'targetAmount must be greater than 0'
+  }
+  if (hasOwnImportField(plan, 'targetDate') && !parseDateOnly(plan.targetDate)) {
+    return 'targetDate must be a valid YYYY-MM-DD date'
+  }
+  if (hasOwnImportField(plan, 'toleranceRate') && (
+    !isImportNumberLike(plan.toleranceRate) || parseNonNegativeNumber(plan.toleranceRate) === undefined
+  )) {
+    return 'toleranceRate must be non-negative'
+  }
+  if (hasOwnImportField(plan, 'note') && typeof plan.note !== 'string') {
+    return 'note must be a string'
+  }
+  if (hasOwnImportField(plan, 'excludeWeekends')) {
+    if (plan.frequency !== 'daily') return 'excludeWeekends is only allowed for daily plans'
+    if (typeof plan.excludeWeekends !== 'boolean') return 'excludeWeekends must be a boolean'
+  }
+  return ''
+}
+
 function parsePositiveNumber(value) {
   if (value === undefined || value === null || value === '') return undefined
   const numberValue = Number(value)
@@ -984,6 +1023,15 @@ async function handleImport(request, env) {
   const body = await readJsonBody(request)
   const validationError = validateImportData(body)
   if (validationError) return badRequest(validationError)
+
+  for (let index = 0; index < body.assets.length; index++) {
+    const asset = body.assets[index]
+    if (asset?.dcaPlan === undefined) continue
+    const dcaPlanError = validateImportedDcaPlan(asset.type, asset.dcaPlan)
+    if (dcaPlanError) {
+      return badRequest(`Invalid backup: assets[${index}].dcaPlan ${dcaPlanError}`)
+    }
+  }
 
   const snapshotValues = []
   for (let index = 0; index < body.snapshotValues.length; index++) {
