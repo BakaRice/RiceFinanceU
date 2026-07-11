@@ -17,6 +17,7 @@ describe('LoginPage', () => {
     render(<LoginPage onLogin={() => undefined} />)
 
     expect(screen.getByText('Rice Finance')).toBeTruthy()
+    expect(screen.getByRole('group', { name: '界面主题' })).toBeTruthy()
     expect((screen.getByLabelText('邮箱') as HTMLInputElement).value).toBe('')
     expect(fetchMock).not.toHaveBeenCalled()
   })

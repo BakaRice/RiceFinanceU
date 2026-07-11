@@ -4,16 +4,27 @@
 }
 
 .dca-summary-strip {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  margin-bottom: var(--space-xl);
+  margin-bottom: 14px;
   overflow: hidden;
+  border-color: var(--surface-emphasis-border);
+  background: linear-gradient(105deg, var(--surface-gradient-start), var(--surface-gradient-mid) 55%, var(--surface-gradient-end));
+}
+
+.dca-summary-strip::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent-gradient);
+  content: '';
 }
 
 .dca-summary-item {
-  min-height: 76px;
-  padding: var(--space-md) var(--space-lg);
+  min-height: 68px;
+  padding: 11px var(--space-lg);
   border-left: 1px solid var(--color-border-light);
 }
 

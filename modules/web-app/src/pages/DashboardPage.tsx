@@ -458,7 +458,54 @@ export default function DashboardPage() {
           <h1 className="page-title">资产总览</h1>
           <p className="page-subtitle">截至最近快照 · {latestSnapshotTime}</p>
         </div>
-        <span className="dashboard-mode">CNY 综合视图</span>
+        <div className="dashboard-tools">
+          <span className="dashboard-mode">CNY 综合视图</span>
+          <div className="rates-bar">
+            {editingRates ? (
+              <>
+                <span>汇率:</span>
+                <label>
+                  USD{' '}
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={usdRate}
+                    onChange={(e) => setUsdRate(e.target.value)}
+                    className="rates-input"
+                  />
+                </label>
+                <label>
+                  HKD{' '}
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={hkdRate}
+                    onChange={(e) => setHkdRate(e.target.value)}
+                    className="rates-input"
+                  />
+                </label>
+                <button
+                  className="btn-link"
+                  onClick={async () => {
+                    await api.updateRates({ USD: Number(usdRate), HKD: Number(hkdRate) })
+                    setEditingRates(false)
+                    load()
+                  }}
+                >
+                  保存
+                </button>
+                <button className="btn-link" onClick={() => setEditingRates(false)}>
+                  取消
+                </button>
+              </>
+            ) : (
+              <button className="rates-trigger" type="button" onClick={() => setEditingRates(true)}>
+                汇率 · USD {rates.USD.toFixed(2)} · HKD {rates.HKD.toFixed(2)}
+                <span>修改</span>
+              </button>
+            )}
+          </div>
+        </div>
       </header>
 
       {/* Compact stat bar */}
@@ -487,57 +534,96 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Exchange rates */}
-      <div className="rates-bar">
-        {editingRates ? (
-          <>
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>汇率:</span>
-            <label>
-              USD{' '}
-              <input
-                type="number"
-                step="0.01"
-                value={usdRate}
-                onChange={(e) => setUsdRate(e.target.value)}
-                className="rates-input"
-              />
-            </label>
-            <label>
-              HKD{' '}
-              <input
-                type="number"
-                step="0.01"
-                value={hkdRate}
-                onChange={(e) => setHkdRate(e.target.value)}
-                className="rates-input"
-              />
-            </label>
-            <button
-              className="btn-link"
-              onClick={async () => {
-                await api.updateRates({ USD: Number(usdRate), HKD: Number(hkdRate) })
-                setEditingRates(false)
-                load()
-              }}
-            >
-              保存
-            </button>
-            <button className="btn-link" onClick={() => setEditingRates(false)}>
-              取消
-            </button>
-          </>
-        ) : (
-          <span
-            onClick={() => setEditingRates(true)}
-            style={{ cursor: 'pointer', fontSize: 12, color: 'var(--color-text-muted)' }}
-          >
-            汇率: USD {rates.USD.toFixed(2)} | HKD {rates.HKD.toFixed(2)}{' '}
-            <span style={{ color: 'var(--color-primary)', fontSize: 11 }}>修改</span>
-          </span>
-        )}
-      </div>
+      {/* Chart */}
+      {chartData.length > 0 && (
+        <div className="dash-section dashboard-trend">
+          <div className="chart-section-head">
+            <h3 className="section-title">总资产走势</h3>
+            <div className="trend-scale-control segmented-control" aria-label="走势图尺度">
+              {TREND_SCALE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`trend-scale-btn ${trendScale === option.value ? 'active' : ''}`}
+                  aria-pressed={trendScale === option.value}
+                  onClick={() => setTrendScale(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
+                <XAxis dataKey="periodLabel" tick={{ fontSize: 11 }} />
+                <YAxis
+                  yAxisId="asset"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) =>
+                    v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
+                  }
+                />
+                {shouldShowIncomeLine && (
+                  <YAxis
+                    yAxisId="income"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) =>
+                      v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
+                    }
+                  />
+                )}
+                <Tooltip content={<TrendTooltip />} />
+                <Line
+                  yAxisId="asset"
+                  type="monotone"
+                  dataKey="totalAmount"
+                  name="总资产"
+                  stroke="var(--chart-total)"
+                  strokeWidth={2.6}
+                  dot={{ r: 2.5 }}
+                />
+                <Line
+                  yAxisId="asset"
+                  type="monotone"
+                  dataKey="investmentAmount"
+                  name="投资类"
+                  stroke="var(--chart-investment)"
+                  strokeWidth={1.6}
+                  dot={false}
+                  strokeDasharray="5 5"
+                />
+                <Line
+                  yAxisId="asset"
+                  type="monotone"
+                  dataKey="balanceAmount"
+                  name="余额类"
+                  stroke="var(--chart-balance)"
+                  strokeWidth={1.6}
+                  dot={false}
+                />
+                {shouldShowIncomeLine && (
+                  <Line
+                    yAxisId="income"
+                    type="monotone"
+                    dataKey="incomeAmount"
+                    name={getIncomeLineLabel(trendScale)}
+                    stroke="var(--chart-income)"
+                    strokeWidth={1.9}
+                    dot={{ r: 3 }}
+                    connectNulls={false}
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
-      <div className="dash-section income-section dashboard-income">
+      <div className="dashboard-paired-row dashboard-flow-row" data-testid="flow-structure-row">
+      <section className="dash-section income-section dashboard-income">
         <div className="income-section-head">
           <div>
             <h3 className="section-title">收入流入</h3>
@@ -603,6 +689,36 @@ export default function DashboardPage() {
             />
           </div>
         </div>
+      </section>
+
+      <section className="dash-section dashboard-allocation">
+        <h3 className="section-title">资产结构</h3>
+        {allocation.length === 0 ? (
+          <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
+            暂无数据
+          </p>
+        ) : (
+          <div className="allocation-list">
+            {allocation.map((item) => (
+              <div key={item.type} className="allocation-row">
+                <div className="allocation-head">
+                  <span className="allocation-type">{item.label}</span>
+                  <span className="allocation-amount">
+                    <MoneyDisplay value={item.amount} showCurrency={false} />
+                  </span>
+                </div>
+                <div className="allocation-bar-track">
+                  <div
+                    className="allocation-bar-fill"
+                    style={{ width: `${(item.amount / maxAllocAmount) * 100}%` }}
+                  />
+                </div>
+                <span className="allocation-pct">{item.percentage}%</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
       </div>
 
       {incomeFormOpen && (
@@ -695,179 +811,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="dash-grid dashboard-insights">
-        {/* Allocation */}
-        <div className="dash-section">
-          <h3 className="section-title">资产结构</h3>
-          {allocation.length === 0 ? (
-            <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
-              暂无数据
-            </p>
-          ) : (
-            <div className="allocation-list">
-              {allocation.map((item) => (
-                <div key={item.type} className="allocation-row">
-                  <div className="allocation-head">
-                    <span className="allocation-type">{item.label}</span>
-                    <span className="allocation-amount">
-                      <MoneyDisplay value={item.amount} showCurrency={false} />
-                    </span>
-                  </div>
-                  <div className="allocation-bar-track">
-                    <div
-                      className="allocation-bar-fill"
-                      style={{ width: `${(item.amount / maxAllocAmount) * 100}%` }}
-                    />
-                  </div>
-                  <span className="allocation-pct">{item.percentage}%</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Recent changes */}
-        <div className="dash-section">
-          <h3 className="section-title">最近变化</h3>
-          {comparison && comparison.items.filter((i) => i.amountChange !== 0).length > 0 ? (
-            <table className="fin-table">
-              <thead>
-                <tr>
-                  <th>资产</th>
-                  <th className="align-right">上次金额</th>
-                  <th className="align-right">本次金额</th>
-                  <th className="align-right">变化</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparison.items
-                  .filter((i) => i.amountChange !== 0)
-                  .slice(0, 10)
-                  .map((item) => {
-                    const asset = allAssets.find((a) => a.id === item.assetId)
-                    return (
-                      <tr key={item.assetId}>
-                        <td>{item.assetName}</td>
-                        <td className="align-right">
-                          <MoneyDisplay
-                            value={item.previousAmount}
-                            currency={asset?.currency}
-                            showCurrency={false}
-                          />
-                        </td>
-                        <td className="align-right">
-                          <MoneyDisplay
-                            value={item.currentAmount}
-                            currency={asset?.currency}
-                            showCurrency={false}
-                          />
-                        </td>
-                        <td className="align-right">
-                          <MoneyDisplay value={item.amountChange} isProfit showCurrency={false} />
-                        </td>
-                      </tr>
-                    )
-                  })}
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
-              暂无变化
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Chart */}
-      {chartData.length > 0 && (
-        <div className="dash-section dashboard-trend">
-          <div className="chart-section-head">
-            <h3 className="section-title">总资产走势</h3>
-            <div className="trend-scale-control segmented-control" aria-label="走势图尺度">
-              {TREND_SCALE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`trend-scale-btn ${trendScale === option.value ? 'active' : ''}`}
-                  aria-pressed={trendScale === option.value}
-                  onClick={() => setTrendScale(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#edf0ed" vertical={false} />
-                <XAxis dataKey="periodLabel" tick={{ fontSize: 11 }} />
-                <YAxis
-                  yAxisId="asset"
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) =>
-                    v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
-                  }
-                />
-                {shouldShowIncomeLine && (
-                  <YAxis
-                    yAxisId="income"
-                    orientation="right"
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v) =>
-                      v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
-                    }
-                  />
-                )}
-                <Tooltip content={<TrendTooltip />} />
-                <Line
-                  yAxisId="asset"
-                  type="monotone"
-                  dataKey="totalAmount"
-                  name="总资产"
-                  stroke="#315f73"
-                  strokeWidth={2.4}
-                  dot={{ r: 2.5 }}
-                />
-                <Line
-                  yAxisId="asset"
-                  type="monotone"
-                  dataKey="investmentAmount"
-                  name="投资类"
-                  stroke="#5f8770"
-                  strokeWidth={1.5}
-                  dot={false}
-                  strokeDasharray="5 5"
-                />
-                <Line
-                  yAxisId="asset"
-                  type="monotone"
-                  dataKey="balanceAmount"
-                  name="余额类"
-                  stroke="#a48646"
-                  strokeWidth={1.5}
-                  dot={false}
-                />
-                {shouldShowIncomeLine && (
-                  <Line
-                  yAxisId="income"
-                  type="monotone"
-                  dataKey="incomeAmount"
-                    name={getIncomeLineLabel(trendScale)}
-                  stroke="#6f5bd1"
-                    strokeWidth={1.8}
-                    dot={{ r: 3 }}
-                    connectNulls={false}
-                  />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
       {/* Snapshot History */}
-      <div className="dash-section dashboard-history">
+      <div className="dashboard-paired-row dashboard-activity-row" data-testid="snapshot-change-row">
+      <section className="dash-section dashboard-history">
         <h3 className="section-title">快照历史 ({historySnapshots.length})</h3>
         {historySnapshots.length === 0 ? (
           <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
@@ -890,16 +836,14 @@ export default function DashboardPage() {
                     className="history-item-header"
                     onClick={() => setExpandedId(isExpanded ? null : snap.id)}
                   >
-                    <div className="history-item-main">
-                      <span className="history-date">
-                        {date.toLocaleDateString('zh-CN')}{' '}
-                        {date.toLocaleTimeString('zh-CN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                      <span className="history-note">{snap.note || '快照'}</span>
-                    </div>
+                    <span className="history-date">
+                      {date.toLocaleDateString('zh-CN')}{' '}
+                      {date.toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    <span className="history-note">{snap.note || '快照'}</span>
                     <div className="history-item-actions">
                       <MoneyDisplay value={snapTotal} />
                       <span className="history-count">{snapValues.length} 项</span>
@@ -966,6 +910,57 @@ export default function DashboardPage() {
             })}
           </div>
         )}
+      </section>
+
+      <section className="dash-section dashboard-changes">
+        <h3 className="section-title">最近变化</h3>
+        {comparison && comparison.items.filter((i) => i.amountChange !== 0).length > 0 ? (
+          <table className="fin-table">
+            <thead>
+              <tr>
+                <th>资产</th>
+                <th className="align-right">上次金额</th>
+                <th className="align-right">本次金额</th>
+                <th className="align-right">变化</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.items
+                .filter((i) => i.amountChange !== 0)
+                .slice(0, 10)
+                .map((item) => {
+                  const asset = allAssets.find((a) => a.id === item.assetId)
+                  return (
+                    <tr key={item.assetId}>
+                      <td>{item.assetName}</td>
+                      <td className="align-right">
+                        <MoneyDisplay
+                          value={item.previousAmount}
+                          currency={asset?.currency}
+                          showCurrency={false}
+                        />
+                      </td>
+                      <td className="align-right">
+                        <MoneyDisplay
+                          value={item.currentAmount}
+                          currency={asset?.currency}
+                          showCurrency={false}
+                        />
+                      </td>
+                      <td className="align-right">
+                        <MoneyDisplay value={item.amountChange} isProfit showCurrency={false} />
+                      </td>
+                    </tr>
+                  )
+                })}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
+            暂无变化
+          </p>
+        )}
+      </section>
       </div>
     </div>
   )

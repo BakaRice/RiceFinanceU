@@ -3,7 +3,10 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { FeedbackProvider } from './components/Feedback/FeedbackContext'
+import { initializeTheme } from './domain/theme'
 import './index.css'
+
+initializeTheme()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

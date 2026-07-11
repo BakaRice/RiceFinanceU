@@ -58,6 +58,9 @@ describe('authenticated application shell', () => {
     )
 
     const navigation = screen.getByRole('navigation', { name: '主导航' })
+    const shell = screen.getByTestId('financial-workbench')
+    expect(shell.getAttribute('data-density')).toBe('dense')
+    expect(screen.getByRole('main').classList.contains('content')).toBe(true)
     expect(navigation).toBeTruthy()
     expect(screen.getByText('Rice Finance')).toBeTruthy()
     expect(screen.getByRole('link', { name: '总览' })).toBeTruthy()
@@ -66,6 +69,7 @@ describe('authenticated application shell', () => {
     expect(screen.getByRole('link', { name: '定投管理' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '快照录入' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '数据管理' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: '界面主题' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
   })
 })

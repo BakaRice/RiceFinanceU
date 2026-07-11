@@ -329,7 +329,7 @@ export default function IncomeManagementPage() {
             <div className="income-chart-container">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={monthlyPoints}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#edf0ed" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={formatChartMoney} />
                   <Tooltip content={<IncomeChartTooltip />} />
@@ -337,8 +337,8 @@ export default function IncomeManagementPage() {
                     type="monotone"
                     dataKey="amount"
                     name="月度收入"
-                    stroke="#6f5bd1"
-                    strokeWidth={2}
+                    stroke="var(--chart-income)"
+                    strokeWidth={2.4}
                     dot={{ r: 3 }}
                   />
                 </LineChart>

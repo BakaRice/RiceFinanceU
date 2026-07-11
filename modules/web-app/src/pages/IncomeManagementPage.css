@@ -7,15 +7,26 @@
 }
 
 .income-summary-strip {
+  position: relative;
   display: grid;
   grid-template-columns: 1.35fr 1fr 1fr 1fr 0.9fr;
   overflow: hidden;
   padding: 0;
+  border-color: var(--surface-emphasis-border);
+  background: linear-gradient(105deg, var(--surface-gradient-start), var(--surface-gradient-mid) 55%, var(--surface-gradient-end));
+}
+
+.income-summary-strip::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent-gradient);
+  content: '';
 }
 
 .income-summary-stat {
   min-width: 0;
-  padding: 16px 18px;
+  padding: 13px 16px;
   border-right: 1px solid var(--color-border-light);
 }
 
@@ -24,7 +35,7 @@
 }
 
 .income-summary-primary {
-  background: linear-gradient(90deg, rgba(49, 95, 115, 0.055), transparent);
+  background: linear-gradient(90deg, var(--surface-income-emphasis), transparent);
 }
 
 .income-summary-primary .money-display {
@@ -57,7 +68,7 @@
 .income-analysis-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
-  gap: var(--space-lg);
+  gap: 14px;
 }
 
 .section-head-row {
@@ -72,7 +83,7 @@
 .income-category-panel,
 .income-history-panel {
   min-width: 0;
-  padding: 18px 20px 20px;
+  padding: 14px 16px 16px;
 }
 
 .income-chart-container {
@@ -81,7 +92,7 @@
 
 .income-empty-inline {
   margin: 0;
-  padding: 42px 0;
+  padding: 28px 0;
   color: var(--color-text-muted);
   text-align: center;
   font-size: var(--font-size-sm);
@@ -120,17 +131,17 @@
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: #eef1ed;
+  background: var(--color-surface-muted);
 }
 
 .income-category-fill {
   height: 100%;
   border-radius: inherit;
-  background: #6f5bd1;
+  background: linear-gradient(90deg, var(--chart-income), var(--chart-total));
 }
 
 .income-category-row.is-restricted .income-category-fill {
-  background: #9a7d70;
+  background: var(--color-restricted);
 }
 
 .income-category-percent {
@@ -157,15 +168,15 @@
   padding: 0 8px;
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-sm);
-  background: #f8faf8;
+  background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
 }
 
 .income-category-chip.is-restricted {
-  border-color: rgba(154, 125, 112, 0.35);
-  background: #fbf7f5;
-  color: #7a5d51;
+  border-color: var(--color-restricted-border);
+  background: var(--color-surface-restricted);
+  color: var(--color-restricted);
 }
 
 .income-availability-badge {
@@ -173,10 +184,10 @@
   align-items: center;
   min-height: 18px;
   padding: 0 6px;
-  border: 1px solid rgba(154, 125, 112, 0.28);
+  border: 1px solid var(--color-restricted-border);
   border-radius: var(--radius-sm);
-  background: rgba(154, 125, 112, 0.08);
-  color: #7a5d51;
+  background: var(--color-restricted-bg);
+  color: var(--color-restricted);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
@@ -200,7 +211,7 @@
 
 .income-empty-state {
   border: none;
-  padding: 28px;
+  padding: 20px;
 }
 
 .income-record-modal {

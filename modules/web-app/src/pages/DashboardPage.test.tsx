@@ -228,8 +228,33 @@ describe('DashboardPage trend scale controls', () => {
     })
   })
 
-  it('presents snapshot context and unambiguous history actions', async () => {
+  it('groups related dashboard panels into two semantic rows', async () => {
     renderDashboard()
+
+    await screen.findByText('总资产走势')
+
+    const flowRow = screen.getByTestId('flow-structure-row')
+    expect(flowRow.textContent).toContain('收入流入')
+    expect(flowRow.textContent).toContain('资产结构')
+
+    const activityRow = screen.getByTestId('snapshot-change-row')
+    expect(activityRow.textContent).toContain('快照历史')
+    expect(activityRow.textContent).toContain('最近变化')
+  })
+
+  it('keeps the exchange-rate controls in the compact dashboard header', async () => {
+    const { container } = renderDashboard()
+
+    await screen.findByText('总资产走势')
+
+    const header = container.querySelector('.dashboard-header')
+    expect(header?.textContent).toContain('汇率')
+    expect(header?.textContent).toContain('USD 7.20')
+    expect(header?.textContent).toContain('HKD 0.92')
+  })
+
+  it('presents snapshot context and unambiguous history actions', async () => {
+    const { container } = renderDashboard()
 
     expect(await screen.findByText(/截至最近快照/)).toBeTruthy()
     expect(screen.getByRole('heading', { name: '资产结构' })).toBeTruthy()
@@ -238,5 +263,11 @@ describe('DashboardPage trend scale controls', () => {
     expect(deleteButtons.length).toBe(4)
     expect(deleteButtons[0].textContent).toContain('删除')
     expect(deleteButtons[0].textContent).not.toContain('✕')
+
+    const historyHeader = container.querySelector('.history-item-header')
+    expect(historyHeader?.children).toHaveLength(3)
+    expect(historyHeader?.children[0].classList.contains('history-date')).toBe(true)
+    expect(historyHeader?.children[1].classList.contains('history-note')).toBe(true)
+    expect(historyHeader?.children[2].classList.contains('history-item-actions')).toBe(true)
   })
 })

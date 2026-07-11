@@ -1,5 +1,6 @@
 // src/components/Layout.tsx
 import { Outlet, NavLink } from 'react-router-dom'
+import ThemeSelector from './ThemeSelector'
 import './Layout.css'
 
 interface LayoutProps {
@@ -41,7 +42,7 @@ const navItems = [
 
 export default function Layout({ onLogout }: LayoutProps) {
   return (
-    <div className="layout">
+    <div className="layout" data-testid="financial-workbench" data-density="dense">
       <nav className="sidebar" aria-label="主导航">
         <div className="sidebar-brand">
           <span className="sidebar-mark" aria-hidden="true">RF</span>
@@ -66,6 +67,8 @@ export default function Layout({ onLogout }: LayoutProps) {
             </NavLink>
           ))}
         </div>
+
+        <ThemeSelector variant="sidebar" />
 
         {onLogout && (
           <div className="sidebar-account">
