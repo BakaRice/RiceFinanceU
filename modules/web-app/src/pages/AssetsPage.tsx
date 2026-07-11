@@ -10,6 +10,7 @@ import {
   sanitizeAssetProfile,
 } from '../domain/assets'
 import { DCA_FREQUENCY_LABELS, sanitizeDcaPlan } from '../domain/dca'
+import { formatProfitRateInput } from '../domain/money'
 import MoneyDisplay from '../components/MoneyDisplay'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetsPage.css'
@@ -262,7 +263,7 @@ export default function AssetsPage() {
 
   function renderTable(assetList: Asset[], isInactive: boolean) {
     return (
-      <table className="fin-table">
+      <table className="fin-table assets-table">
         <thead>
           <tr>
             <th className="sortable" onClick={() => toggleSort('name')}>
@@ -303,6 +304,7 @@ export default function AssetsPage() {
                 <td>
                   <a
                     className="asset-name-link"
+                    href={`/assets/${a.id}`}
                     onClick={(e) => {
                       e.preventDefault()
                       navigate(`/assets/${a.id}`)
@@ -326,7 +328,7 @@ export default function AssetsPage() {
                 <td>
                   <span className="currency-tag">{a.currency}</span>
                 </td>
-                <td className="align-right">
+                <td className="align-right asset-amount-cell">
                   {lv ? (
                     <MoneyDisplay value={lv.amount} currency={a.currency} showCurrency={false} />
                   ) : (
@@ -343,7 +345,7 @@ export default function AssetsPage() {
                         {lv?.profitRate !== undefined ? (
                           <span className={`money-display ${lv.profitRate >= 0 ? 'is-profit' : 'is-loss'}`}>
                             {lv.profitRate >= 0 ? '+' : ''}
-                            {(lv.profitRate * 100).toFixed(2)}%
+                            {formatProfitRateInput(lv.profitRate)}%
                           </span>
                         ) : (
                           <span className="text-muted">-</span>
@@ -356,16 +358,22 @@ export default function AssetsPage() {
                       <td className="align-right text-muted">-</td>
                     </>
                   ))}
-                <td className="text-muted" style={{ fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <td className="asset-note" title={a.note || undefined}>
                   {a.note || '-'}
                 </td>
-                <td>
-                  <button className="btn-link" onClick={() => openEdit(a)}>
+                <td className="asset-actions">
+                  <button className="btn-link" aria-label={`编辑 ${a.name}`} onClick={() => openEdit(a)}>
                     编辑
                   </button>
-                  <button className="btn-link btn-link-danger" onClick={() => handleDeactivate(a)}>
-                    停用
-                  </button>
+                  {!isInactive && (
+                    <button
+                      className="btn-link btn-link-danger"
+                      aria-label={`停用 ${a.name}`}
+                      onClick={() => handleDeactivate(a)}
+                    >
+                      停用
+                    </button>
+                  )}
                 </td>
               </tr>
             )
@@ -378,8 +386,9 @@ export default function AssetsPage() {
   return (
     <div className="assets-page">
       <div className="page-header">
-        <div>
-          <h1>资产管理</h1>
+        <div className="page-heading">
+          <h1 className="page-title">资产管理</h1>
+          <p className="page-subtitle">维护长期资产资料，金额状态来自最近快照</p>
           <div className="page-stats">
             <span>启用 {activeCount}</span>
             {inactiveCount > 0 && <span>· 停用 {inactiveCount}</span>}
@@ -387,7 +396,7 @@ export default function AssetsPage() {
           </div>
         </div>
         <button className="btn-primary" onClick={openCreate}>
-          + 新增资产
+          新增资产
         </button>
       </div>
 
@@ -398,14 +407,14 @@ export default function AssetsPage() {
       )}
 
       {activeAssets.length > 0 && (
-        <div className="assets-section">
+        <div className="assets-section section-panel">
           <h3 className="section-title">已启用 ({activeCount})</h3>
           <div className="table-container">{renderTable(activeAssets, false)}</div>
         </div>
       )}
 
       {inactiveAssets.length > 0 && (
-        <div className="assets-section">
+        <div className="assets-section section-panel assets-section-inactive">
           <h3 className="section-title">已停用 ({inactiveCount})</h3>
           <div className="table-container">{renderTable(inactiveAssets, true)}</div>
         </div>

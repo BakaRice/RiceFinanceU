@@ -58,6 +58,9 @@ describe('AssetsPage asset profile fields', () => {
 
     expect(await screen.findByText('标识')).toBeTruthy()
     expect(screen.getByText('NASDAQ AAPL')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Apple' }).getAttribute('href')).toBe('/assets/stock-1')
+    expect(screen.getByRole('button', { name: '编辑 Apple' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '停用 Apple' })).toBeTruthy()
   })
 
   it('shows type-specific profile inputs in the asset form', async () => {
@@ -66,7 +69,7 @@ describe('AssetsPage asset profile fields', () => {
     renderAssetsPage()
 
     await screen.findByText('资产管理')
-    fireEvent.click(screen.getByRole('button', { name: '+ 新增资产' }))
+    fireEvent.click(screen.getByRole('button', { name: '新增资产' }))
 
     expect(screen.getByText('类型档案')).toBeTruthy()
     expect(screen.getByText('基金代码')).toBeTruthy()
@@ -88,7 +91,7 @@ describe('AssetsPage asset profile fields', () => {
     const { container } = renderAssetsPage()
 
     await screen.findByText('资产管理')
-    fireEvent.click(screen.getByRole('button', { name: '+ 新增资产' }))
+    fireEvent.click(screen.getByRole('button', { name: '新增资产' }))
     fireEvent.change(container.querySelector('input[required]') as HTMLInputElement, {
       target: { value: '纳指基金' },
     })
@@ -126,7 +129,7 @@ describe('AssetsPage asset profile fields', () => {
     const { container } = renderAssetsPage()
 
     await screen.findByText('资产管理')
-    fireEvent.click(screen.getByRole('button', { name: '+ 新增资产' }))
+    fireEvent.click(screen.getByRole('button', { name: '新增资产' }))
     fireEvent.change(container.querySelector('input[required]') as HTMLInputElement, {
       target: { value: '纳指基金' },
     })

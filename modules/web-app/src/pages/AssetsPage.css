@@ -1,25 +1,54 @@
 .assets-page {
-  max-width: 1100px;
+  width: 100%;
+  max-width: var(--content-wide);
 }
 
 .assets-section {
   margin-bottom: var(--space-xl);
-}
-
-.table-container {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  padding-top: 14px;
   overflow: hidden;
 }
 
+.assets-section .section-title {
+  padding: 0 16px;
+  margin-bottom: 10px;
+}
+
+.assets-section-inactive {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.table-container {
+  overflow-x: auto;
+  background: transparent;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.assets-table {
+  min-width: 1020px;
+}
+
+.assets-table td {
+  height: 48px;
+}
+
+.assets-table th:first-child,
+.assets-table td:first-child {
+  padding-left: 16px;
+}
+
+.assets-table th:last-child,
+.assets-table td:last-child {
+  padding-right: 16px;
+}
+
 .asset-name-link {
-  color: var(--color-primary);
+  color: var(--color-text);
   cursor: pointer;
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
 }
 .asset-name-link:hover {
-  text-decoration: underline;
+  color: var(--color-primary);
 }
 
 .currency-tag {
@@ -35,6 +64,35 @@
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.asset-amount-cell {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.asset-note {
+  max-width: 150px;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-actions {
+  width: 104px;
+  white-space: nowrap;
+}
+
+.asset-actions .btn-link {
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.asset-actions .btn-link:hover {
+  background: var(--color-surface-muted);
 }
 
 .asset-dca-tag {
@@ -130,6 +188,12 @@
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   margin-bottom: var(--space-lg);
+}
+
+.assets-page > .modal-overlay .modal {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 
 @media (max-width: 768px) {
