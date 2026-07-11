@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { Asset } from '../types/finance'
 import {
+  calculateDcaMonthlyPeriods,
   calculateDcaPeriodsRemaining,
+  estimateDcaMonthlyContribution,
   estimateDcaPlan,
   sanitizeDcaPlan,
+  summarizeDcaMonthlyContributions,
 } from './dca'
 
 const makeAsset = (overrides: Partial<Asset> = {}): Asset => ({
@@ -74,6 +77,128 @@ describe('calculateDcaPeriodsRemaining', () => {
       frequency: 'daily',
       excludeWeekends: false,
     })).toBe(7)
+  })
+})
+
+describe('calculateDcaMonthlyPeriods', () => {
+  it('counts all weekdays in the current month for daily plans by default', () => {
+    expect(calculateDcaMonthlyPeriods({
+      asOfDate: '2026-07-05',
+      frequency: 'daily',
+    })).toBe(23)
+  })
+
+  it('counts all natural days when daily weekend exclusion is disabled', () => {
+    expect(calculateDcaMonthlyPeriods({
+      asOfDate: '2026-07-05',
+      frequency: 'daily',
+      excludeWeekends: false,
+    })).toBe(31)
+  })
+
+  it('uses simple current-month estimates for recurring frequencies', () => {
+    expect(calculateDcaMonthlyPeriods({
+      asOfDate: '2026-07-05',
+      frequency: 'weekly',
+    })).toBe(5)
+    expect(calculateDcaMonthlyPeriods({
+      asOfDate: '2026-07-05',
+      frequency: 'biweekly',
+    })).toBe(3)
+    expect(calculateDcaMonthlyPeriods({
+      asOfDate: '2026-07-05',
+      frequency: 'monthly',
+    })).toBe(1)
+    expect(calculateDcaMonthlyPeriods({
+      asOfDate: '2026-07-05',
+      frequency: 'quarterly',
+    })).toBeCloseTo(1 / 3)
+  })
+})
+
+describe('estimateDcaMonthlyContribution', () => {
+  it('estimates current-month contribution in original currency and CNY', () => {
+    const result = estimateDcaMonthlyContribution({
+      asset: makeAsset({
+        currency: 'USD',
+        dcaPlan: {
+          enabled: true,
+          frequency: 'weekly',
+          plannedContribution: 100,
+        },
+      }),
+      asOfDate: '2026-07-05',
+      rates: { USD: 7.2, HKD: 0.92, updatedAt: '' },
+    })
+
+    expect(result).toEqual({
+      periodsInMonth: 5,
+      monthlyContribution: 500,
+      monthlyContributionCNY: 3600,
+      approximate: false,
+    })
+  })
+
+  it('marks quarterly monthly estimates as approximate', () => {
+    const result = estimateDcaMonthlyContribution({
+      asset: makeAsset({
+        dcaPlan: {
+          enabled: true,
+          frequency: 'quarterly',
+          plannedContribution: 900,
+        },
+      }),
+      asOfDate: '2026-07-05',
+      rates: { USD: 7.2, HKD: 0.92, updatedAt: '' },
+    })
+
+    expect(result).toEqual({
+      periodsInMonth: 1 / 3,
+      monthlyContribution: 300,
+      monthlyContributionCNY: 300,
+      approximate: true,
+    })
+  })
+})
+
+describe('summarizeDcaMonthlyContributions', () => {
+  it('summarizes enabled investment DCA plans in CNY and ignores non-investment assets', () => {
+    const summary = summarizeDcaMonthlyContributions([
+      makeAsset({
+        id: 'fund-1',
+        currency: 'CNY',
+        dcaPlan: {
+          enabled: true,
+          frequency: 'monthly',
+          plannedContribution: 1000,
+        },
+      }),
+      makeAsset({
+        id: 'stock-1',
+        type: 'stock',
+        currency: 'USD',
+        dcaPlan: {
+          enabled: true,
+          frequency: 'weekly',
+          plannedContribution: 100,
+        },
+      }),
+      makeAsset({
+        id: 'cash-1',
+        type: 'cash',
+        dcaPlan: {
+          enabled: true,
+          frequency: 'monthly',
+          plannedContribution: 9999,
+        },
+      } as any),
+    ], { USD: 7.2, HKD: 0.92, updatedAt: '' }, '2026-07-05')
+
+    expect(summary).toEqual({
+      planCount: 2,
+      monthlyContributionCNY: 4600,
+      averageContributionCNY: 860,
+    })
   })
 })
 

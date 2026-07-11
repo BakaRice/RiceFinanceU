@@ -24,9 +24,9 @@ afterEach(() => {
   cleanup()
 })
 
-function renderAssetsPage() {
+function renderAssetsPage(initialEntries: any[] = ['/assets']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <FeedbackProvider>
         <AssetsPage />
       </FeedbackProvider>
@@ -169,5 +169,30 @@ describe('AssetsPage asset profile fields', () => {
         },
       }))
     })
+  })
+
+  it('opens the edit modal when route state contains an asset id', async () => {
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'fund-1',
+        name: '沪深300',
+        type: 'fund',
+        currency: 'CNY',
+        isActive: true,
+        dcaPlan: {
+          enabled: true,
+          frequency: 'monthly',
+          plannedContribution: 1000,
+        },
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ] as any)
+
+    renderAssetsPage([{ pathname: '/assets', state: { editId: 'fund-1' } }])
+
+    expect(await screen.findByRole('heading', { name: '编辑资产' })).toBeTruthy()
+    expect(screen.getByDisplayValue('沪深300')).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: '启用定投计划' })).toBeTruthy()
   })
 })

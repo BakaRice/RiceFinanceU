@@ -1,6 +1,7 @@
-import type { Asset, AssetDcaPlan, AssetType, DcaFrequency } from '../types/finance'
+import type { Asset, AssetDcaPlan, AssetType, DcaFrequency, ExchangeRates } from '../types/finance'
 import { isInvestmentType } from './assets'
 import { roundMoney } from './money'
+import { convertToCNY } from './snapshots'
 
 export type DcaEstimateStatus =
   | 'on_track'
@@ -30,6 +31,31 @@ export interface DcaPeriodInput {
   targetDate: string
   frequency: DcaFrequency
   excludeWeekends?: boolean
+}
+
+export interface DcaMonthlyPeriodInput {
+  asOfDate?: string | Date
+  frequency: DcaFrequency
+  excludeWeekends?: boolean
+}
+
+export interface DcaMonthlyContributionInput {
+  asset: Asset
+  asOfDate?: string | Date
+  rates?: ExchangeRates
+}
+
+export interface DcaMonthlyContribution {
+  periodsInMonth: number
+  monthlyContribution: number
+  monthlyContributionCNY: number
+  approximate: boolean
+}
+
+export interface DcaMonthlySummary {
+  planCount: number
+  monthlyContributionCNY: number
+  averageContributionCNY: number
 }
 
 export const DCA_FREQUENCY_LABELS: Record<DcaFrequency, string> = {
@@ -195,6 +221,82 @@ export function estimateDcaPlan({
   }
 }
 
+export function calculateDcaMonthlyPeriods({
+  asOfDate = new Date(),
+  frequency,
+  excludeWeekends,
+}: DcaMonthlyPeriodInput): number {
+  const date = toUtcDateOnly(asOfDate)
+  if (!date) return 0
+
+  const days = daysInUtcMonth(date)
+
+  if (frequency === 'daily') {
+    return excludeWeekends === false ? days : countWeekdaysInUtcMonth(date)
+  }
+
+  if (frequency === 'weekly') return Math.ceil(days / 7)
+  if (frequency === 'biweekly') return Math.ceil(days / 14)
+  if (frequency === 'monthly') return 1
+  return 1 / 3
+}
+
+export function estimateDcaMonthlyContribution({
+  asset,
+  asOfDate = new Date(),
+  rates,
+}: DcaMonthlyContributionInput): DcaMonthlyContribution | undefined {
+  const plan = asset.dcaPlan
+  if (!isInvestmentType(asset.type) || !plan?.enabled) return undefined
+
+  const periodsInMonth = calculateDcaMonthlyPeriods({
+    asOfDate,
+    frequency: plan.frequency,
+    excludeWeekends: plan.excludeWeekends,
+  })
+  const monthlyContribution = roundMoney(plan.plannedContribution * periodsInMonth)
+
+  return {
+    periodsInMonth,
+    monthlyContribution,
+    monthlyContributionCNY: convertToCNY(monthlyContribution, asset.currency, rates),
+    approximate: plan.frequency === 'quarterly',
+  }
+}
+
+export function summarizeDcaMonthlyContributions(
+  assets: Asset[],
+  rates?: ExchangeRates,
+  asOfDate: string | Date = new Date(),
+): DcaMonthlySummary {
+  const plans = assets
+    .map((asset) => ({
+      asset,
+      estimate: estimateDcaMonthlyContribution({ asset, rates, asOfDate }),
+    }))
+    .filter((item): item is { asset: Asset; estimate: DcaMonthlyContribution } =>
+      Boolean(item.estimate),
+    )
+
+  const monthlyContributionCNY = roundMoney(
+    plans.reduce((sum, item) => sum + item.estimate.monthlyContributionCNY, 0),
+  )
+  const plannedContributionCNY = roundMoney(
+    plans.reduce(
+      (sum, item) => sum + convertToCNY(item.asset.dcaPlan!.plannedContribution, item.asset.currency, rates),
+      0,
+    ),
+  )
+
+  return {
+    planCount: plans.length,
+    monthlyContributionCNY,
+    averageContributionCNY: plans.length > 0
+      ? roundMoney(plannedContributionCNY / plans.length)
+      : 0,
+  }
+}
+
 function insufficientData(message: string): DcaEstimate {
   return { status: 'insufficient_data', message }
 }
@@ -261,6 +363,24 @@ function countDailyPeriods(from: Date, target: Date, excludeWeekends: boolean): 
     if (excludeWeekends && (day === 0 || day === 6)) continue
     count += 1
   }
+  return count
+}
+
+function daysInUtcMonth(date: Date): number {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate()
+}
+
+function countWeekdaysInUtcMonth(date: Date): number {
+  const year = date.getUTCFullYear()
+  const month = date.getUTCMonth()
+  const days = daysInUtcMonth(date)
+  let count = 0
+
+  for (let day = 1; day <= days; day++) {
+    const weekday = new Date(Date.UTC(year, month, day)).getUTCDay()
+    if (weekday !== 0 && weekday !== 6) count += 1
+  }
+
   return count
 }
 

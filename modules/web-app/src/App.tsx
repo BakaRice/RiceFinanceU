@@ -6,6 +6,7 @@ import Layout from './components/Layout'
 import DashboardPage from './pages/DashboardPage'
 import AssetsPage from './pages/AssetsPage'
 import AssetDetailPage from './pages/AssetDetailPage'
+import DcaManagementPage from './pages/DcaManagementPage'
 import EntryPage from './pages/EntryPage'
 import DataManagementPage from './pages/DataManagementPage'
 import LoginPage from './pages/LoginPage'
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/assets" element={<AssetsPage />} />
         <Route path="/assets/:id" element={<AssetDetailPage />} />
+        <Route path="/dca" element={<DcaManagementPage />} />
         <Route path="/entry" element={<EntryPage />} />
         <Route path="/data" element={<DataManagementPage />} />
       </Route>

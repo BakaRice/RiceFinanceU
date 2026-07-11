@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Asset, AssetDcaPlan, AssetProfile, AssetProfileKey, AssetType, Currency, DcaFrequency, SnapshotValue } from '../types/finance'
 import {
@@ -19,6 +19,7 @@ type SortKey = 'name' | 'type' | 'currency' | 'amount' | 'profit' | 'profitRate'
 
 export default function AssetsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { toast, confirm } = useFeedback()
 
   const [assets, setAssets] = useState<Asset[]>([])
@@ -94,6 +95,19 @@ export default function AssetsPage() {
     setDcaDraft(a.dcaPlan)
     setShowForm(true)
   }
+
+  useEffect(() => {
+    if (loading || showForm) return
+
+    const editId = (location.state as { editId?: string } | null)?.editId
+    if (!editId) return
+
+    const target = assets.find((a) => a.id === editId)
+    if (!target) return
+
+    openEdit(target)
+    navigate('/assets', { replace: true, state: null })
+  }, [assets, loading, location.state, navigate, showForm])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
