@@ -81,8 +81,8 @@
   outline: 0;
 }
 
-.table-workspace-grid th,
-.table-workspace-grid td {
+.table-workspace-grid .fin-table th,
+.table-workspace-grid .fin-table td {
   height: 36px;
   min-height: 36px;
   overflow: hidden;
@@ -93,12 +93,18 @@
   white-space: nowrap;
 }
 
-.table-workspace-grid input,
-.table-workspace-grid select {
+.table-workspace-grid .fin-table input,
+.table-workspace-grid .fin-table select {
   height: 35px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.table-workspace-grid .fin-table input[type='checkbox'] {
+  width: auto;
+  height: auto;
+  overflow: visible;
 }
 
 .resizable-table {
