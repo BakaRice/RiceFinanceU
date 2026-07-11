@@ -420,16 +420,23 @@ export default function DashboardPage() {
   const historySnapshots = [...allSnapshots].sort((a, b) =>
     b.recordedAt.localeCompare(a.recordedAt)
   )
+  const latestSnapshotTime = historySnapshots[0]
+    ? formatChartDateTime(historySnapshots[0].recordedAt)
+    : '-'
 
   return (
     <div className="dashboard">
-      <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, marginBottom: 16 }}>
-        总览
-      </h1>
+      <header className="page-header dashboard-header">
+        <div className="page-heading">
+          <h1 className="page-title">资产总览</h1>
+          <p className="page-subtitle">截至最近快照 · {latestSnapshotTime}</p>
+        </div>
+        <span className="dashboard-mode">CNY 综合视图</span>
+      </header>
 
       {/* Compact stat bar */}
       <div className="dash-stat-bar">
-        <div className="dash-stat-item">
+        <div className="dash-stat-item dash-stat-primary">
           <span className="dash-stat-label">总资产 (CNY)</span>
           <MoneyDisplay value={total?.totalAmountCNY} />
         </div>
@@ -503,7 +510,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="dash-section income-section" style={{ marginBottom: 16 }}>
+      <div className="dash-section income-section dashboard-income">
         <div className="income-section-head">
           <div>
             <h3 className="section-title">月收入</h3>
@@ -639,10 +646,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="dash-grid">
+      <div className="dash-grid dashboard-insights">
         {/* Allocation */}
         <div className="dash-section">
-          <h3 className="section-title">资产类别占比</h3>
+          <h3 className="section-title">资产结构</h3>
           {allocation.length === 0 ? (
             <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
               暂无数据
@@ -724,10 +731,10 @@ export default function DashboardPage() {
 
       {/* Chart */}
       {chartData.length > 0 && (
-        <div className="dash-section" style={{ marginTop: 16 }}>
+        <div className="dash-section dashboard-trend">
           <div className="chart-section-head">
             <h3 className="section-title">总资产走势</h3>
-            <div className="trend-scale-control" aria-label="走势图尺度">
+            <div className="trend-scale-control segmented-control" aria-label="走势图尺度">
               {TREND_SCALE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
@@ -744,7 +751,7 @@ export default function DashboardPage() {
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#edf0ed" vertical={false} />
                 <XAxis dataKey="periodLabel" tick={{ fontSize: 11 }} />
                 <YAxis
                   yAxisId="asset"
@@ -769,16 +776,16 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="totalAmount"
                   name="总资产"
-                  stroke="#2d5f7e"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
+                  stroke="#315f73"
+                  strokeWidth={2.4}
+                  dot={{ r: 2.5 }}
                 />
                 <Line
                   yAxisId="asset"
                   type="monotone"
                   dataKey="investmentAmount"
                   name="投资类"
-                  stroke="#3a7d5a"
+                  stroke="#5f8770"
                   strokeWidth={1.5}
                   dot={false}
                   strokeDasharray="5 5"
@@ -788,7 +795,7 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="balanceAmount"
                   name="余额类"
-                  stroke="#b8860b"
+                  stroke="#a48646"
                   strokeWidth={1.5}
                   dot={false}
                 />
@@ -811,7 +818,7 @@ export default function DashboardPage() {
       )}
 
       {/* Snapshot History */}
-      <div className="dash-section" style={{ marginTop: 16 }}>
+      <div className="dash-section dashboard-history">
         <h3 className="section-title">快照历史 ({historySnapshots.length})</h3>
         {historySnapshots.length === 0 ? (
           <p className="text-muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>
@@ -848,14 +855,18 @@ export default function DashboardPage() {
                       <MoneyDisplay value={snapTotal} />
                       <span className="history-count">{snapValues.length} 项</span>
                       <button
-                        className="btn-delete-snapshot"
+                        className="btn-delete-snapshot row-menu-button"
                         disabled={deletingId === snap.id}
+                        aria-label={`删除 ${date.toLocaleDateString('zh-CN')} ${date.toLocaleTimeString('zh-CN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })} 的快照`}
                         onClick={(e) => {
                           e.stopPropagation()
                           handleDelete(snap.id)
                         }}
                       >
-                        {deletingId === snap.id ? '...' : '✕'}
+                        {deletingId === snap.id ? '删除中' : '删除'}
                       </button>
                     </div>
                   </div>

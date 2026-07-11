@@ -206,4 +206,16 @@ describe('DashboardPage trend scale controls', () => {
       }))
     })
   })
+
+  it('presents snapshot context and unambiguous history actions', async () => {
+    renderDashboard()
+
+    expect(await screen.findByText(/截至最近快照/)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '资产结构' })).toBeTruthy()
+
+    const deleteButtons = screen.getAllByRole('button', { name: /删除.*快照/ })
+    expect(deleteButtons.length).toBe(4)
+    expect(deleteButtons[0].textContent).toContain('删除')
+    expect(deleteButtons[0].textContent).not.toContain('✕')
+  })
 })
