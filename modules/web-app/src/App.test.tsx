@@ -46,7 +46,7 @@ afterEach(() => {
 })
 
 describe('authenticated application shell', () => {
-  it('exposes a branded primary navigation with all business areas', () => {
+  it('exposes workbook tabs for review, tables, and data exchange', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Routes>
@@ -57,18 +57,19 @@ describe('authenticated application shell', () => {
       </MemoryRouter>,
     )
 
-    const navigation = screen.getByRole('navigation', { name: '主导航' })
+    const navigation = screen.getByRole('navigation', { name: '工作簿标签' })
     const shell = screen.getByTestId('financial-workbench')
-    expect(shell.getAttribute('data-density')).toBe('dense')
-    expect(screen.getByRole('main').classList.contains('content')).toBe(true)
+    expect(shell.classList.contains('workbook-shell')).toBe(true)
+    expect(screen.getByRole('main').classList.contains('workbook-content')).toBe(true)
     expect(navigation).toBeTruthy()
-    expect(screen.getByText('Rice Finance')).toBeTruthy()
-    expect(screen.getByRole('link', { name: '总览' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '资产管理' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '收入管理' }).getAttribute('href')).toBe('/income')
-    expect(screen.getByRole('link', { name: '定投管理' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '快照录入' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '数据管理' })).toBeTruthy()
+    expect(screen.getByText('RiceFinanceU')).toBeTruthy()
+    expect(screen.getByRole('link', { name: '大盘' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '资产' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '录入' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '收入' }).getAttribute('href')).toBe('/income')
+    expect(screen.getByRole('link', { name: '汇率' }).getAttribute('href')).toBe('/rates')
+    expect(screen.getByRole('link', { name: '数据' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: '定投管理' })).toBeNull()
     expect(screen.getByRole('group', { name: '界面主题' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
   })

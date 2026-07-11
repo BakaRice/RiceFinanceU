@@ -1,219 +1,139 @@
-.layout {
-  display: flex;
+.workbook-shell {
   min-height: 100vh;
   background: var(--color-canvas);
 }
 
-.sidebar {
-  position: sticky;
-  top: 0;
-  width: 180px;
-  height: 100vh;
-  flex-shrink: 0;
+.workbook-header {
   display: flex;
-  flex-direction: column;
-  padding: 12px 10px 10px;
-  background: var(--color-sidebar);
-  color: var(--color-sidebar-text);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
-.sidebar-brand {
+.workbook-brand,
+.workbook-account-actions,
+.workbook-tabs {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 46px;
-  padding: 4px 7px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.sidebar-mark {
+.workbook-brand {
+  min-width: 0;
+  gap: 10px;
+}
+
+.workbook-mark {
   display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 6px;
-  color: #ffffff;
+  border-radius: 5px;
+  color: #fff;
   background: var(--brand-gradient);
-  box-shadow: 0 0 18px rgba(23, 105, 224, 0.18);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 750;
   letter-spacing: 0.08em;
 }
 
-.sidebar-brand-copy {
+.workbook-brand-copy {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
-.sidebar-brand-copy strong {
-  color: var(--color-sidebar-text-strong);
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+.workbook-brand-copy strong {
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 680;
 }
 
-.sidebar-brand-copy small {
+.workbook-brand-copy small {
   margin-top: 3px;
-  color: var(--color-sidebar-text-muted);
+  color: var(--color-text-muted);
   font-size: 10px;
+}
+
+.workbook-account-actions {
+  gap: 10px;
+}
+
+.workbook-logout {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workbook-logout:hover {
+  border-color: var(--color-border-focus);
+  color: var(--color-text);
+}
+
+.workbook-tabs {
+  min-height: 42px;
+  gap: 2px;
+  overflow-x: auto;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.workbook-tab {
+  align-self: stretch;
+  display: grid;
+  min-width: 62px;
+  place-items: center;
+  padding: 0 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 520;
+  text-decoration: none;
   white-space: nowrap;
 }
 
-.sidebar-nav {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: 14px;
+.workbook-tab:hover {
+  color: var(--color-text);
+  background: var(--color-surface-muted);
 }
 
-.nav-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-height: 38px;
-  padding: 0 11px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--color-sidebar-text);
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: none;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+.workbook-tab.active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 650;
 }
 
-.nav-item::before {
-  position: absolute;
-  left: -12px;
-  width: 2px;
-  height: 18px;
-  border-radius: 0 2px 2px 0;
-  background: transparent;
-  content: '';
-}
-
-.nav-item:hover {
-  color: var(--color-sidebar-text-strong);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.nav-item.active {
-  color: var(--color-sidebar-text-strong);
-  border-color: rgba(145, 184, 198, 0.1);
-  background: var(--color-sidebar-active);
-}
-
-.nav-item.active::before {
-  background: var(--accent-gradient);
-}
-
-.nav-icon {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.55;
-}
-
-.sidebar-account {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 6px 2px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.sidebar-account-label {
-  color: var(--color-sidebar-text-muted);
-  font-size: 10px;
-}
-
-.nav-logout {
-  min-height: 28px;
-  padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--color-sidebar-text);
-  font: inherit;
-  font-size: 11px;
-}
-
-.nav-logout:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  color: var(--color-sidebar-text-strong);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.content {
+.workbook-content {
   min-width: 0;
-  flex: 1;
-  overflow-x: auto;
+  min-height: calc(100vh - 99px);
+  padding: 16px 20px 28px;
 }
 
-.content-canvas {
-  width: min(100%, calc(var(--content-wide) + 48px));
-  min-height: 100vh;
-  padding: 20px 24px 32px;
-}
-
-@media (max-width: 1100px) {
-  .sidebar {
-    width: 166px;
+@media (max-width: 720px) {
+  .workbook-header {
+    padding-inline: 14px;
   }
 
-  .content-canvas {
-    padding: 18px 20px 30px;
-  }
-}
-
-@media (max-width: 800px) {
-  .sidebar {
-    width: 68px;
-    padding-inline: 8px;
-  }
-
-  .sidebar-brand {
-    justify-content: center;
-    padding-inline: 0;
-  }
-
-  .sidebar-brand-copy,
-  .nav-item span,
-  .sidebar-account-label {
+  .workbook-brand-copy small {
     display: none;
   }
 
-  .nav-item {
-    justify-content: center;
-    padding: 0;
+  .workbook-tabs {
+    padding-inline: 8px;
   }
 
-  .nav-item::before {
-    left: -8px;
-  }
-
-  .sidebar-account {
-    justify-content: center;
-    padding-inline: 0;
-  }
-
-  .nav-logout {
-    padding: 0 6px;
-    font-size: 10px;
-  }
-
-  .content-canvas {
-    padding: 20px 16px 32px;
+  .workbook-content {
+    padding: 14px 10px 24px;
   }
 }
