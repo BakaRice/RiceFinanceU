@@ -258,7 +258,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
       }
 
       const ok = await confirm({
-        title: '确认保存快照',
+        title: '确认追加快照',
         message: detailParts.join('\n'),
         confirmLabel: '保存',
         cancelLabel: '取消',
@@ -286,7 +286,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
       const deltaSign = savedTotalDelta >= 0 ? '+' : ''
       const deltaInfo = savedTotalDelta !== 0 ? ` · 总变动 ${deltaSign}${formatMoneyFixed(Math.abs(savedTotalDelta))}` : ''
       const largeInfo = largeChangeRows.length > 0 ? ` · ⚠ ${largeChangeRows.length} 项大额` : ''
-      toast(`快照已保存 · ${recordedAt} ${recordingTime} · ${includedRows.length} 项更新${deltaInfo}${largeInfo}`)
+      toast(`快照已追加 · ${recordedAt} ${recordingTime} · ${includedRows.length} 项更新${deltaInfo}${largeInfo}`)
       onSuccess()
       await loadData()
       setNote('')
@@ -523,7 +523,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
               管理资产
             </button>
             <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? '保存中...' : '保存快照'}
+              {submitting ? '追加中...' : '追加快照'}
             </button>
           </div>
         </div>
@@ -551,7 +551,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
         {rows.length > 10 && (
           <div className="snapshot-bottom-bar">
             <button type="submit" className="btn-primary btn-large" disabled={submitting}>
-              {submitting ? '保存中...' : '保存快照'}
+              {submitting ? '追加中...' : '追加快照'}
             </button>
           </div>
         )}

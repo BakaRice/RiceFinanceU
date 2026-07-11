@@ -79,9 +79,9 @@ describe('SnapshotForm imported profit rate precision', () => {
     expect(await screen.findByDisplayValue('30.76')).toBeTruthy()
     expect(screen.getByRole('button', { name: '管理资产' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '保存快照' }))
+    fireEvent.click(screen.getByRole('button', { name: '追加快照' }))
 
-    expect(await screen.findByRole('heading', { name: '确认保存快照' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: '确认追加快照' })).toBeTruthy()
     expect(screen.queryByText(/收益率无效/)).toBeNull()
   })
 
