@@ -83,7 +83,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
           previousAmount: prev?.amount,
           previousProfit: prev?.profit,
           previousProfitRate: prev?.profitRate,
-          included: !!prev,
+          included: true,
           status: 'default' as const,
         }
       })

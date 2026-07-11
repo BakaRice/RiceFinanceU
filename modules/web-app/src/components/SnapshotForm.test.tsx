@@ -106,4 +106,29 @@ describe('SnapshotForm imported profit rate precision', () => {
     expect(investmentProfit.disabled).toBe(false)
     expect(cashProfit.disabled).toBe(true)
   })
+
+  it('enables every active asset during the first snapshot', async () => {
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'cash-first',
+        name: '首次现金',
+        type: 'cash',
+        currency: 'CNY',
+        isActive: true,
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+      },
+    ] as any)
+    mockedApi.getLatestSnapshot.mockResolvedValue(null)
+
+    render(
+      <FeedbackProvider>
+        <SnapshotForm onSuccess={vi.fn()} onManageAssets={vi.fn()} />
+      </FeedbackProvider>,
+    )
+
+    const amountInput = await screen.findByLabelText('首次现金 本次金额') as HTMLInputElement
+    expect(amountInput.disabled).toBe(false)
+    expect((screen.getByLabelText('不纳入 首次现金') as HTMLInputElement).checked).toBe(true)
+  })
 })
