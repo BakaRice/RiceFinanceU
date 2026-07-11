@@ -60,6 +60,27 @@
   background: var(--color-surface-muted);
 }
 
+.column-resize-handle {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.column-resize-handle:hover,
+.column-resize-handle:focus-visible {
+  background: var(--color-primary);
+  outline: 0;
+}
+
 .table-workspace-grid th,
 .table-workspace-grid td {
   min-height: 36px;
