@@ -15,6 +15,16 @@ RiceFinanceU 是一个个人资产快照账本。现有领域模型是清晰的�
 
 ## 2. 产品原则
 
+RiceFinanceU 只需要三种界面原语：
+
+| 界面原语 | 用途 | 对应内容 |
+|---|---|---|
+| View | 聚合、计算和 Review | 大盘 |
+| Table | 结构化数据的增删改查 | 资产、录入、收入 |
+| Data Exchange | 文件交换、校验和恢复 | Excel、JSON 导入导出 |
+
+除大盘和数据交换外，不再为不同业务对象发明独立的卡片页、管理页、表单页或详情编辑流程。业务对象之间的差异由 Table 的列定义、校验规则和保存语义表达。
+
 ### 2.1 表格优先，不做通用电子表格
 
 系统采用电子表格的高密度展示、连续编辑和键盘操作，但不支持自由公式、任意列、自定义数据类型或随意改变表结构。
@@ -64,6 +74,8 @@ RiceFinanceU 是一个个人资产快照账本。现有领域模型是清晰的�
 ```text
 大盘（纯 View） | 资产 | 录入 | 收入 | 数据
 ```
+
+这里的“资产”“录入”和“收入”不是三套页面框架，而是同一个 Table 工作区的三个实例。切换标签只会更换表名、列定义、数据源和保存动作，选中、编辑、复制粘贴、筛选、错误提示及未保存状态保持完全一致。
 
 ### 3.1 大盘（纯 View）
 
@@ -174,9 +186,9 @@ RiceFinanceU 是一个个人资产快照账本。现有领域模型是清晰的�
 - 支持按日期、分类和来源排序或筛选。
 - 点击“保存收入”后整批校验并提交。
 
-### 3.5 数据 Sheet
+### 3.5 数据交换
 
-数据 Sheet 承担低频的数据交换和恢复操作：
+数据交换页面承担低频的文件交换和恢复操作：
 
 - 导出 JSON 完整备份。
 - 从 JSON 完整恢复。
@@ -184,11 +196,11 @@ RiceFinanceU 是一个个人资产快照账本。现有领域模型是清晰的�
 - 从 Excel 批量导入或完整恢复。
 - 展示导入预览、校验问题和覆盖范围。
 
-数据 Sheet 不参与日常资产录入。
+数据交换页面不参与日常资产录入，也不需要伪装成普通 Table。
 
 ## 4. 通用表格交互
 
-所有可编辑 Sheet 使用统一的受控表格交互：
+资产、录入和收入使用同一个受控 Table 工作区：
 
 - 单击选中单元格，双击或直接输入进入编辑。
 - Enter 确认并移动到下一行，Tab 移动到下一列。
@@ -209,9 +221,27 @@ RiceFinanceU 是一个个人资产快照账本。现有领域模型是清晰的�
 
 不复制 Excel 的字体、颜色、合并单元格、公式等通用编辑能力。
 
+Table 工作区只需要一套稳定接口：
+
+```text
+TableDefinition
+  title
+  columns
+  loadRows
+  validateRows
+  commitChanges
+  primaryActionLabel
+```
+
+- 资产 Table 的 `commitChanges` 执行资产主数据 CRUD。
+- 录入 Table 的 `commitChanges` 追加一份完整快照。
+- 收入 Table 的 `commitChanges` 执行收入记录 CRUD。
+
+Table 容器不理解资产、快照或收入的业务含义，只负责行列呈现、选区、编辑、草稿、校验结果展示和保存状态。领域适配器负责把行变化转换成业务命令。
+
 ## 5. 草稿与保存状态
 
-每个可编辑 Sheet 使用相同状态机：
+每个 Table 实例使用相同状态机：
 
 ```text
 clean
@@ -282,13 +312,13 @@ Excel 是工作簿式界面的交换格式，不是另一套独立产品模型�
 - 即时格式校验和保存前预校验。
 - 将表格修改转换为明确的批量命令。
 
-建议建立通用表格基础层，但不把领域规则写入通用组件：
+建议只建立一个通用 Table 工作区，不把领域规则写入通用组件：
 
 ```text
-EditableGrid
-  <- AssetsSheet column schema and adapter
-  <- SnapshotEntrySheet column schema and adapter
-  <- IncomeSheet column schema and adapter
+TableWorkspace
+  <- AssetsTable definition and adapter
+  <- SnapshotEntryTable definition and adapter
+  <- IncomeTable definition and adapter
 ```
 
 ### 7.2 Worker API
@@ -382,6 +412,7 @@ Worker 继续拥有最终校验和 KV 持久化职责。为了保证 Sheet 级�
 - 只修改发生变化的单元格即可保存完整快照。
 - 资产、收入和录入使用一致的编辑、校验和保存语言。
 - 投资类、余额类、启用和停用资产始终在同一张资产表中通过列属性表达。
+- 除大盘和数据交换外，不存在独立的 CRUD 页面范式；资产、录入和收入都运行在同一个 Table 工作区中。
 - 用户能清楚区分资产主数据修改与快照状态追加。
 - 大盘只展示已保存结果，不承担编辑职责。
 - Excel 批量录入与应用内录入遵循同一领域规则。
