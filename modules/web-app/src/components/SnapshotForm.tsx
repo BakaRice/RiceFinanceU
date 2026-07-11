@@ -7,6 +7,8 @@ import {
   isValidPercentInput,
   isValidSignedMoney,
   formatMoneyFixed,
+  formatProfitRateInput,
+  truncateDecimal,
 } from '../domain/money'
 import MoneyInput from './MoneyInput'
 import MoneyDisplay from './MoneyDisplay'
@@ -77,7 +79,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
           currency: a.currency || 'CNY',
           amount: prev ? String(prev.amount) : '',
           profit: prev?.profit !== undefined ? String(prev.profit) : '',
-          profitRate: prev?.profitRate !== undefined ? String(prev.profitRate * 100) : '',
+          profitRate: formatProfitRateInput(prev?.profitRate),
           previousAmount: prev?.amount,
           previousProfit: prev?.profit,
           previousProfitRate: prev?.profitRate,
@@ -142,7 +144,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
             const cost = curAmount - curProfit
             if (cost > 0) {
               autoCalcField = 'profitRate'
-              autoCalcValue = ((curProfit / cost) * 100).toFixed(2)
+              autoCalcValue = truncateDecimal((curProfit / cost) * 100, 2).toFixed(2)
             }
           } else if (hasRate) {
             const cost = curAmount / (1 + curRate)
@@ -154,7 +156,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
             const cost = curAmount - curProfit
             if (cost > 0) {
               autoCalcField = 'profitRate'
-              autoCalcValue = ((curProfit / cost) * 100).toFixed(2)
+              autoCalcValue = truncateDecimal((curProfit / cost) * 100, 2).toFixed(2)
             }
           } else if (hasRate && curRate > 0) {
             const cost = curProfit / curRate
