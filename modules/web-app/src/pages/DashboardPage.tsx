@@ -177,9 +177,6 @@ export default function DashboardPage() {
   const [incomeDeleting, setIncomeDeleting] = useState(false)
   const [incomeForm, setIncomeForm] = useState<IncomeFormState>(() => createEmptyIncomeForm())
   const [rates, setRates] = useState<ExchangeRates>({ USD: 7.2, HKD: 0.92, updatedAt: '' })
-  const [editingRates, setEditingRates] = useState(false)
-  const [usdRate, setUsdRate] = useState('7.2')
-  const [hkdRate, setHkdRate] = useState('0.92')
 
   useEffect(() => {
     load()
@@ -199,8 +196,6 @@ export default function DashboardPage() {
       ])
 
       setRates(ratesData)
-      setUsdRate(String(ratesData.USD))
-      setHkdRate(String(ratesData.HKD))
       setAllSnapshots(snapshots)
       setAllValues(values)
       setAllAssets(assets)
@@ -461,49 +456,9 @@ export default function DashboardPage() {
         <div className="dashboard-tools">
           <span className="dashboard-mode">CNY 综合视图</span>
           <div className="rates-bar">
-            {editingRates ? (
-              <>
-                <span>汇率:</span>
-                <label>
-                  USD{' '}
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={usdRate}
-                    onChange={(e) => setUsdRate(e.target.value)}
-                    className="rates-input"
-                  />
-                </label>
-                <label>
-                  HKD{' '}
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={hkdRate}
-                    onChange={(e) => setHkdRate(e.target.value)}
-                    className="rates-input"
-                  />
-                </label>
-                <button
-                  className="btn-link"
-                  onClick={async () => {
-                    await api.updateRates({ USD: Number(usdRate), HKD: Number(hkdRate) })
-                    setEditingRates(false)
-                    load()
-                  }}
-                >
-                  保存
-                </button>
-                <button className="btn-link" onClick={() => setEditingRates(false)}>
-                  取消
-                </button>
-              </>
-            ) : (
-              <button className="rates-trigger" type="button" onClick={() => setEditingRates(true)}>
-                汇率 · USD {rates.USD.toFixed(2)} · HKD {rates.HKD.toFixed(2)}
-                <span>修改</span>
-              </button>
-            )}
+            <Link className="rates-trigger" to="/rates">
+              汇率 · USD {rates.USD.toFixed(2)} · HKD {rates.HKD.toFixed(2)}
+            </Link>
           </div>
         </div>
       </header>

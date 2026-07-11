@@ -242,7 +242,7 @@ describe('DashboardPage trend scale controls', () => {
     expect(activityRow.textContent).toContain('最近变化')
   })
 
-  it('keeps the exchange-rate controls in the compact dashboard header', async () => {
+  it('keeps exchange rates read-only and links to the rate table', async () => {
     const { container } = renderDashboard()
 
     await screen.findByText('总资产走势')
@@ -251,6 +251,9 @@ describe('DashboardPage trend scale controls', () => {
     expect(header?.textContent).toContain('汇率')
     expect(header?.textContent).toContain('USD 7.20')
     expect(header?.textContent).toContain('HKD 0.92')
+    expect(screen.getByRole('link', { name: /汇率 · USD 7\.20 · HKD 0\.92/ }).getAttribute('href')).toBe('/rates')
+    expect(screen.queryByRole('button', { name: '保存' })).toBeNull()
+    expect(mockedApi.updateRates).not.toHaveBeenCalled()
   })
 
   it('presents snapshot context and unambiguous history actions', async () => {

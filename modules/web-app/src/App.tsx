@@ -10,6 +10,7 @@ import DcaManagementPage from './pages/DcaManagementPage'
 import IncomeManagementPage from './pages/IncomeManagementPage'
 import EntryPage from './pages/EntryPage'
 import DataManagementPage from './pages/DataManagementPage'
+import ExchangeRatesPage from './pages/ExchangeRatesPage'
 import LoginPage from './pages/LoginPage'
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/dca" element={<DcaManagementPage />} />
         <Route path="/entry" element={<EntryPage />} />
         <Route path="/data" element={<DataManagementPage />} />
+        <Route path="/rates" element={<ExchangeRatesPage />} />
       </Route>
     </Routes>
   )

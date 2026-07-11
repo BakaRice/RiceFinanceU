@@ -1,0 +1,34 @@
+.rates-table {
+  min-width: 620px;
+}
+
+.rates-table th,
+.rates-table td {
+  height: 42px;
+}
+
+.rates-currency {
+  width: 120px;
+  font-weight: 700;
+}
+
+.rates-edit-cell {
+  width: 220px;
+  padding: 0;
+}
+
+.rates-edit-cell input {
+  width: 100%;
+  height: 41px;
+  padding: 0 12px;
+  border: 0;
+  color: var(--color-text);
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.rates-updated-at {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
