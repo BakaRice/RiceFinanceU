@@ -89,6 +89,51 @@
   min-width: 100px;
 }
 
+/* Asset trend */
+.detail-trend-section {
+  margin-bottom: 16px;
+  padding: 18px 20px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.detail-trend-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: 6px;
+}
+
+.detail-trend-head .section-title {
+  margin-bottom: 3px;
+}
+
+.detail-trend-meta,
+.detail-trend-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.detail-trend-hint {
+  padding-top: 2px;
+}
+
+.detail-trend-chart {
+  width: 100%;
+  min-height: 260px;
+}
+
+.detail-trend-empty {
+  display: grid;
+  min-height: 132px;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
 /* Info grid */
 .detail-info-grid {
   display: grid;
@@ -170,5 +215,9 @@
   .detail-header {
     flex-direction: column;
     gap: var(--space-sm);
+  }
+  .detail-trend-head {
+    flex-direction: column;
+    gap: var(--space-xs);
   }
 }

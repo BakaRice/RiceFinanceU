@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { api } from '../api/client'
 import type { Asset, SnapshotValue } from '../types/finance'
 import { CURRENCY_SYMBOLS } from '../types/finance'
@@ -16,6 +25,21 @@ interface AssetSnapshotRecord {
   amount: number
   profit?: number
   profitRate?: number
+}
+
+function formatTrendAxisAmount(value: number): string {
+  const absolute = Math.abs(value)
+  if (absolute >= 100_000_000) return `${(value / 100_000_000).toFixed(1)}亿`
+  if (absolute >= 10_000) return `${(value / 10_000).toFixed(1)}万`
+  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(value)
+}
+
+function formatTrendDate(value: number): string {
+  return new Date(value).toLocaleDateString('zh-CN', {
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+  })
 }
 
 export default function AssetDetailPage() {
@@ -137,6 +161,18 @@ export default function AssetDetailPage() {
       asOfDate: latestSnapshotTime || new Date(),
     })
     : undefined
+  const trendData = [...history]
+    .reverse()
+    .map((record) => ({
+      ...record,
+      timestamp: new Date(record.recordedAt).getTime(),
+    }))
+  const trendAmountFormatter = new Intl.NumberFormat('zh-CN', {
+    style: 'currency',
+    currency: asset.currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 
   return (
     <div className="asset-detail">
@@ -213,6 +249,63 @@ export default function AssetDetailPage() {
           </div>
         )}
       </div>
+
+      <section className="detail-trend-section" aria-labelledby="asset-trend-title">
+        <div className="detail-trend-head">
+          <div>
+            <h2 id="asset-trend-title" className="section-title">资产价值走势</h2>
+            <p className="detail-trend-meta">{asset.currency} · {history.length} 个快照点</p>
+          </div>
+          {history.length === 1 && (
+            <span className="detail-trend-hint">再录入一次快照后即可形成趋势</span>
+          )}
+        </div>
+        {trendData.length === 0 ? (
+          <div className="detail-trend-empty">暂无快照数据，录入快照后将在这里显示资产变化。</div>
+        ) : (
+          <div className="detail-trend-chart">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={trendData} margin={{ top: 12, right: 12, bottom: 2, left: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#edf0ed" vertical={false} />
+                <XAxis
+                  dataKey="timestamp"
+                  type="number"
+                  scale="time"
+                  domain={['dataMin', 'dataMax']}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={formatTrendDate}
+                  minTickGap={32}
+                />
+                <YAxis
+                  width={58}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={formatTrendAxisAmount}
+                  domain={['auto', 'auto']}
+                />
+                <Tooltip
+                  labelFormatter={(timestamp) => new Date(Number(timestamp)).toLocaleString('zh-CN')}
+                  formatter={(value) => [trendAmountFormatter.format(Number(value)), '资产金额']}
+                  contentStyle={{
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    boxShadow: 'var(--shadow-overlay)',
+                    fontSize: 13,
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="amount"
+                  name="资产金额"
+                  stroke="#315f73"
+                  strokeWidth={2.4}
+                  dot={{ r: 3, fill: '#315f73', strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
 
       {/* Detail info */}
       <div className="detail-info-grid">
