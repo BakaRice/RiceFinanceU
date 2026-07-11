@@ -254,7 +254,7 @@ describe('DashboardPage trend scale controls', () => {
   })
 
   it('presents snapshot context and unambiguous history actions', async () => {
-    renderDashboard()
+    const { container } = renderDashboard()
 
     expect(await screen.findByText(/截至最近快照/)).toBeTruthy()
     expect(screen.getByRole('heading', { name: '资产结构' })).toBeTruthy()
@@ -263,5 +263,11 @@ describe('DashboardPage trend scale controls', () => {
     expect(deleteButtons.length).toBe(4)
     expect(deleteButtons[0].textContent).toContain('删除')
     expect(deleteButtons[0].textContent).not.toContain('✕')
+
+    const historyHeader = container.querySelector('.history-item-header')
+    expect(historyHeader?.children).toHaveLength(3)
+    expect(historyHeader?.children[0].classList.contains('history-date')).toBe(true)
+    expect(historyHeader?.children[1].classList.contains('history-note')).toBe(true)
+    expect(historyHeader?.children[2].classList.contains('history-item-actions')).toBe(true)
   })
 })

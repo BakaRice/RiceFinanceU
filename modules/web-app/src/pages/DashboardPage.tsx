@@ -836,16 +836,14 @@ export default function DashboardPage() {
                     className="history-item-header"
                     onClick={() => setExpandedId(isExpanded ? null : snap.id)}
                   >
-                    <div className="history-item-main">
-                      <span className="history-date">
-                        {date.toLocaleDateString('zh-CN')}{' '}
-                        {date.toLocaleTimeString('zh-CN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                      <span className="history-note">{snap.note || '快照'}</span>
-                    </div>
+                    <span className="history-date">
+                      {date.toLocaleDateString('zh-CN')}{' '}
+                      {date.toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    <span className="history-note">{snap.note || '快照'}</span>
                     <div className="history-item-actions">
                       <MoneyDisplay value={snapTotal} />
                       <span className="history-count">{snapValues.length} 项</span>
