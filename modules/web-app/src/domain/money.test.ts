@@ -1,6 +1,17 @@
 // src/domain/money.test.ts
 import { describe, it, expect } from 'vitest'
-import { formatMoney, roundMoney, formatMoneyFixed, formatPercentFixed, isValidCurrencyAmount, isValidPercentInput, isValidSignedMoney } from './money'
+import {
+  formatMoney,
+  roundMoney,
+  formatMoneyFixed,
+  formatPercentFixed,
+  formatProfitRateInput,
+  isValidCurrencyAmount,
+  isValidPercentInput,
+  isValidSignedMoney,
+  normalizeStoredProfitRate,
+  truncateDecimal,
+} from './money'
 
 describe('roundMoney', () => {
   it('rounds to 2 decimal places', () => {
@@ -53,5 +64,25 @@ describe('mature numeric display helpers', () => {
     expect(isValidSignedMoney('100')).toBe(true)
     expect(isValidSignedMoney('')).toBe(false)
     expect(isValidSignedMoney('-100.999')).toBe(false)
+  })
+})
+
+describe('profit rate precision', () => {
+  it('truncates instead of rounding', () => {
+    expect(truncateDecimal(30.769230769, 2)).toBe(30.76)
+    expect(truncateDecimal(-30.769230769, 2)).toBe(-30.76)
+  })
+
+  it('formats stored ratio as a two-decimal percent input', () => {
+    expect(formatProfitRateInput(0.3076923076923077)).toBe('30.76')
+    expect(formatProfitRateInput(0)).toBe('0.00')
+    expect(formatProfitRateInput(undefined)).toBe('')
+  })
+
+  it('normalizes imported stored ratios to four decimals', () => {
+    expect(normalizeStoredProfitRate(0.3076923076923077)).toBe(0.3076)
+    expect(normalizeStoredProfitRate(-0.3076923076923077)).toBe(-0.3076)
+    expect(normalizeStoredProfitRate(-1.01)).toBeNull()
+    expect(normalizeStoredProfitRate(Number.NaN)).toBeNull()
   })
 })
