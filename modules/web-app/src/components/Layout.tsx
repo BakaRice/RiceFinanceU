@@ -21,11 +21,21 @@ export default function Layout({ onLogout }: LayoutProps) {
       <header className="workbook-header">
         <div className="workbook-brand">
           <span className="workbook-mark" aria-hidden="true">RF</span>
-          <span className="workbook-brand-copy">
-            <strong>RiceFinanceU</strong>
-            <small>个人资产工作簿</small>
-          </span>
+          <strong>RiceFinanceU</strong>
         </div>
+
+        <nav className="workbook-tabs" aria-label="工作簿标签">
+          {sheetTabs.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.end}
+              className={({ isActive }) => isActive ? 'workbook-tab active' : 'workbook-tab'}
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </nav>
 
         <div className="workbook-account-actions">
           <ThemeSelector variant="sidebar" />
@@ -36,19 +46,6 @@ export default function Layout({ onLogout }: LayoutProps) {
           )}
         </div>
       </header>
-
-      <nav className="workbook-tabs" aria-label="工作簿标签">
-        {sheetTabs.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.end}
-            className={({ isActive }) => isActive ? 'workbook-tab active' : 'workbook-tab'}
-          >
-            {tab.label}
-          </NavLink>
-        ))}
-      </nav>
 
       <main className="workbook-content">
         <Outlet />

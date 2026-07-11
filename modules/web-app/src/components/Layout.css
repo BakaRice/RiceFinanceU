@@ -5,11 +5,10 @@
 
 .workbook-header {
   display: flex;
-  min-height: 56px;
+  height: 48px;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 20px;
+  gap: 12px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -22,7 +21,7 @@
 }
 
 .workbook-brand {
-  min-width: 0;
+  flex: 0 0 auto;
   gap: 10px;
 }
 
@@ -40,26 +39,15 @@
   letter-spacing: 0.08em;
 }
 
-.workbook-brand-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.workbook-brand-copy strong {
+.workbook-brand strong {
   color: var(--color-text);
   font-size: 14px;
   font-weight: 680;
-}
-
-.workbook-brand-copy small {
-  margin-top: 3px;
-  color: var(--color-text-muted);
-  font-size: 10px;
+  white-space: nowrap;
 }
 
 .workbook-account-actions {
+  flex: 0 0 auto;
   gap: 10px;
 }
 
@@ -81,12 +69,16 @@
 }
 
 .workbook-tabs {
-  min-height: 42px;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
   gap: 2px;
   overflow-x: auto;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
+  scrollbar-width: none;
+}
+
+.workbook-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .workbook-tab {
@@ -116,21 +108,27 @@
 
 .workbook-content {
   min-width: 0;
-  min-height: calc(100vh - 99px);
-  padding: 16px 20px 28px;
+  min-height: calc(100vh - 49px);
+  padding: 12px 16px 24px;
 }
 
 @media (max-width: 720px) {
   .workbook-header {
-    padding-inline: 14px;
+    gap: 8px;
+    padding-inline: 10px;
   }
 
-  .workbook-brand-copy small {
-    display: none;
+  .workbook-brand strong {
+    font-size: 13px;
   }
 
   .workbook-tabs {
-    padding-inline: 8px;
+    flex-basis: auto;
+  }
+
+  .workbook-tab {
+    min-width: 54px;
+    padding-inline: 10px;
   }
 
   .workbook-content {
