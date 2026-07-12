@@ -27,6 +27,12 @@ export type IncomeRecordInput = {
   note?: string
 }
 
+export type IncomeRecordBatchInput = {
+  creates: IncomeRecordInput[]
+  updates: Array<IncomeRecordInput & { id: string }>
+  deletes: string[]
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const token = getSessionToken()
   const headers: Record<string, string> = {
@@ -98,6 +104,11 @@ export const api = {
     request<IncomeRecord>(`/income-records/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteIncomeRecord: (id: string) =>
     request<{ success: boolean }>(`/income-records/${id}`, { method: 'DELETE' }),
+  saveIncomeRecords: (data: IncomeRecordBatchInput) =>
+    request<{ records: IncomeRecord[] }>('/income-records/batch', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   // Monthly incomes
   getMonthlyIncomes: () => request<MonthlyIncome[]>('/monthly-incomes'),

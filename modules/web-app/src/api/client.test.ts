@@ -69,4 +69,22 @@ describe('api client auth session', () => {
 
     expect(getSessionToken()).toBeNull()
   })
+
+  it('收入变更会通过单个批量请求提交', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ records: [] }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const batch = {
+      creates: [{ occurredAt: '2026-07-03', category: 'side_income' as const, amount: 500 }],
+      updates: [{ id: 'salary-1', occurredAt: '2026-07-01', category: 'salary' as const, amount: 12000 }],
+      deletes: ['bonus-1'],
+    }
+
+    await api.saveIncomeRecords(batch)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith('/api/income-records/batch', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(batch),
+    }))
+  })
 })
