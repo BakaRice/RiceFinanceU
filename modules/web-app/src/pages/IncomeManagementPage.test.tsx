@@ -103,6 +103,9 @@ describe('IncomeManagementPage', () => {
   })
 
   it('submits edited rows through one atomic batch request', async () => {
+    mockedApi.saveIncomeRecords.mockResolvedValueOnce({
+      records: [{ ...records[0], amount: 12000 }, records[1]],
+    })
     renderPage()
     await screen.findByTestId('income-sheet')
 
@@ -122,7 +125,11 @@ describe('IncomeManagementPage', () => {
       deletes: [],
     }))
     expect(mockedApi.saveIncomeRecords).toHaveBeenCalledTimes(1)
-    expect(mockedApi.getIncomeRecords).toHaveBeenCalledTimes(2)
+    expect(mockedApi.getIncomeRecords).toHaveBeenCalledTimes(1)
+    expect(sheetHandle.reset).toHaveBeenCalledWith([
+      records[1],
+      { ...records[0], amount: 12000 },
+    ])
     expect(sheetHandle.setEditable).toHaveBeenNthCalledWith(1, false)
     expect(sheetHandle.setEditable).toHaveBeenLastCalledWith(true)
   })

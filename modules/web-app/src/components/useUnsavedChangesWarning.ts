@@ -6,6 +6,8 @@ export function useUnsavedChangesWarning(shouldWarn: boolean, message: string) {
 
   useEffect(() => {
     if (!shouldWarn) return
+    const currentHistoryIndex = Number(window.history.state?.idx ?? 0)
+    let restoringHistory = false
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault()
@@ -37,11 +39,28 @@ export function useUnsavedChangesWarning(shouldWarn: boolean, message: string) {
       event.stopPropagation()
       navigate(`${destination.pathname}${destination.search}${destination.hash}`)
     }
+    const handlePopState = (event: PopStateEvent) => {
+      if (restoringHistory) {
+        restoringHistory = false
+        return
+      }
+      if (window.confirm(message)) return
+
+      const nextHistoryIndex = Number(event.state?.idx)
+      const delta = Number.isFinite(nextHistoryIndex)
+        ? currentHistoryIndex - nextHistoryIndex
+        : 1
+      event.stopImmediatePropagation()
+      restoringHistory = true
+      window.history.go(delta === 0 ? 1 : delta)
+    }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('popstate', handlePopState, true)
     document.addEventListener('click', handleInternalLink, true)
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('popstate', handlePopState, true)
       document.removeEventListener('click', handleInternalLink, true)
     }
   }, [message, navigate, shouldWarn])

@@ -1048,8 +1048,7 @@ async function handleIncomeRecords(request, env, segments) {
       ) {
         return badRequest('income batch updates require occurredAt, category and amount')
       }
-      const existing = existingById.get(input.id)
-      const sanitized = sanitizeIncomeRecordInput(input, existing)
+      const sanitized = sanitizeIncomeRecordInput(input)
       if (sanitized.error) return badRequest(sanitized.error)
       sanitizedUpdates.push({ id: input.id, value: sanitized.value })
     }

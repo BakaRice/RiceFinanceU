@@ -827,7 +827,13 @@ test('收入批量接口会一次应用新增修改删除', async () => {
   const salaryResponse = await authedRequest(env, '/api/income-records', {
     token,
     method: 'POST',
-    body: JSON.stringify({ occurredAt: '2026-07-01', category: 'salary', amount: 10000 }),
+    body: JSON.stringify({
+      occurredAt: '2026-07-01',
+      category: 'salary',
+      amount: 10000,
+      sourceName: '公司',
+      note: '旧备注',
+    }),
   })
   const salary = await salaryResponse.json()
   const bonusResponse = await authedRequest(env, '/api/income-records', {
@@ -858,7 +864,10 @@ test('收入批量接口会一次应用新增修改删除', async () => {
   assert.equal(response.status, 200)
   const body = await response.json()
   assert.equal(body.records.length, 2)
-  assert.equal(body.records.find((record) => record.id === salary.id).amount, 12000)
+  const updatedSalary = body.records.find((record) => record.id === salary.id)
+  assert.equal(updatedSalary.amount, 12000)
+  assert.equal(updatedSalary.sourceName, undefined)
+  assert.equal(updatedSalary.note, undefined)
   assert.equal(body.records.some((record) => record.id === bonus.id), false)
   assert.equal(body.records.some((record) => record.amount === 500), true)
   assert.equal(env.FINANCE_KV.putCount - putCountBeforeBatch, 1)

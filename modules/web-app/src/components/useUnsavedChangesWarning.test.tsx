@@ -62,4 +62,15 @@ describe('useUnsavedChangesWarning', () => {
 
     expect(screen.getByRole('heading', { name: '资产页' })).toBeTruthy()
   })
+
+  it('restores browser history when back navigation is cancelled', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const go = vi.spyOn(window.history, 'go').mockImplementation(() => undefined)
+    renderWarning()
+
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { idx: -1 } }))
+
+    expect(window.confirm).toHaveBeenCalledWith('收入修改尚未保存，确定离开吗？')
+    expect(go).toHaveBeenCalledWith(1)
+  })
 })

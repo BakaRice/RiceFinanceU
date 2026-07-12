@@ -78,9 +78,13 @@ export default function IncomeManagementPage() {
     sheetRef.current?.setEditable(false)
     setSaving(true)
     try {
-      await api.saveIncomeRecords(batch)
+      const result = await api.saveIncomeRecords(batch)
+      const savedRecords = [...result.records]
+        .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+      sheetRef.current?.reset(savedRecords)
+      setRecords(savedRecords)
+      setSheetRows(recordsToIncomeSheetRows(savedRecords))
       toast(`已保存 ${dirtyCount} 条收入变更`)
-      await load()
     } catch (saveError: any) {
       toast('保存收入失败: ' + saveError.message, 'error')
     } finally {
