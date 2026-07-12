@@ -27,3 +27,15 @@ _Avoid_: Housing fund asset balance
 **Housing Fund Asset**:
 The current balance of a housing fund account at a snapshot point.
 _Avoid_: Housing fund income
+
+**Entry-Paused Asset**:
+An existing asset temporarily omitted from routine snapshot entry while its last recorded value remains part of the ledger.
+_Avoid_: Frozen asset, disabled asset, inactive asset
+
+**Permanent Asset Deletion**:
+Removal reserved for an erroneous asset that has never appeared in an asset snapshot. An asset with snapshot history remains part of the ledger and cannot be permanently deleted.
+_Avoid_: Soft deletion, deactivation
+
+**Correction Snapshot**:
+A later asset snapshot that corrects an earlier recorded state without erasing the asset or its history.
+_Avoid_: Reversal transaction, historical deletion
