@@ -41,8 +41,16 @@ const IncomeSheet = forwardRef<IncomeSheetHandle, IncomeSheetProps>(function Inc
     })
     runtimeRef.current = runtime
     runtime.setRecords(records)
+    const syncTheme = () => runtime.setDarkMode(document.documentElement.dataset.theme === 'dark')
+    syncTheme()
+    const themeObserver = new MutationObserver(syncTheme)
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    })
 
     return () => {
+      themeObserver.disconnect()
       runtime.dispose()
       runtimeRef.current = null
     }

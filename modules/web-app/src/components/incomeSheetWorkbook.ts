@@ -12,26 +12,34 @@ function cell(value: CellValue) {
   return { v: value }
 }
 
+export function recordsToWorksheetValues(
+  records: IncomeRecord[],
+  rowCount: number,
+): CellValue[][] {
+  return Array.from({ length: rowCount }, (_, index) => {
+    const record = records[index]
+    if (!record) return [`new:${index + 1}`, '', '', '', '', '']
+    return [
+      record.id,
+      record.occurredAt,
+      record.category,
+      record.amount,
+      record.sourceName || '',
+      record.note || '',
+    ]
+  })
+}
+
 export function buildIncomeWorkbookData(records: IncomeRecord[]): IWorkbookData {
   const rowCount = Math.max(MIN_DATA_ROWS + 1, records.length + 51)
   const cellData: NonNullable<IWorkbookData['sheets'][string]['cellData']> = {
     0: Object.fromEntries(INCOME_SHEET_HEADERS.map((value, column) => [column, cell(value)])),
   }
 
-  for (let row = 1; row < rowCount; row += 1) {
-    cellData[row] = { 0: cell(`new:${row}`) }
-  }
-
-  records.forEach((record, index) => {
-    const row = index + 1
-    cellData[row] = {
-      0: cell(record.id),
-      1: cell(record.occurredAt),
-      2: cell(record.category),
-      3: cell(record.amount),
-      4: cell(record.sourceName || ''),
-      5: cell(record.note || ''),
-    }
+  recordsToWorksheetValues(records, rowCount - 1).forEach((values, index) => {
+    cellData[index + 1] = Object.fromEntries(
+      values.map((value, column) => [column, cell(value)]),
+    )
   })
 
   return {

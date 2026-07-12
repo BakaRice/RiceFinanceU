@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { forwardRef, useImperativeHandle } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { forwardRef, StrictMode, useImperativeHandle } from 'react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -159,5 +159,30 @@ describe('IncomeManagementPage', () => {
     expect(await screen.findByText(/保存收入失败: 网络错误/)).toBeTruthy()
     expect(screen.getByText('1 项未保存')).toBeTruthy()
     expect(mockedApi.getIncomeRecords).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a stale initial load that resolves after the latest request', async () => {
+    let resolveFirst!: (value: typeof records) => void
+    let resolveSecond!: (value: typeof records) => void
+    mockedApi.getIncomeRecords
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve }))
+
+    render(
+      <StrictMode>
+        <MemoryRouter>
+          <FeedbackProvider>
+            <IncomeManagementPage />
+          </FeedbackProvider>
+        </MemoryRouter>
+      </StrictMode>,
+    )
+
+    await act(async () => resolveSecond([records[0]]))
+    expect(await screen.findByText('1 条已保存')).toBeTruthy()
+    await act(async () => resolveFirst(records))
+
+    expect(screen.getByText('1 条已保存')).toBeTruthy()
+    expect(screen.queryByText('2 条已保存')).toBeNull()
   })
 })

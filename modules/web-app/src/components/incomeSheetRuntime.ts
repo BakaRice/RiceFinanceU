@@ -21,7 +21,7 @@ import type { IncomeRecord } from '../types/finance'
 import {
   buildIncomeWorkbookData,
   INCOME_SHEET_HEADERS,
-  INCOME_WORKBOOK_ID,
+  recordsToWorksheetValues,
   worksheetValuesToIncomeRows,
 } from './incomeSheetWorkbook'
 
@@ -40,6 +40,7 @@ const COLUMN_INDEX: Record<IncomeSheetColumn, number> = {
 
 export type IncomeSheetRuntime = {
   setRecords(records: IncomeRecord[]): void
+  setDarkMode(enabled: boolean): void
   focusCell(row: number, column: IncomeSheetColumn): void
   dispose(): void
 }
@@ -151,11 +152,20 @@ export function createIncomeSheetRuntime({
   return {
     setRecords(records) {
       suppressEvents = true
-      univerAPI.disposeUnit(INCOME_WORKBOOK_ID)
-      univerAPI.createWorkbook(buildIncomeWorkbookData(records))
-      configureSheet()
+      const worksheet = getActiveSheet()
+      if (worksheet) {
+        worksheet
+          .getRange(1, 0, worksheet.getMaxRows() - 1, INCOME_SHEET_HEADERS.length)
+          .setValues(recordsToWorksheetValues(records, worksheet.getMaxRows() - 1))
+      } else {
+        univerAPI.createWorkbook(buildIncomeWorkbookData(records))
+        configureSheet()
+      }
       suppressEvents = false
       emitRows()
+    },
+    setDarkMode(enabled) {
+      univerAPI.toggleDarkMode(enabled)
     },
     focusCell(row, column) {
       const worksheet = getActiveSheet()

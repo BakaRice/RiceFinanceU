@@ -62,6 +62,10 @@ function isBlankRow(row: IncomeSheetRow): boolean {
   return INCOME_SHEET_COLUMNS.every((column) => row[column].trim() === '')
 }
 
+function parseAmountValue(value: string): number {
+  return Number(value.replace(/,/g, '').trim())
+}
+
 function parseRow(row: IncomeSheetRow, rowIndex: number): IncomeRecordInput {
   const occurredAt = normalizeIncomeDateInput(row.occurredAt)
   if (!occurredAt) {
@@ -73,7 +77,7 @@ function parseRow(row: IncomeSheetRow, rowIndex: number): IncomeRecordInput {
     throw new IncomeSheetValidationError('收入分类无效', rowIndex, 'category')
   }
 
-  const amount = Number(row.amount)
+  const amount = parseAmountValue(row.amount)
   if (row.amount.trim() === '' || !Number.isFinite(amount) || amount < 0) {
     throw new IncomeSheetValidationError('金额必须是大于等于 0 的数字', rowIndex, 'amount')
   }
@@ -151,7 +155,7 @@ export function countIncomeChanges(
     if (
       row.occurredAt !== originalRecord.occurredAt ||
       row.category !== originalRecord.category ||
-      row.amount !== String(originalRecord.amount) ||
+      parseAmountValue(row.amount) !== originalRecord.amount ||
       row.sourceName !== (originalRecord.sourceName || '') ||
       row.note !== (originalRecord.note || '')
     ) {

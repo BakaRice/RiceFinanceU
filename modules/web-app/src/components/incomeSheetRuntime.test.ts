@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { IncomeRecord } from '../types/finance'
 import {
   buildIncomeWorkbookData,
+  recordsToWorksheetValues,
   worksheetValuesToIncomeRows,
 } from './incomeSheetWorkbook'
 
@@ -61,6 +62,14 @@ describe('incomeSheetRuntime data model', () => {
         sourceName: '',
         note: '',
       },
+    ])
+  })
+
+  it('rebuilds saved worksheet values without replacing the workbook runtime', () => {
+    expect(recordsToWorksheetValues(records, 3)).toEqual([
+      ['salary-1', '2026-07-01', 'salary', 10000, '公司', '七月工资'],
+      ['new:2', '', '', '', '', ''],
+      ['new:3', '', '', '', '', ''],
     ])
   })
 })

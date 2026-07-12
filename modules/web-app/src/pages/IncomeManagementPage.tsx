@@ -16,6 +16,7 @@ import './IncomeManagementPage.css'
 export default function IncomeManagementPage() {
   const { toast } = useFeedback()
   const sheetRef = useRef<IncomeSheetHandle>(null)
+  const loadRequestRef = useRef(0)
   const [records, setRecords] = useState<IncomeRecord[]>([])
   const [sheetRows, setSheetRows] = useState<IncomeSheetRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,17 +28,20 @@ export default function IncomeManagementPage() {
   }, [])
 
   async function load() {
+    const requestId = ++loadRequestRef.current
     setLoading(true)
     setError(null)
     try {
       const loaded = await api.getIncomeRecords()
+      if (requestId !== loadRequestRef.current) return
       const sorted = [...loaded].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
       setRecords(sorted)
       setSheetRows(recordsToIncomeSheetRows(sorted))
     } catch (loadError: any) {
+      if (requestId !== loadRequestRef.current) return
       setError(loadError.message)
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestRef.current) setLoading(false)
     }
   }
 

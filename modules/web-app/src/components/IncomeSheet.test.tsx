@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { act, createRef } from 'react'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IncomeRecord } from '../types/finance'
 import type { IncomeSheetRow } from '../pages/incomeSheetAdapter'
@@ -27,6 +27,7 @@ const records: IncomeRecord[] = [{
 describe('IncomeSheet', () => {
   const runtime = {
     setRecords: vi.fn(),
+    setDarkMode: vi.fn(),
     focusCell: vi.fn(),
     dispose: vi.fn(),
   }
@@ -37,6 +38,16 @@ describe('IncomeSheet', () => {
   })
 
   afterEach(() => cleanup())
+
+  it('keeps the worksheet theme aligned with the application theme', async () => {
+    document.documentElement.dataset.theme = 'dark'
+    render(<IncomeSheet records={records} onRowsChange={vi.fn()} />)
+
+    expect(runtime.setDarkMode).toHaveBeenCalledWith(true)
+    document.documentElement.dataset.theme = 'light'
+
+    await waitFor(() => expect(runtime.setDarkMode).toHaveBeenLastCalledWith(false))
+  })
 
   it('owns one runtime and disposes it on unmount', () => {
     const onRowsChange = vi.fn()

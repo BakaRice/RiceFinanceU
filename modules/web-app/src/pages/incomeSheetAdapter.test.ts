@@ -113,6 +113,19 @@ describe('incomeSheetAdapter', () => {
     })
   })
 
+  it('treats worksheet-formatted amounts as the same numeric value', () => {
+    const rows = recordsToIncomeSheetRows(original).map((current) => ({
+      ...current,
+      amount: Number(current.amount).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    }))
+
+    expect(countIncomeChanges(original, rows)).toBe(0)
+    expect(buildIncomeBatch(original, rows)).toEqual({ creates: [], updates: [], deletes: [] })
+  })
+
   it('treats a duplicated existing row identity as a new record', () => {
     const source = recordsToIncomeSheetRows(original)[0]
 
