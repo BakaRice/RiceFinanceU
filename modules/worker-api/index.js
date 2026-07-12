@@ -1001,6 +1001,78 @@ async function handleIncomeRecords(request, env, segments) {
     return methodNotAllowed()
   }
 
+  if (segments.length === 2 && segments[1] === 'batch') {
+    if (request.method !== 'POST') return methodNotAllowed()
+
+    const body = await readJsonBody(request)
+    const creates = Array.isArray(body?.creates) ? body.creates : null
+    const updates = Array.isArray(body?.updates) ? body.updates : null
+    const deletes = Array.isArray(body?.deletes) ? body.deletes : null
+    if (!creates || !updates || !deletes) {
+      return badRequest('creates, updates and deletes must be arrays')
+    }
+
+    const existingById = new Map(data.incomeRecords.map((record) => [record.id, record]))
+    const updateIds = updates.map((input) => input?.id)
+    const deleteIds = deletes
+    if (
+      new Set(updateIds).size !== updateIds.length ||
+      new Set(deleteIds).size !== deleteIds.length
+    ) {
+      return badRequest('income batch contains duplicate ids')
+    }
+    if (updateIds.some((id) => deleteIds.includes(id))) {
+      return badRequest('income batch contains conflicting operations')
+    }
+    if (
+      [...updateIds, ...deleteIds].some(
+        (id) => typeof id !== 'string' || !existingById.has(id),
+      )
+    ) {
+      return json({ error: 'Income record not found' }, { status: 404 })
+    }
+
+    const sanitizedCreates = []
+    for (const input of creates) {
+      const sanitized = sanitizeIncomeRecordInput(input)
+      if (sanitized.error) return badRequest(sanitized.error)
+      sanitizedCreates.push(sanitized.value)
+    }
+
+    const sanitizedUpdates = []
+    for (const input of updates) {
+      const existing = existingById.get(input.id)
+      const sanitized = sanitizeIncomeRecordInput(input, existing)
+      if (sanitized.error) return badRequest(sanitized.error)
+      sanitizedUpdates.push({ id: input.id, value: sanitized.value })
+    }
+
+    const now = new Date().toISOString()
+    const deletedIds = new Set(deleteIds)
+    const updatedById = new Map(sanitizedUpdates.map(({ id, value }) => [id, value]))
+    data.incomeRecords = data.incomeRecords
+      .filter((record) => !deletedIds.has(record.id))
+      .map((record) => {
+        const value = updatedById.get(record.id)
+        if (!value) return record
+        const updatedRecord = { ...record, ...value, updatedAt: now }
+        if (!value.sourceName) delete updatedRecord.sourceName
+        if (!value.note) delete updatedRecord.note
+        return updatedRecord
+      })
+    data.incomeRecords.push(...sanitizedCreates.map((value) => ({
+      id: createId(),
+      ...value,
+      createdAt: now,
+      updatedAt: now,
+    })))
+
+    await writeData(env, data)
+    return json({
+      records: [...data.incomeRecords].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
+    })
+  }
+
   if (segments.length === 2) {
     const id = segments[1]
     const recordIndex = data.incomeRecords.findIndex((record) => record.id === id)

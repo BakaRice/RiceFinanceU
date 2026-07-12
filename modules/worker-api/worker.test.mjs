@@ -8,6 +8,7 @@ const TEST_EMAIL = 'owner@example.com'
 class MemoryKV {
   constructor() {
     this.values = new Map()
+    this.putCount = 0
   }
 
   async get(key, options) {
@@ -24,6 +25,7 @@ class MemoryKV {
   }
 
   async put(key, value, options = {}) {
+    this.putCount += 1
     const expiresAt = options.expirationTtl
       ? Date.now() + options.expirationTtl * 1000
       : undefined
@@ -816,6 +818,104 @@ test('收入记录接口会拒绝非法日期、非法分类和负数金额', as
   })
   assert.equal(negativeAmountResponse.status, 400)
   assert.deepEqual(await negativeAmountResponse.json(), { error: 'amount must be a non-negative finite number' })
+})
+
+test('收入批量接口会一次应用新增修改删除', async () => {
+  const env = createEnv()
+  const token = await login(env)
+
+  const salaryResponse = await authedRequest(env, '/api/income-records', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({ occurredAt: '2026-07-01', category: 'salary', amount: 10000 }),
+  })
+  const salary = await salaryResponse.json()
+  const bonusResponse = await authedRequest(env, '/api/income-records', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({ occurredAt: '2026-07-02', category: 'bonus', amount: 1000 }),
+  })
+  const bonus = await bonusResponse.json()
+  const putCountBeforeBatch = env.FINANCE_KV.putCount
+
+  const response = await authedRequest(env, '/api/income-records/batch', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      creates: [{ occurredAt: '2026-07-03', category: 'side_income', amount: 500 }],
+      updates: [{
+        id: salary.id,
+        occurredAt: '2026-07-01',
+        category: 'salary',
+        amount: 12000,
+        sourceName: '',
+        note: '',
+      }],
+      deletes: [bonus.id],
+    }),
+  })
+
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.records.length, 2)
+  assert.equal(body.records.find((record) => record.id === salary.id).amount, 12000)
+  assert.equal(body.records.some((record) => record.id === bonus.id), false)
+  assert.equal(body.records.some((record) => record.amount === 500), true)
+  assert.equal(env.FINANCE_KV.putCount - putCountBeforeBatch, 1)
+})
+
+test('收入批量接口任一操作非法时会整批拒绝并保持账本不变', async () => {
+  const invalidBodies = (existingId) => [
+    {
+      expectedStatus: 400,
+      body: {
+        creates: [{ occurredAt: '2026-02-30', category: 'salary', amount: 1 }],
+        updates: [],
+        deletes: [],
+      },
+    },
+    {
+      expectedStatus: 404,
+      body: {
+        creates: [],
+        updates: [{ id: 'missing', occurredAt: '2026-07-01', category: 'salary', amount: 1 }],
+        deletes: [],
+      },
+    },
+    {
+      expectedStatus: 400,
+      body: {
+        creates: [],
+        updates: [{ id: existingId, occurredAt: '2026-07-01', category: 'salary', amount: 1 }],
+        deletes: [existingId],
+      },
+    },
+  ]
+
+  for (const scenario of invalidBodies('placeholder')) {
+    const env = createEnv()
+    const token = await login(env)
+    const seedResponse = await authedRequest(env, '/api/income-records', {
+      token,
+      method: 'POST',
+      body: JSON.stringify({ occurredAt: '2026-07-01', category: 'salary', amount: 10000 }),
+    })
+    const seed = await seedResponse.json()
+    const requestBody = JSON.parse(JSON.stringify(scenario.body).replaceAll('placeholder', seed.id))
+    const putCountBeforeBatch = env.FINANCE_KV.putCount
+
+    const response = await authedRequest(env, '/api/income-records/batch', {
+      token,
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    })
+
+    assert.equal(response.status, scenario.expectedStatus)
+    assert.equal(env.FINANCE_KV.putCount, putCountBeforeBatch)
+    const listResponse = await authedRequest(env, '/api/income-records', { token })
+    const records = await listResponse.json()
+    assert.deepEqual(records.map((record) => [record.id, record.amount]), [[seed.id, 10000]])
+  }
 })
 
 test('导入旧月收入会迁移为收入记录，导出新账本包含收入记录', async () => {
