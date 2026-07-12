@@ -18,6 +18,11 @@
     "test:watch": "vitest --config modules/web-app/vite.config.ts"
   },
   "dependencies": {
+    "@univerjs/preset-sheets-core": "^0.25.1",
+    "@univerjs/preset-sheets-data-validation": "^0.25.1",
+    "@univerjs/preset-sheets-filter": "^0.25.1",
+    "@univerjs/preset-sheets-sort": "^0.25.1",
+    "@univerjs/presets": "^0.25.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.18.0",
