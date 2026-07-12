@@ -125,7 +125,7 @@ test('asset management helpers call the same endpoints as the desktop app', asyn
 
   await api.createAsset({ name: '现金', type: 'cash', currency: 'CNY' })
   await api.updateAsset('asset-1', { name: '现金账户' })
-  await api.deleteAsset('asset-1')
+  await api.deleteAsset('asset-1', '现金账户')
 
   assert.equal(globalThis.wx.requests[0].url, 'https://ricefinanceu.ricemarch-finance.workers.dev/api/assets')
   assert.equal(globalThis.wx.requests[0].method, 'POST')
@@ -135,6 +135,7 @@ test('asset management helpers call the same endpoints as the desktop app', asyn
   assert.deepEqual(globalThis.wx.requests[1].data, { name: '现金账户' })
   assert.equal(globalThis.wx.requests[2].url, 'https://ricefinanceu.ricemarch-finance.workers.dev/api/assets/asset-1')
   assert.equal(globalThis.wx.requests[2].method, 'DELETE')
+  assert.deepEqual(globalThis.wx.requests[2].data, { confirmName: '现金账户' })
 })
 
 test('data management helpers call export and import endpoints', async () => {

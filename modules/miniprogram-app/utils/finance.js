@@ -30,6 +30,17 @@ function getAssetTypeLabel(type) {
   return ASSET_TYPE_LABELS[type] || '其他'
 }
 
+function getAssetEntryStatus(asset) {
+  if (asset && (asset.entryStatus === 'normal' || asset.entryStatus === 'paused')) {
+    return asset.entryStatus
+  }
+  return asset && asset.isActive === false ? 'paused' : 'normal'
+}
+
+function isAssetEntryNormal(asset) {
+  return getAssetEntryStatus(asset) === 'normal'
+}
+
 function formatPlainNumber(value) {
   if (value === undefined || value === null || !Number.isFinite(Number(value))) return ''
   return String(Number(value))
@@ -104,7 +115,7 @@ function buildValueMap(latestData) {
 function buildEntryRows(assets, latestData) {
   const latestValues = buildValueMap(latestData)
   const rows = (assets || [])
-    .filter((asset) => asset.isActive)
+    .filter(isAssetEntryNormal)
     .map((asset) => {
       const previous = latestValues.get(asset.id)
       return {
@@ -226,6 +237,8 @@ module.exports = {
   formatMoney,
   formatPercent,
   getAssetTypeLabel,
+  getAssetEntryStatus,
+  isAssetEntryNormal,
   isInvestmentType,
   roundRate,
   roundMoney,

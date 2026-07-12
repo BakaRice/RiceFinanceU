@@ -37,7 +37,6 @@ function getSignedTone(value) {
 function buildAssetRows(assets, latestData, rates) {
   const valueMap = buildValueMap(latestData)
   return assets
-    .filter((asset) => asset.isActive)
     .map((asset) => {
       const value = valueMap.get(asset.id)
       const amount = value ? Number(value.amount) : null
@@ -116,9 +115,8 @@ Component({
           api.getRates(),
         ])
 
-        const activeAssets = assets.filter((asset) => asset.isActive)
         const latestValues = latestData && Array.isArray(latestData.values) ? latestData.values : []
-        const total = finance.calculateSnapshotTotal(latestValues, activeAssets, rates)
+        const total = finance.calculateSnapshotTotal(latestValues, assets, rates)
         const assetRows = buildAssetRows(assets, latestData, rates)
         const snapshotRows = snapshots.slice(0, 6).map((snapshot) => ({
           id: snapshot.id,

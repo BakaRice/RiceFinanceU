@@ -53,7 +53,7 @@ test('总览页展示时如果已有 token，会立即请求总览所需接口',
       const dataByPath = {
         '/assets': [
           { id: 'cash', name: '现金', type: 'cash', currency: 'CNY', isActive: true },
-          { id: 'fund', name: '美元基金', type: 'fund', currency: 'USD', isActive: true },
+          { id: 'fund', name: '美元基金', type: 'fund', currency: 'USD', entryStatus: 'paused' },
         ],
         '/snapshots/latest': {
           snapshot: { id: 's1', recordedAt: '2026-07-04T12:00:00.000Z' },

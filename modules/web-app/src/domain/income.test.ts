@@ -6,6 +6,7 @@ import {
   calculateRestrictedIncomeRecordTotal,
   calculateSpendableIncomeRecordTotal,
   migrateMonthlyIncomesToIncomeRecords,
+  normalizeIncomeDateInput,
 } from './income'
 
 function record(overrides: Partial<IncomeRecord>): IncomeRecord {
@@ -35,6 +36,17 @@ function monthlyIncome(overrides: Partial<MonthlyIncome>): MonthlyIncome {
 }
 
 describe('income domain helpers', () => {
+  it('normalizes common typed date formats and rejects impossible dates', () => {
+    expect(normalizeIncomeDateInput('2026-07-10')).toBe('2026-07-10')
+    expect(normalizeIncomeDateInput('2026/7/10')).toBe('2026-07-10')
+    expect(normalizeIncomeDateInput('20260710')).toBe('2026-07-10')
+    expect(normalizeIncomeDateInput('2026年7月10日')).toBe('2026-07-10')
+    expect(normalizeIncomeDateInput(' 2024/2/29 ')).toBe('2024-02-29')
+    expect(normalizeIncomeDateInput('2026-02-29')).toBeNull()
+    expect(normalizeIncomeDateInput('2026-02-30')).toBeNull()
+    expect(normalizeIncomeDateInput('7月10日')).toBeNull()
+  })
+
   it('calculates income record totals from separate income records', () => {
     const result = calculateIncomeRecordTotal([
       record({ id: 'salary', amount: 12000.235, category: 'salary' }),
@@ -92,11 +104,21 @@ describe('income domain helpers', () => {
     expect(series.get('2027')).toBe(15000)
   })
 
-  it('does not generate income series for day or week scale', () => {
-    const incomes = [record({ id: 'income-1', occurredAt: '2026-07-01', amount: 10000 })]
+  it('groups income records into day and Monday-based week totals', () => {
+    const incomes = [
+      record({ id: 'income-1', occurredAt: '2026-07-05', amount: 10000 }),
+      record({ id: 'income-2', occurredAt: '2026-07-05', amount: 500 }),
+      record({ id: 'income-3', occurredAt: '2026-07-06', amount: 12000 }),
+      record({ id: 'income-4', occurredAt: '2026-07-12', amount: 800 }),
+    ]
 
-    expect(buildIncomeSeriesByScale(incomes, 'day').size).toBe(0)
-    expect(buildIncomeSeriesByScale(incomes, 'week').size).toBe(0)
+    const daily = buildIncomeSeriesByScale(incomes, 'day')
+    expect(daily.get('2026-07-05')).toBe(10500)
+    expect(daily.get('2026-07-06')).toBe(12000)
+
+    const weekly = buildIncomeSeriesByScale(incomes, 'week')
+    expect(weekly.get('2026-06-29')).toBe(10500)
+    expect(weekly.get('2026-07-06')).toBe(12800)
   })
 
   it('migrates legacy monthly income summaries into income records', () => {

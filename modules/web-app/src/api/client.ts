@@ -75,8 +75,11 @@ export const api = {
     request<Asset>('/assets', { method: 'POST', body: JSON.stringify(data) }),
   updateAsset: (id: string, data: Partial<Asset>) =>
     request<Asset>(`/assets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  deleteAsset: (id: string) =>
-    request<{ success: boolean }>(`/assets/${id}`, { method: 'DELETE' }),
+  deleteAsset: (id: string, confirmName: string) =>
+    request<{ success: boolean }>(`/assets/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ confirmName }),
+    }),
 
   // Snapshots
   getSnapshots: () => request<Snapshot[]>('/snapshots'),

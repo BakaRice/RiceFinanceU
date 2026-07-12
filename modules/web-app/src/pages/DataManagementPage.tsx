@@ -139,6 +139,7 @@ export function preValidate(data: any): ImportSummary {
 
   // Check assets
   let badAssetCount = 0
+  let invalidEntryStatusCount = 0
   let dcaPlanCount = 0
   let invalidDcaPlanCount = 0
   for (let i = 0; i < assets.length; i++) {
@@ -157,8 +158,12 @@ export function preValidate(data: any): ImportSummary {
     if (!VALID_CURRENCIES.includes(a.currency)) {
       issues.push(`资产[${i}] "${a.name || a.id}": 无效币种 "${a.currency}"`)
     }
-    if (typeof a.isActive !== 'boolean') {
-      issues.push(`资产[${i}] "${a.name || a.id}": isActive 应为布尔值`)
+    if (a.entryStatus !== undefined && !['normal', 'paused'].includes(a.entryStatus)) {
+      invalidEntryStatusCount++
+      issues.push(`资产[${i}] "${a.name || a.id}": entryStatus 无效 "${a.entryStatus}"`)
+    } else if (a.entryStatus === undefined && typeof a.isActive !== 'boolean') {
+      invalidEntryStatusCount++
+      issues.push(`资产[${i}] "${a.name || a.id}": 缺少有效 entryStatus`)
     }
     if (a.dcaPlan !== undefined) {
       const dcaIssue = validateImportedDcaPlan(a.type, a.dcaPlan)
@@ -283,6 +288,7 @@ export function preValidate(data: any): ImportSummary {
 
   const hasCriticalIssues =
     badAssetCount > 0 ||
+    invalidEntryStatusCount > 0 ||
     badSnapCount > 0 ||
     badValueCount > 0 ||
     invalidProfitRateCount > 0 ||

@@ -43,6 +43,16 @@ describe('SnapshotForm imported profit rate precision', () => {
         createdAt: '2026-07-01T00:00:00.000Z',
         updatedAt: '2026-07-01T00:00:00.000Z',
       },
+      {
+        id: 'paused-gold',
+        name: '暂停黄金',
+        type: 'gold',
+        currency: 'CNY',
+        entryStatus: 'paused',
+        isActive: true,
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+      },
     ] as any)
     mockedApi.getLatestSnapshot.mockResolvedValue({
       snapshot: {
@@ -98,6 +108,7 @@ describe('SnapshotForm imported profit rate precision', () => {
     expect(screen.getAllByRole('table')).toHaveLength(1)
     expect(screen.getByText('指数基金')).toBeTruthy()
     expect(screen.getByText('现金')).toBeTruthy()
+    expect(screen.queryByText('暂停黄金')).toBeNull()
     expect(screen.getByDisplayValue('1000')).toBeTruthy()
     expect(screen.getByDisplayValue('5000')).toBeTruthy()
     expect(screen.queryByRole('heading', { name: /投资类资产/ })).toBeNull()

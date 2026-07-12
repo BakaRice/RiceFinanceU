@@ -17,6 +17,7 @@ const DEFAULT_RATES = {
 // 这些常量镜像前端领域模型。新增资产类型时，需要和
 // src/types/finance.ts、src/domain/assets.ts 保持一致。
 const VALID_ASSET_TYPES = ['fund', 'stock', 'gold', 'deposit', 'cash', 'housing_fund', 'other']
+const VALID_ASSET_ENTRY_STATUSES = ['normal', 'paused']
 const VALID_CURRENCIES = ['CNY', 'USD', 'HKD']
 const INVESTMENT_TYPES = ['fund', 'stock', 'gold']
 const VALID_DCA_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly']
@@ -97,6 +98,20 @@ function createDefaultData() {
   }
 }
 
+function normalizeAssetEntryStatus(asset) {
+  if (VALID_ASSET_ENTRY_STATUSES.includes(asset?.entryStatus)) return asset.entryStatus
+  return asset?.isActive === false ? 'paused' : 'normal'
+}
+
+function normalizeAsset(asset) {
+  if (!asset || typeof asset !== 'object' || Array.isArray(asset)) return null
+  const { isActive: _legacyIsActive, ...rest } = asset
+  return {
+    ...rest,
+    entryStatus: normalizeAssetEntryStatus(asset),
+  }
+}
+
 // 把空 KV、现有 KV 数据和导入备份统一整理成当前 v2 结构。
 // 这样即使旧备份没有 rates 字段，也能继续兼容。
 function normalizeData(data) {
@@ -119,7 +134,7 @@ function normalizeData(data) {
     meta: data.meta && typeof data.meta === 'object'
       ? { schemaVersion: 2, updatedAt: String(data.meta.updatedAt || new Date().toISOString()) }
       : { schemaVersion: 2, updatedAt: new Date().toISOString() },
-    assets: Array.isArray(data.assets) ? data.assets : [],
+    assets: Array.isArray(data.assets) ? data.assets.map(normalizeAsset).filter(Boolean) : [],
     snapshots: Array.isArray(data.snapshots) ? data.snapshots : [],
     snapshotValues: Array.isArray(data.snapshotValues) ? data.snapshotValues : [],
     incomeRecords,
@@ -502,6 +517,14 @@ function validateImportData(data) {
     return `Unsupported schema version: ${data.meta.schemaVersion}. Supported: 1, 2`
   }
   if (!Array.isArray(data.assets)) return 'Invalid backup: assets must be an array'
+  for (const asset of data.assets) {
+    if (asset?.entryStatus !== undefined && !VALID_ASSET_ENTRY_STATUSES.includes(asset.entryStatus)) {
+      return `Invalid backup: asset entryStatus must be one of: ${VALID_ASSET_ENTRY_STATUSES.join(', ')}`
+    }
+    if (asset?.entryStatus === undefined && typeof asset?.isActive !== 'boolean') {
+      return 'Invalid backup: asset must include a valid entryStatus or legacy isActive'
+    }
+  }
   if (!Array.isArray(data.snapshots) && !Array.isArray(data.transactions)) {
     return 'Invalid backup: snapshots must be an array'
   }
@@ -627,7 +650,7 @@ async function handleAssets(request, env, segments) {
         institution,
         ...(assetProfile ? { profile: assetProfile } : {}),
         ...(assetDcaPlan ? { dcaPlan: assetDcaPlan } : {}),
-        isActive: true,
+        entryStatus: 'normal',
         note,
         createdAt: now,
         updatedAt: now,
@@ -651,6 +674,9 @@ async function handleAssets(request, env, segments) {
       if (body?.type && !isValidAssetType(body.type)) {
         return badRequest(`type must be one of: ${VALID_ASSET_TYPES.join(', ')}`)
       }
+      if (body?.entryStatus !== undefined && !VALID_ASSET_ENTRY_STATUSES.includes(body.entryStatus)) {
+        return badRequest(`entryStatus must be one of: ${VALID_ASSET_ENTRY_STATUSES.join(', ')}`)
+      }
       const nextType = body?.type || data.assets[assetIndex].type
       // profile 未传时保留并重新清洗已有档案；传入 {} 时表示清空档案。
       const nextProfile = sanitizeAssetProfile(
@@ -661,13 +687,13 @@ async function handleAssets(request, env, segments) {
         nextType,
         body?.dcaPlan !== undefined ? body.dcaPlan : data.assets[assetIndex].dcaPlan,
       )
-      const nextAsset = {
+      const nextAsset = normalizeAsset({
         ...data.assets[assetIndex],
         ...(body || {}),
         id,
         type: nextType,
         updatedAt: new Date().toISOString(),
-      }
+      })
       if (nextProfile) {
         nextAsset.profile = nextProfile
       } else {
@@ -684,11 +710,18 @@ async function handleAssets(request, env, segments) {
     }
 
     if (request.method === 'DELETE') {
-      data.assets[assetIndex] = {
-        ...data.assets[assetIndex],
-        isActive: false,
-        updatedAt: new Date().toISOString(),
+      const asset = data.assets[assetIndex]
+      const body = await readJsonBody(request)
+      if (body?.confirmName !== asset.name) {
+        return badRequest('confirmName must exactly match asset name')
       }
+      if (data.snapshotValues.some((value) => value.assetId === id)) {
+        return json({
+          error: '该资产已有历史快照，只能暂停录入',
+          code: 'ASSET_HAS_SNAPSHOT_HISTORY',
+        }, { status: 409 })
+      }
+      data.assets.splice(assetIndex, 1)
       await writeData(env, data)
       return json({ success: true })
     }
@@ -718,7 +751,7 @@ function validateSnapshotInput(input, assets) {
     if (value.assetId) {
       const asset = assets.find((item) => item.id === value.assetId)
       if (!asset) return `asset ${value.assetId} not found`
-      if (!asset.isActive) return `asset ${value.assetId} is not active`
+      if (asset.entryStatus !== 'normal') return `asset ${value.assetId} is paused for entry`
       if (!isInvestmentType(asset.type) && (value.profit !== undefined || value.profitRate !== undefined)) {
         return `balance asset ${value.assetId} cannot have profit or profitRate`
       }
@@ -773,7 +806,7 @@ async function handleSnapshots(request, env, segments) {
             institution: value.asset.institution,
             ...(profile ? { profile } : {}),
             ...(dcaPlan ? { dcaPlan } : {}),
-            isActive: true,
+            entryStatus: 'normal',
             note: value.asset.note,
             createdAt: now,
             updatedAt: now,

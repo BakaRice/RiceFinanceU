@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Asset, AssetDcaPlan, AssetProfile, AssetProfileKey, AssetType, Currency, DcaFrequency, SnapshotValue } from '../types/finance'
+import type { Asset, AssetDcaPlan, AssetEntryStatus, AssetProfile, AssetProfileKey, AssetType, Currency, DcaFrequency, SnapshotValue } from '../types/finance'
 import {
   ASSET_TYPE_LABELS,
   formatAssetProfileIdentifier,
+  getAssetEntryStatus,
   getAssetProfileFields,
   isInvestmentType,
   isRestrictedAssetType,
@@ -20,6 +21,30 @@ import { useFeedback } from '../components/Feedback/FeedbackContext'
 import './AssetsPage.css'
 
 type SortKey = 'name' | 'type' | 'currency' | 'amount' | 'profit' | 'profitRate' | 'institution'
+type AssetFieldKey = 'name' | 'type' | 'identifier' | 'institution' | 'currency' | 'note'
+
+type AssetFieldPreferences = {
+  order: AssetFieldKey[]
+  hidden: AssetFieldKey[]
+}
+
+const ASSET_FIELD_STORAGE_KEY = 'ricefinanceu:asset-table-fields'
+const DEFAULT_ASSET_FIELD_ORDER: AssetFieldKey[] = [
+  'name',
+  'type',
+  'identifier',
+  'institution',
+  'currency',
+  'note',
+]
+const ASSET_FIELD_LABELS: Record<AssetFieldKey, string> = {
+  name: '名称',
+  type: '类型',
+  identifier: '标识',
+  institution: '机构',
+  currency: '币种',
+  note: '备注',
+}
 
 const ASSET_COLUMN_WIDTHS = {
   name: 180,
@@ -32,7 +57,7 @@ const ASSET_COLUMN_WIDTHS = {
   profitRate: 100,
   status: 90,
   note: 180,
-  actions: 112,
+  actions: 190,
 }
 
 type AssetDraft = {
@@ -41,7 +66,7 @@ type AssetDraft = {
   type: AssetType
   institution: string
   currency: Currency
-  isActive: boolean
+  entryStatus: AssetEntryStatus
   note: string
   original: Asset
 }
@@ -53,9 +78,38 @@ function assetToDraft(asset: Asset): AssetDraft {
     type: asset.type,
     institution: asset.institution || '',
     currency: asset.currency,
-    isActive: asset.isActive,
+    entryStatus: getAssetEntryStatus(asset),
     note: asset.note || '',
     original: asset,
+  }
+}
+
+function loadAssetFieldPreferences(): AssetFieldPreferences {
+  const fallback: AssetFieldPreferences = { order: [...DEFAULT_ASSET_FIELD_ORDER], hidden: [] }
+  if (typeof localStorage === 'undefined') return fallback
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ASSET_FIELD_STORAGE_KEY) || '{}') as {
+      order?: unknown
+      hidden?: unknown
+    }
+    const storedOrder = Array.isArray(parsed.order)
+      ? (parsed.order as unknown[]).filter((key): key is AssetFieldKey => (
+        typeof key === 'string' && DEFAULT_ASSET_FIELD_ORDER.includes(key as AssetFieldKey)
+      ))
+      : []
+    const order = [
+      ...new Set(storedOrder),
+      ...DEFAULT_ASSET_FIELD_ORDER.filter((key) => !storedOrder.includes(key)),
+    ]
+    const hidden = Array.isArray(parsed.hidden)
+      ? (parsed.hidden as unknown[]).filter((key): key is AssetFieldKey => (
+        key !== 'name' && typeof key === 'string' && DEFAULT_ASSET_FIELD_ORDER.includes(key as AssetFieldKey)
+      ))
+      : []
+    return { order, hidden: [...new Set(hidden)] }
+  } catch {
+    return fallback
   }
 }
 
@@ -89,6 +143,17 @@ export default function AssetsPage() {
   const [dcaNote, setDcaNote] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('type')
   const [sortDir, setSortDir] = useState<1 | -1>(1)
+  const [showFieldSettings, setShowFieldSettings] = useState(false)
+  const [fieldPreferences, setFieldPreferences] = useState(loadAssetFieldPreferences)
+  const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deletingAsset, setDeletingAsset] = useState(false)
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(ASSET_FIELD_STORAGE_KEY, JSON.stringify(fieldPreferences))
+    }
+  }, [fieldPreferences])
 
   useEffect(() => {
     load()
@@ -243,7 +308,7 @@ export default function AssetsPage() {
       draft.type !== draft.original.type ||
       draft.institution !== (draft.original.institution || '') ||
       draft.currency !== draft.original.currency ||
-      draft.isActive !== draft.original.isActive ||
+      draft.entryStatus !== getAssetEntryStatus(draft.original) ||
       draft.note !== (draft.original.note || '')
     )
   }
@@ -275,7 +340,7 @@ export default function AssetsPage() {
           type: draft.type,
           institution: draft.institution.trim() || undefined,
           currency: draft.currency,
-          isActive: draft.isActive,
+          entryStatus: draft.entryStatus,
           note: draft.note.trim() || undefined,
         })
       }
@@ -288,20 +353,41 @@ export default function AssetsPage() {
     }
   }
 
-  async function handleDeactivate(a: Asset) {
+  async function handleRequestDelete(a: Asset) {
     const ok = await confirm({
-      title: '停用资产',
-      message: `确定要停用 "${a.name}" 吗？`,
-      detail: '停用后该资产将不在录入页显示，但仍可在历史快照中查看。',
-      confirmLabel: '停用',
+      title: '永久删除资产',
+      message: `即将永久删除 "${a.name}"。此操作不可恢复。`,
+      detail: '只有从未进入任何快照的错误资产可以永久删除；已有历史的资产只能暂停录入。',
+      confirmLabel: '继续删除',
       cancelLabel: '取消',
       variant: 'danger',
     })
     if (!ok) return
+    setDeleteTarget(a)
+    setDeleteConfirmation('')
+  }
+
+  async function handlePermanentDelete() {
+    if (!deleteTarget || deleteConfirmation !== deleteTarget.name) return
+    setDeletingAsset(true)
     try {
-      await api.deleteAsset(a.id)
-      toast(`已停用 "${a.name}"`)
-      load()
+      await api.deleteAsset(deleteTarget.id, deleteConfirmation)
+      toast(`已永久删除 "${deleteTarget.name}"`)
+      setDeleteTarget(null)
+      setDeleteConfirmation('')
+      await load()
+    } catch (e: any) {
+      toast('删除失败: ' + e.message, 'error')
+    } finally {
+      setDeletingAsset(false)
+    }
+  }
+
+  async function updateEntryStatus(asset: Asset, entryStatus: AssetEntryStatus) {
+    try {
+      await api.updateAsset(asset.id, { entryStatus })
+      toast(entryStatus === 'paused' ? `已暂停录入 "${asset.name}"` : `已恢复录入 "${asset.name}"`)
+      await load()
     } catch (e: any) {
       toast('操作失败: ' + e.message, 'error')
     }
@@ -367,26 +453,206 @@ export default function AssetsPage() {
     .map((asset) => draftsById.get(asset.id))
     .filter((draft): draft is AssetDraft => Boolean(draft))
 
+  const visibleAssetFields = fieldPreferences.order.filter(
+    (key) => !fieldPreferences.hidden.includes(key),
+  )
+
+  function moveAssetField(key: AssetFieldKey, offset: -1 | 1) {
+    setFieldPreferences((current) => {
+      const index = current.order.indexOf(key)
+      const nextIndex = index + offset
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.order.length) return current
+      const order = [...current.order]
+      ;[order[index], order[nextIndex]] = [order[nextIndex], order[index]]
+      return { ...current, order }
+    })
+  }
+
+  function toggleAssetField(key: AssetFieldKey) {
+    if (key === 'name') return
+    setFieldPreferences((current) => ({
+      ...current,
+      hidden: current.hidden.includes(key)
+        ? current.hidden.filter((hiddenKey) => hiddenKey !== key)
+        : [...current.hidden, key],
+    }))
+  }
+
+  function renderAssetFieldHeader(key: AssetFieldKey) {
+    const label = ASSET_FIELD_LABELS[key]
+    const sortKeys: Partial<Record<AssetFieldKey, SortKey>> = {
+      name: 'name',
+      type: 'type',
+      institution: 'institution',
+      currency: 'currency',
+    }
+    const fieldSortKey = sortKeys[key]
+    return (
+      <th
+        key={key}
+        className={fieldSortKey ? 'sortable' : undefined}
+        onClick={fieldSortKey ? () => toggleSort(fieldSortKey) : undefined}
+      >
+        {label} {fieldSortKey && sortIcon(fieldSortKey)}
+        <ColumnResizeHandle column={key} label={label} onResizeStart={startResize} />
+      </th>
+    )
+  }
+
+  function renderAssetFieldCell(key: AssetFieldKey, draft: AssetDraft) {
+    switch (key) {
+      case 'name':
+        return (
+          <td key={key} className="asset-edit-cell asset-name-edit-cell">
+            <input
+              aria-label={`${draft.original.name} 名称`}
+              value={draft.name}
+              onChange={(event) => updateDraft(draft.id, 'name', event.target.value)}
+            />
+            <a
+              className="asset-detail-link"
+              href={`/assets/${draft.id}`}
+              aria-label={draft.original.name}
+              onClick={(event) => {
+                event.preventDefault()
+                navigate(`/assets/${draft.id}`)
+              }}
+            >
+              ↗
+            </a>
+            {draft.original.dcaPlan?.enabled && <span className="asset-dca-tag">定投</span>}
+          </td>
+        )
+      case 'type':
+        return (
+          <td key={key} className="asset-edit-cell asset-type-cell">
+            <select
+              aria-label={`${draft.original.name} 类型`}
+              value={draft.type}
+              onChange={(event) => updateDraft(draft.id, 'type', event.target.value as AssetType)}
+            >
+              {Object.entries(ASSET_TYPE_LABELS).map(([value, label]) => (
+                <option value={value} key={value}>{label}</option>
+              ))}
+            </select>
+            {isRestrictedAssetType(draft.type) && (
+              <span className="asset-restricted-marker">
+                <span>受限资产</span>
+                <small>不可随意提取</small>
+              </span>
+            )}
+          </td>
+        )
+      case 'identifier':
+        return (
+          <td key={key} className="asset-profile-identifier is-readonly">
+            {formatAssetProfileIdentifier(draft.original)}
+          </td>
+        )
+      case 'institution':
+        return (
+          <td key={key} className="asset-edit-cell">
+            <input
+              aria-label={`${draft.original.name} 机构`}
+              value={draft.institution}
+              onChange={(event) => updateDraft(draft.id, 'institution', event.target.value)}
+            />
+          </td>
+        )
+      case 'currency':
+        return (
+          <td key={key} className="asset-edit-cell">
+            <select
+              aria-label={`${draft.original.name} 币种`}
+              value={draft.currency}
+              onChange={(event) => updateDraft(draft.id, 'currency', event.target.value as Currency)}
+            >
+              <option value="CNY">CNY</option>
+              <option value="USD">USD</option>
+              <option value="HKD">HKD</option>
+            </select>
+          </td>
+        )
+      case 'note':
+        return (
+          <td key={key} className="asset-edit-cell">
+            <input
+              aria-label={`${draft.original.name} 备注`}
+              value={draft.note}
+              onChange={(event) => updateDraft(draft.id, 'note', event.target.value)}
+            />
+          </td>
+        )
+    }
+  }
+
+  function renderFieldSettings() {
+    return (
+      <div className="asset-field-settings">
+        <button
+          className="btn-secondary asset-field-settings-trigger"
+          type="button"
+          aria-expanded={showFieldSettings}
+          onClick={() => setShowFieldSettings((visible) => !visible)}
+        >
+          字段设置
+        </button>
+        {showFieldSettings && (
+          <div className="asset-field-settings-panel" role="dialog" aria-label="资产字段设置">
+            <div className="asset-field-settings-title">字段顺序与显示</div>
+            {fieldPreferences.order.map((key, index) => {
+              const label = ASSET_FIELD_LABELS[key]
+              return (
+                <div className="asset-field-setting-row" key={key}>
+                  <span className="asset-field-order">{index + 1}</span>
+                  <label>
+                    <input
+                      type="checkbox"
+                      aria-label={`显示${label}`}
+                      checked={!fieldPreferences.hidden.includes(key)}
+                      disabled={key === 'name'}
+                      onChange={() => toggleAssetField(key)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                  <button
+                    className="asset-field-move-button"
+                    type="button"
+                    aria-label={`上移${label}`}
+                    disabled={index === 0}
+                    onClick={() => moveAssetField(key, -1)}
+                  ><span className="asset-field-move-icon" aria-hidden="true">↑</span></button>
+                  <button
+                    className="asset-field-move-button"
+                    type="button"
+                    aria-label={`下移${label}`}
+                    disabled={index === fieldPreferences.order.length - 1}
+                    onClick={() => moveAssetField(key, 1)}
+                  ><span className="asset-field-move-icon" aria-hidden="true">↓</span></button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function renderAssetTable() {
     return (
-      <table className="fin-table assets-table resizable-table" aria-label="资产表">
+      <table className="fin-table assets-table assets-table-excel resizable-table" aria-label="资产表">
         <colgroup>
-          {Object.entries(columnWidths).map(([column, width]) => (
-            <col key={column} style={{ width }} />
+          {[...visibleAssetFields, 'amount', 'profit', 'profitRate', 'status', 'actions'].map((column) => (
+            <col key={column} style={{ width: columnWidths[column] }} />
           ))}
         </colgroup>
         <thead>
           <tr>
-            <th className="sortable" onClick={() => toggleSort('name')}>名称 {sortIcon('name')}<ColumnResizeHandle column="name" label="名称" onResizeStart={startResize} /></th>
-            <th className="sortable" onClick={() => toggleSort('type')}>类型 {sortIcon('type')}<ColumnResizeHandle column="type" label="类型" onResizeStart={startResize} /></th>
-            <th>标识<ColumnResizeHandle column="identifier" label="标识" onResizeStart={startResize} /></th>
-            <th className="sortable" onClick={() => toggleSort('institution')}>机构 {sortIcon('institution')}<ColumnResizeHandle column="institution" label="机构" onResizeStart={startResize} /></th>
-            <th className="sortable" onClick={() => toggleSort('currency')}>币种 {sortIcon('currency')}<ColumnResizeHandle column="currency" label="币种" onResizeStart={startResize} /></th>
-            <th className="sortable align-right" onClick={() => toggleSort('amount')}>最新金额 {sortIcon('amount')}<ColumnResizeHandle column="amount" label="最新金额" onResizeStart={startResize} /></th>
-            <th className="sortable align-right" onClick={() => toggleSort('profit')}>收益 {sortIcon('profit')}<ColumnResizeHandle column="profit" label="收益" onResizeStart={startResize} /></th>
-            <th className="sortable align-right" onClick={() => toggleSort('profitRate')}>收益率 {sortIcon('profitRate')}<ColumnResizeHandle column="profitRate" label="收益率" onResizeStart={startResize} /></th>
+            {visibleAssetFields.map(renderAssetFieldHeader)}
+            <th className="sortable" onClick={() => toggleSort('amount')}>最新金额 {sortIcon('amount')}<ColumnResizeHandle column="amount" label="最新金额" onResizeStart={startResize} /></th>
+            <th className="sortable" onClick={() => toggleSort('profit')}>收益 {sortIcon('profit')}<ColumnResizeHandle column="profit" label="收益" onResizeStart={startResize} /></th>
+            <th className="sortable" onClick={() => toggleSort('profitRate')}>收益率 {sortIcon('profitRate')}<ColumnResizeHandle column="profitRate" label="收益率" onResizeStart={startResize} /></th>
             <th>状态<ColumnResizeHandle column="status" label="状态" onResizeStart={startResize} /></th>
-            <th>备注<ColumnResizeHandle column="note" label="备注" onResizeStart={startResize} /></th>
             <th>更多<ColumnResizeHandle column="actions" label="更多" onResizeStart={startResize} /></th>
           </tr>
         </thead>
@@ -395,71 +661,15 @@ export default function AssetsPage() {
             const latest = latestValues.get(draft.id)
             const investment = isInvestmentType(draft.type)
             return (
-              <tr key={draft.id} className={`${draft.isActive ? '' : 'row-inactive'} ${isDraftDirty(draft) ? 'is-dirty' : ''}`.trim()}>
-                <td className="asset-edit-cell asset-name-edit-cell">
-                  <input
-                    aria-label={`${draft.original.name} 名称`}
-                    value={draft.name}
-                    onChange={(event) => updateDraft(draft.id, 'name', event.target.value)}
-                  />
-                  <a
-                    className="asset-detail-link"
-                    href={`/assets/${draft.id}`}
-                    aria-label={draft.original.name}
-                    onClick={(event) => {
-                      event.preventDefault()
-                      navigate(`/assets/${draft.id}`)
-                    }}
-                  >
-                    ↗
-                  </a>
-                  {draft.original.dcaPlan?.enabled && <span className="asset-dca-tag">定投</span>}
-                </td>
-                <td className="asset-edit-cell asset-type-cell">
-                  <select
-                    aria-label={`${draft.original.name} 类型`}
-                    value={draft.type}
-                    onChange={(event) => updateDraft(draft.id, 'type', event.target.value as AssetType)}
-                  >
-                    {Object.entries(ASSET_TYPE_LABELS).map(([value, label]) => (
-                      <option value={value} key={value}>{label}</option>
-                    ))}
-                  </select>
-                  {isRestrictedAssetType(draft.type) && (
-                    <span className="asset-restricted-marker">
-                      <span>受限资产</span>
-                      <small>不可随意提取</small>
-                    </span>
-                  )}
-                </td>
-                <td className="asset-profile-identifier is-readonly">
-                  {formatAssetProfileIdentifier(draft.original)}
-                </td>
-                <td className="asset-edit-cell">
-                  <input
-                    aria-label={`${draft.original.name} 机构`}
-                    value={draft.institution}
-                    onChange={(event) => updateDraft(draft.id, 'institution', event.target.value)}
-                  />
-                </td>
-                <td className="asset-edit-cell">
-                  <select
-                    aria-label={`${draft.original.name} 币种`}
-                    value={draft.currency}
-                    onChange={(event) => updateDraft(draft.id, 'currency', event.target.value as Currency)}
-                  >
-                    <option value="CNY">CNY</option>
-                    <option value="USD">USD</option>
-                    <option value="HKD">HKD</option>
-                  </select>
-                </td>
-                <td className="align-right asset-amount-cell is-readonly">
+              <tr key={draft.id} className={`${draft.entryStatus === 'paused' ? 'row-paused' : ''} ${isDraftDirty(draft) ? 'is-dirty' : ''}`.trim()}>
+                {visibleAssetFields.map((key) => renderAssetFieldCell(key, draft))}
+                <td className="asset-amount-cell is-readonly">
                   {latest ? <MoneyDisplay value={latest.amount} currency={draft.currency} showCurrency={false} /> : <span className="text-muted">-</span>}
                 </td>
-                <td className="align-right is-readonly">
+                <td className="is-readonly">
                   {investment ? <MoneyDisplay value={latest?.profit} isProfit /> : <span className="text-muted">-</span>}
                 </td>
-                <td className="align-right is-readonly">
+                <td className="is-readonly">
                   {investment && latest?.profitRate !== undefined ? (
                     <span className={`money-display ${latest.profitRate >= 0 ? 'is-profit' : 'is-loss'}`}>
                       {latest.profitRate >= 0 ? '+' : ''}{formatProfitRateInput(latest.profitRate)}%
@@ -469,25 +679,21 @@ export default function AssetsPage() {
                 <td className="asset-edit-cell">
                   <select
                     aria-label={`${draft.original.name} 状态`}
-                    value={draft.isActive ? 'active' : 'inactive'}
-                    onChange={(event) => updateDraft(draft.id, 'isActive', event.target.value === 'active')}
+                    value={draft.entryStatus}
+                    onChange={(event) => updateDraft(draft.id, 'entryStatus', event.target.value as AssetEntryStatus)}
                   >
-                    <option value="active">启用</option>
-                    <option value="inactive">停用</option>
+                    <option value="normal">正常录入</option>
+                    <option value="paused">暂停录入</option>
                   </select>
-                </td>
-                <td className="asset-edit-cell">
-                  <input
-                    aria-label={`${draft.original.name} 备注`}
-                    value={draft.note}
-                    onChange={(event) => updateDraft(draft.id, 'note', event.target.value)}
-                  />
                 </td>
                 <td className="asset-actions">
                   <button className="btn-link" aria-label={`编辑 ${draft.original.name}`} onClick={() => openEdit(draft.original)}>档案</button>
-                  {draft.original.isActive && (
-                    <button className="btn-link btn-link-danger" aria-label={`停用 ${draft.original.name}`} onClick={() => handleDeactivate(draft.original)}>停用</button>
-                  )}
+                  <button
+                    className="btn-link"
+                    aria-label={`${draft.entryStatus === 'normal' ? '暂停录入' : '恢复录入'} ${draft.original.name}`}
+                    onClick={() => updateEntryStatus(draft.original, draft.entryStatus === 'normal' ? 'paused' : 'normal')}
+                  >{draft.entryStatus === 'normal' ? '暂停录入' : '恢复录入'}</button>
+                  <button className="btn-link btn-link-danger" aria-label={`永久删除 ${draft.original.name}`} onClick={() => handleRequestDelete(draft.original)}>永久删除</button>
                 </td>
               </tr>
             )
@@ -500,18 +706,55 @@ export default function AssetsPage() {
   return (
     <div className="assets-page">
       <TableWorkspace
-        title="资产"
-        description="一行一个资产；金额、收益和收益率来自最新快照"
         dirtyCount={dirtyDrafts.length}
         saving={savingDrafts}
         primaryActionLabel={savingDrafts ? '保存中…' : '保存资产'}
         onPrimaryAction={saveDrafts}
-        secondaryActions={<button className="btn-secondary" type="button" onClick={openCreate}>新增资产</button>}
+        secondaryActions={(
+          <>
+            {renderFieldSettings()}
+            <button className="btn-secondary" type="button" onClick={openCreate}>新增资产</button>
+          </>
+        )}
       >
         {sortedDrafts.length > 0 ? renderAssetTable() : (
           <div className="empty-state"><p>暂无资产项。先新增资产，再录入快照。</p></div>
         )}
       </TableWorkspace>
+
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => !deletingAsset && setDeleteTarget(null)}>
+          <div
+            className="modal asset-delete-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="asset-delete-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="asset-delete-confirm-title">输入资产名称确认</h2>
+            <p className="confirm-body">
+              请输入 <strong>{deleteTarget.name}</strong>，确认永久删除该资产。
+            </p>
+            <label className="form-label" htmlFor="asset-delete-confirm-name">输入资产名称</label>
+            <input
+              id="asset-delete-confirm-name"
+              className="form-input"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              autoFocus
+            />
+            <div className="form-buttons">
+              <button type="button" className="btn-secondary" disabled={deletingAsset} onClick={() => setDeleteTarget(null)}>取消</button>
+              <button
+                type="button"
+                className="btn-danger"
+                disabled={deletingAsset || deleteConfirmation !== deleteTarget.name}
+                onClick={handlePermanentDelete}
+              >{deletingAsset ? '删除中…' : '永久删除'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -118,66 +118,138 @@ afterEach(() => {
 })
 
 describe('IncomeManagementPage', () => {
-  it('summarizes income records and renders monthly trend plus history table', async () => {
-    const { container } = renderIncomeManagementPage()
-
-    expect(await screen.findByRole('heading', { name: '收入管理' })).toBeTruthy()
-    expect(screen.getByText('近 12 个月可支配收入')).toBeTruthy()
-    expect(container.textContent).toContain('15,500.00')
-    expect(screen.getByText('近 12 个月受限收入')).toBeTruthy()
-    expect(container.textContent).toContain('1,800.00')
-    expect(screen.getByText('近 12 个月总流入')).toBeTruthy()
-    expect(container.textContent).toContain('17,300.00')
-    expect(screen.getByText('有记录月均')).toBeTruthy()
-    expect(container.textContent).toContain('8,650.00')
-    expect(screen.getAllByText('不可支配').length).toBeGreaterThan(0)
-    expect(screen.getByText('主要类别')).toBeTruthy()
-    expect(screen.getAllByText('工资').length).toBeGreaterThan(0)
-    expect(screen.getByTestId('income-line-chart').getAttribute('data-point-labels')).toBe('2026-06|2026-07')
-    expect(screen.getByRole('button', { name: '编辑 2026-07-05 工资' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '删除 2026-07-05 工资' })).toBeTruthy()
-  })
-
-  it('creates a new income record', async () => {
+  it('renders income records as one editable workbook table', async () => {
     renderIncomeManagementPage()
 
-    await screen.findByRole('heading', { name: '收入管理' })
-    fireEvent.click(screen.getByRole('button', { name: '记录收入' }))
-    fireEvent.change(screen.getByLabelText('发生日期'), { target: { value: '2026-07-25' } })
-    fireEvent.change(screen.getByLabelText('分类'), { target: { value: 'side_income' } })
-    fireEvent.change(screen.getByLabelText('金额'), { target: { value: '500' } })
-    fireEvent.change(screen.getByLabelText('来源'), { target: { value: '顾问费' } })
-    fireEvent.change(screen.getByLabelText('备注'), { target: { value: '周末项目' } })
-    fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
+    expect(await screen.findByRole('heading', { name: '收入' })).toBeTruthy()
+    expect(screen.getByText(/收入事件表/)).toBeTruthy()
+    expect(screen.queryByText('月度收入趋势')).toBeNull()
+    expect(screen.queryByText('近 12 个月可支配收入')).toBeNull()
+    expect(screen.getByRole('table', { name: '收入记录' })).toBeTruthy()
+    expect((screen.getByLabelText('2026-07-05 工资 金额') as HTMLInputElement).value).toBe('12000')
+    expect((screen.getByRole('button', { name: '保存收入' }) as HTMLButtonElement).disabled).toBe(true)
+  })
 
-    await waitFor(() => {
-      expect(mockedApi.createIncomeRecord).toHaveBeenCalledWith(expect.objectContaining({
-        occurredAt: '2026-07-25',
-        category: 'side_income',
-        amount: 500,
-        sourceName: '顾问费',
-        note: '周末项目',
-      }))
+  it('accepts typed date formats and normalizes them on blur', async () => {
+    renderIncomeManagementPage()
+
+    await screen.findByRole('heading', { name: '收入' })
+    const dateInput = screen.getByLabelText('2026-07-05 工资 日期') as HTMLInputElement
+    expect(dateInput.type).toBe('text')
+    fireEvent.change(dateInput, { target: { value: '2026年7月6日' } })
+    fireEvent.blur(dateInput)
+
+    expect(dateInput.value).toBe('2026-07-06')
+    expect(dateInput.getAttribute('aria-invalid')).toBe('false')
+  })
+
+  it('marks impossible typed dates and blocks saving', async () => {
+    renderIncomeManagementPage()
+
+    await screen.findByRole('heading', { name: '收入' })
+    const dateInput = screen.getByLabelText('2026-07-05 工资 日期') as HTMLInputElement
+    fireEvent.change(dateInput, { target: { value: '2026-02-30' } })
+    fireEvent.blur(dateInput)
+
+    expect(dateInput.getAttribute('aria-invalid')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
+    expect(await screen.findByText(/发生日期格式无效/)).toBeTruthy()
+    expect(mockedApi.updateIncomeRecord).not.toHaveBeenCalled()
+  })
+
+  it('filters visible rows by date range, category, and source without changing drafts', async () => {
+    renderIncomeManagementPage()
+
+    await screen.findByRole('heading', { name: '收入' })
+    const table = screen.getByRole('table', { name: '收入记录' })
+    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026/7/10' } })
+    fireEvent.blur(screen.getByLabelText('开始日期'))
+    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026/7/20' } })
+    fireEvent.blur(screen.getByLabelText('结束日期'))
+
+    expect(screen.getByText('显示 2 / 5 条')).toBeTruthy()
+    expect(within(table).getByLabelText('2026-07-20 奖金 金额')).toBeTruthy()
+    expect(within(table).getByLabelText('2026-07-10 公积金 金额')).toBeTruthy()
+    expect(within(table).queryByLabelText('2026-07-05 工资 金额')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('收入分类'), { target: { value: 'housing_fund' } })
+    expect(screen.getByText('显示 1 / 5 条')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '清除筛选' }))
+    fireEvent.change(screen.getByLabelText('来源关键词'), { target: { value: '公司' } })
+    expect(screen.getByText('显示 1 / 5 条')).toBeTruthy()
+    expect(within(table).getByLabelText('2026-07-05 工资 金额')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '清除筛选' }))
+    expect(screen.getByText('显示 5 / 5 条')).toBeTruthy()
+    expect(screen.queryByText(/项未保存/)).toBeNull()
+  })
+
+  it('edits a row inline and saves the changed income record', async () => {
+    renderIncomeManagementPage()
+
+    await screen.findByRole('heading', { name: '收入' })
+    fireEvent.change(screen.getByLabelText('2026-07-05 工资 金额'), {
+      target: { value: '12500' },
     })
-  })
-
-  it('updates and deletes historical income records', async () => {
-    renderIncomeManagementPage()
-
-    await screen.findByRole('heading', { name: '收入管理' })
-    fireEvent.click(screen.getByRole('button', { name: '编辑 2026-07-05 工资' }))
-    fireEvent.change(screen.getByLabelText('金额'), { target: { value: '12500' } })
+    expect(screen.getByText('1 项未保存')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
 
     await waitFor(() => {
-      expect(mockedApi.updateIncomeRecord).toHaveBeenCalledWith('salary-1', expect.objectContaining({
-        amount: 12500,
+      expect(mockedApi.updateIncomeRecord).toHaveBeenCalledWith('salary-1', {
+        occurredAt: '2026-07-05',
         category: 'salary',
-      }))
+        amount: 12500,
+        sourceName: '公司',
+        note: '7月工资',
+      })
     })
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: '删除 2026-07-05 工资' }))
-    fireEvent.click(await screen.findByRole('button', { name: '删除' }))
+  it('adds multiple rows directly in the sheet and saves them together', async () => {
+    renderIncomeManagementPage()
+
+    await screen.findByRole('heading', { name: '收入' })
+    fireEvent.click(screen.getByRole('button', { name: '新增行' }))
+    fireEvent.click(screen.getByRole('button', { name: '新增行' }))
+    fireEvent.change(screen.getByLabelText('新增收入 1 日期'), { target: { value: '2026-07-25' } })
+    fireEvent.change(screen.getByLabelText('新增收入 1 分类'), { target: { value: 'side_income' } })
+    fireEvent.change(screen.getByLabelText('新增收入 1 金额'), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText('新增收入 1 来源'), { target: { value: '顾问费' } })
+    fireEvent.change(screen.getByLabelText('新增收入 2 日期'), { target: { value: '2026-07-26' } })
+    fireEvent.change(screen.getByLabelText('新增收入 2 分类'), { target: { value: 'housing_fund' } })
+    fireEvent.change(screen.getByLabelText('新增收入 2 金额'), { target: { value: '1800' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
+
+    await waitFor(() => {
+      expect(mockedApi.createIncomeRecord).toHaveBeenCalledTimes(2)
+    })
+    expect(mockedApi.createIncomeRecord).toHaveBeenNthCalledWith(1, {
+      occurredAt: '2026-07-25',
+      category: 'side_income',
+      amount: 500,
+      sourceName: '顾问费',
+    })
+    expect(mockedApi.createIncomeRecord).toHaveBeenNthCalledWith(2, {
+      occurredAt: '2026-07-26',
+      category: 'housing_fund',
+      amount: 1800,
+    })
+  })
+
+  it('marks existing rows for deletion and can discard all changes', async () => {
+    renderIncomeManagementPage()
+
+    await screen.findByRole('heading', { name: '收入' })
+    fireEvent.click(screen.getByRole('button', { name: '标记删除 2026-07-05 工资' }))
+    expect(screen.getByText('待删除')).toBeTruthy()
+    expect(screen.getByText('1 项未保存')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '放弃修改' }))
+    expect(screen.queryByText('待删除')).toBeNull()
+    expect(screen.queryByText('1 项未保存')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '标记删除 2026-07-05 工资' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
 
     await waitFor(() => {
       expect(mockedApi.deleteIncomeRecord).toHaveBeenCalledWith('salary-1')

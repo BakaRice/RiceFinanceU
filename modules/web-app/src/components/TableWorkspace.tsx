@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import './TableWorkspace.css'
 
 interface TableWorkspaceProps {
-  title: string
+  title?: string
   description?: string
   dirtyCount?: number
   saving?: boolean
@@ -24,11 +24,13 @@ export default function TableWorkspace({
 }: TableWorkspaceProps) {
   return (
     <section className="table-workspace">
-      <header className="table-workspace-toolbar">
-        <div className="table-workspace-heading">
-          <h1>{title}</h1>
-          {description && <p>{description}</p>}
-        </div>
+      <header className={`table-workspace-toolbar ${title ? '' : 'is-heading-hidden'}`.trim()}>
+        {title && (
+          <div className="table-workspace-heading">
+            <h1>{title}</h1>
+            {description && <p>{description}</p>}
+          </div>
+        )}
         <div className="table-workspace-actions">
           {dirtyCount > 0 && <span className="table-dirty-count">{dirtyCount} 项未保存</span>}
           {secondaryActions}

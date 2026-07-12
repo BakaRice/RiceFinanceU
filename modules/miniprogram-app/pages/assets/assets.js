@@ -50,7 +50,7 @@ function buildAssetRows(assets, latestData) {
       currency: asset.currency || 'CNY',
       institution: asset.institution || '-',
       note: asset.note || '',
-      isActive: asset.isActive,
+      entryStatus: finance.getAssetEntryStatus(asset),
       amountText: latest ? finance.formatMoney(latest.amount) : '-',
       profitText: profit === null ? '-' : finance.formatMoney(profit),
       profitTone: profit === null || profit === 0 ? 'neutral' : profit > 0 ? 'profit' : 'loss',
@@ -64,10 +64,10 @@ Component({
   data: {
     loading: true,
     error: '',
-    activeRows: [],
-    inactiveRows: [],
-    activeCount: 0,
-    inactiveCount: 0,
+    normalRows: [],
+    pausedRows: [],
+    normalCount: 0,
+    pausedCount: 0,
     currencyLabel: '-',
     showForm: false,
     formTitle: '新增资产',
@@ -121,16 +121,16 @@ Component({
           api.getLatestSnapshot(),
         ])
         const rows = buildAssetRows(assets, latestData)
-        const activeRows = rows.filter((row) => row.isActive)
-        const inactiveRows = rows.filter((row) => !row.isActive)
+        const normalRows = rows.filter((row) => row.entryStatus === 'normal')
+        const pausedRows = rows.filter((row) => row.entryStatus === 'paused')
         const currencySet = new Set((assets || []).map((asset) => asset.currency || 'CNY'))
 
         this.setData({
           loading: false,
-          activeRows,
-          inactiveRows,
-          activeCount: activeRows.length,
-          inactiveCount: inactiveRows.length,
+          normalRows,
+          pausedRows,
+          normalCount: normalRows.length,
+          pausedCount: pausedRows.length,
           currencyLabel: Array.from(currencySet).join('/') || '-',
         })
       } catch (error) {
@@ -175,7 +175,7 @@ Component({
     },
 
     findRow(id) {
-      return [...this.data.activeRows, ...this.data.inactiveRows].find((row) => row.id === id)
+      return [...this.data.normalRows, ...this.data.pausedRows].find((row) => row.id === id)
     },
 
     onNameInput(event) {
@@ -232,23 +232,51 @@ Component({
       }
     },
 
-    handleDeactivate(event) {
+    async handleEntryStatusChange(event) {
+      const row = this.findRow(event.currentTarget.dataset.id)
+      if (!row) return
+      const entryStatus = row.entryStatus === 'normal' ? 'paused' : 'normal'
+      try {
+        await api.updateAsset(row.id, { entryStatus })
+        wx.showToast({ title: entryStatus === 'paused' ? '已暂停录入' : '已恢复录入', icon: 'success' })
+        await this.load()
+      } catch (error) {
+        wx.showToast({ title: error.message || '操作失败', icon: 'none' })
+      }
+    },
+
+    handlePermanentDelete(event) {
       const row = this.findRow(event.currentTarget.dataset.id)
       if (!row) return
       wx.showModal({
-        title: '停用资产',
-        content: row.name,
-        confirmText: '停用',
+        title: '永久删除资产',
+        content: `即将永久删除“${row.name}”，且无法恢复。已有历史快照的资产不会被删除。`,
+        confirmText: '继续删除',
         confirmColor: '#c0392b',
-        success: async (res) => {
+        success: (res) => {
           if (!res.confirm) return
-          try {
-            await api.deleteAsset(row.id)
-            wx.showToast({ title: '已停用', icon: 'success' })
-            await this.load()
-          } catch (error) {
-            wx.showToast({ title: error.message || '操作失败', icon: 'none' })
-          }
+          wx.showModal({
+            title: '输入资产名称确认',
+            content: `请输入“${row.name}”`,
+            editable: true,
+            placeholderText: row.name,
+            confirmText: '永久删除',
+            confirmColor: '#c0392b',
+            success: async (confirmResult) => {
+              if (!confirmResult.confirm) return
+              if (confirmResult.content !== row.name) {
+                wx.showToast({ title: '资产名称不匹配', icon: 'none' })
+                return
+              }
+              try {
+                await api.deleteAsset(row.id, row.name)
+                wx.showToast({ title: '已永久删除', icon: 'success' })
+                await this.load()
+              } catch (error) {
+                wx.showToast({ title: error.message || '删除失败', icon: 'none' })
+              }
+            },
+          })
         },
       })
     },

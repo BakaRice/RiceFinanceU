@@ -13,7 +13,6 @@ import {
   calculateRestrictedIncomeRecordTotal,
   calculateSpendableIncomeRecordTotal,
   getIncomeLineLabel,
-  INCOME_CATEGORY_LABELS,
 } from '../domain/income'
 import type {
   SnapshotTotal,
@@ -45,66 +44,10 @@ const TREND_SCALE_OPTIONS: Array<{ value: TrendScale; label: string }> = [
   { value: 'year', label: '年' },
 ]
 
-type DashboardTrendPoint = TotalAssetPoint & {
+type IncomeTrendPoint = {
+  periodKey: string
+  periodLabel: string
   incomeAmount?: number
-}
-
-type IncomeFormState = {
-  id?: string
-  occurredAt: string
-  amount: string
-  category: IncomeCategory
-  sourceName: string
-  note: string
-}
-
-const INCOME_CATEGORY_OPTIONS: Array<{ value: IncomeCategory; label: string }> = [
-  { value: 'salary', label: INCOME_CATEGORY_LABELS.salary },
-  { value: 'bonus', label: INCOME_CATEGORY_LABELS.bonus },
-  { value: 'side_income', label: INCOME_CATEGORY_LABELS.side_income },
-  { value: 'housing_fund', label: INCOME_CATEGORY_LABELS.housing_fund },
-  { value: 'investment', label: INCOME_CATEGORY_LABELS.investment },
-  { value: 'other', label: INCOME_CATEGORY_LABELS.other },
-]
-
-function pad2(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-function formatMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`
-}
-
-function formatDateKey(date: Date): string {
-  return `${formatMonthKey(date)}-${pad2(date.getDate())}`
-}
-
-function createEmptyIncomeForm(date = formatDateKey(new Date())): IncomeFormState {
-  return {
-    occurredAt: date,
-    amount: '',
-    category: 'salary',
-    sourceName: '',
-    note: '',
-  }
-}
-
-function incomeToForm(income: IncomeRecord): IncomeFormState {
-  return {
-    id: income.id,
-    occurredAt: income.occurredAt,
-    amount: String(income.amount),
-    category: income.category,
-    sourceName: income.sourceName || '',
-    note: income.note || '',
-  }
-}
-
-function parseIncomeAmount(value: string): number | null {
-  if (value.trim() === '') return 0
-  const amount = Number(value)
-  if (!Number.isFinite(amount) || amount < 0) return null
-  return Math.round(amount * 100) / 100
 }
 
 function formatChartDateTime(value: string): string {
@@ -132,7 +75,7 @@ function formatChartMoney(value: unknown): string {
 function TrendTooltip({ active, payload, label }: any) {
   if (!active || !payload || payload.length === 0) return null
 
-  const point = payload[0].payload as DashboardTrendPoint
+  const point = payload[0].payload as TotalAssetPoint
 
   return (
     <div className="trend-tooltip">
@@ -165,6 +108,7 @@ export default function DashboardPage() {
   const [allocation, setAllocation] = useState<AllocationItem[]>([])
   const [comparison, setComparison] = useState<SnapshotComparisonType | null>(null)
   const [trendScale, setTrendScale] = useState<TrendScale>('day')
+  const [incomeTrendScale, setIncomeTrendScale] = useState<TrendScale>('month')
   const [hasSnapshots, setHasSnapshots] = useState(false)
   const [allSnapshots, setAllSnapshots] = useState<Snapshot[]>([])
   const [allValues, setAllValues] = useState<SnapshotValue[]>([])
@@ -172,10 +116,6 @@ export default function DashboardPage() {
   const [incomeRecords, setIncomeRecords] = useState<IncomeRecord[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [incomeFormOpen, setIncomeFormOpen] = useState(false)
-  const [incomeSaving, setIncomeSaving] = useState(false)
-  const [incomeDeleting, setIncomeDeleting] = useState(false)
-  const [incomeForm, setIncomeForm] = useState<IncomeFormState>(() => createEmptyIncomeForm())
   const [rates, setRates] = useState<ExchangeRates>({ USD: 7.2, HKD: 0.92, updatedAt: '' })
 
   useEffect(() => {
@@ -208,10 +148,8 @@ export default function DashboardPage() {
       }
 
       setHasSnapshots(true)
-      const activeAssets = assets.filter((a) => a.isActive)
-
-      setTotal(calculateSnapshotTotal(latestData.values, activeAssets, ratesData))
-      setAllocation(calculateAllocation(latestData.values, activeAssets, ratesData))
+      setTotal(calculateSnapshotTotal(latestData.values, assets, ratesData))
+      setAllocation(calculateAllocation(latestData.values, assets, ratesData))
 
       const sortedSnapshots = [...snapshots].sort((a, b) =>
         a.recordedAt.localeCompare(b.recordedAt)
@@ -227,7 +165,7 @@ export default function DashboardPage() {
         const previous = sortedSnapshots[sortedSnapshots.length - 2]
         const latestValues = valuesBySnapshot.get(latest.id) || []
         const previousValues = valuesBySnapshot.get(previous.id) || []
-        setComparison(compareSnapshots(activeAssets, previousValues, latestValues))
+        setComparison(compareSnapshots(assets, previousValues, latestValues))
       }
     } catch (e: any) {
       setError(e.message)
@@ -236,10 +174,7 @@ export default function DashboardPage() {
     }
   }
 
-  const activeAssetsForChart = useMemo(
-    () => allAssets.filter((asset) => asset.isActive),
-    [allAssets]
-  )
+  const ledgerAssetsForChart = allAssets
 
   const chartValuesBySnapshot = useMemo(() => {
     const map = new Map<string, SnapshotValue[]>()
@@ -251,23 +186,26 @@ export default function DashboardPage() {
     return map
   }, [allValues])
 
-  const chartData = useMemo<DashboardTrendPoint[]>(() => {
-    const assetSeries = buildScaledTotalAssetSeries(
+  const assetChartData = useMemo<TotalAssetPoint[]>(() => (
+    buildScaledTotalAssetSeries(
       allSnapshots,
       chartValuesBySnapshot,
-      activeAssetsForChart,
+      ledgerAssetsForChart,
       trendScale,
       rates,
     )
-    const incomeSeries = buildIncomeSeriesByScale(incomeRecords, trendScale)
+  ), [allSnapshots, chartValuesBySnapshot, ledgerAssetsForChart, trendScale, rates])
 
-    return assetSeries.map((point) => ({
-      ...point,
-      incomeAmount: incomeSeries.get(point.periodKey),
-    }))
-  }, [allSnapshots, chartValuesBySnapshot, activeAssetsForChart, trendScale, rates, incomeRecords])
+  const incomeChartData = useMemo<IncomeTrendPoint[]>(() => (
+    [...buildIncomeSeriesByScale(incomeRecords, incomeTrendScale).entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([periodKey, incomeAmount]) => ({
+        periodKey,
+        periodLabel: periodKey,
+        incomeAmount,
+      }))
+  ), [incomeRecords, incomeTrendScale])
 
-  const currentDate = useMemo(() => formatDateKey(new Date()), [])
   const latestIncomeRecord = useMemo(
     () => [...incomeRecords].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0],
     [incomeRecords],
@@ -295,11 +233,6 @@ export default function DashboardPage() {
     }
     return totals
   }, [latestMonthIncomeRecords])
-  const shouldShowIncomeLine =
-    trendScale !== 'day' &&
-    trendScale !== 'week' &&
-    chartData.some((point) => point.incomeAmount !== undefined)
-
   async function handleDelete(id: string) {
     const ok = await confirm({
       title: '删除快照',
@@ -326,9 +259,9 @@ export default function DashboardPage() {
   }
 
   function getSnapshotTotalCNY(snapshotId: string): number {
-    const activeAssetIds = new Set(allAssets.filter((a) => a.isActive).map((a) => a.id))
+    const assetIds = new Set(allAssets.map((asset) => asset.id))
     return allValues
-      .filter((v) => v.snapshotId === snapshotId && activeAssetIds.has(v.assetId))
+      .filter((v) => v.snapshotId === snapshotId && assetIds.has(v.assetId))
       .reduce((sum, v) => {
         const asset = allAssets.find((a) => a.id === v.assetId)
         const factor =
@@ -339,77 +272,6 @@ export default function DashboardPage() {
               : 1
         return sum + v.amount * factor
       }, 0)
-  }
-
-  function updateIncomeFormField<K extends keyof IncomeFormState>(key: K, value: IncomeFormState[K]) {
-    setIncomeForm((form) => ({ ...form, [key]: value }))
-  }
-
-  function openIncomeForm(record?: IncomeRecord) {
-    setIncomeForm(record ? incomeToForm(record) : createEmptyIncomeForm(currentDate))
-    setIncomeFormOpen(true)
-  }
-
-  async function handleSaveIncome(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-
-    const amount = parseIncomeAmount(incomeForm.amount)
-
-    if (amount === null) {
-      toast('收入金额必须是大于等于 0 的数字', 'error')
-      return
-    }
-
-    setIncomeSaving(true)
-    try {
-      const payload = {
-        occurredAt: incomeForm.occurredAt,
-        amount,
-        category: incomeForm.category,
-        ...(incomeForm.sourceName.trim() ? { sourceName: incomeForm.sourceName.trim() } : {}),
-        ...(incomeForm.note.trim() ? { note: incomeForm.note.trim() } : {}),
-      }
-
-      if (incomeForm.id) {
-        await api.updateIncomeRecord(incomeForm.id, payload)
-        toast('收入已更新')
-      } else {
-        await api.createIncomeRecord(payload)
-        toast('收入已记录')
-      }
-
-      setIncomeFormOpen(false)
-      await load()
-    } catch (e: any) {
-      toast('保存收入失败: ' + e.message, 'error')
-    } finally {
-      setIncomeSaving(false)
-    }
-  }
-
-  async function handleDeleteIncome() {
-    if (!incomeForm.id) return
-
-    const ok = await confirm({
-      title: '删除收入',
-      message: `确定删除 ${incomeForm.occurredAt} 的收入记录吗？`,
-      confirmLabel: '删除',
-      cancelLabel: '取消',
-      variant: 'danger',
-    })
-    if (!ok) return
-
-    setIncomeDeleting(true)
-    try {
-      await api.deleteIncomeRecord(incomeForm.id)
-      toast('收入已删除')
-      setIncomeFormOpen(false)
-      await load()
-    } catch (e: any) {
-      toast('删除收入失败: ' + e.message, 'error')
-    } finally {
-      setIncomeDeleting(false)
-    }
   }
 
   if (loading) return <div className="page-loading">加载中...</div>
@@ -489,12 +351,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Chart */}
-      {chartData.length > 0 && (
-        <div className="dash-section dashboard-trend">
+      {assetChartData.length > 0 && (
+        <div className="dashboard-trend-row" data-testid="dashboard-trend-row">
+        <section className="dash-section dashboard-trend" data-testid="asset-trend-panel">
           <div className="chart-section-head">
             <h3 className="section-title">总资产走势</h3>
-            <div className="trend-scale-control segmented-control" aria-label="走势图尺度">
+            <div className="trend-scale-control segmented-control" aria-label="总资产走势图尺度">
               {TREND_SCALE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
@@ -509,8 +371,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={chartData}>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={assetChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
                 <XAxis dataKey="periodLabel" tick={{ fontSize: 11 }} />
                 <YAxis
@@ -520,16 +382,6 @@ export default function DashboardPage() {
                     v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
                   }
                 />
-                {shouldShowIncomeLine && (
-                  <YAxis
-                    yAxisId="income"
-                    orientation="right"
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v) =>
-                      v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
-                    }
-                  />
-                )}
                 <Tooltip content={<TrendTooltip />} />
                 <Line
                   yAxisId="asset"
@@ -559,21 +411,55 @@ export default function DashboardPage() {
                   strokeWidth={1.6}
                   dot={false}
                 />
-                {shouldShowIncomeLine && (
-                  <Line
-                    yAxisId="income"
-                    type="monotone"
-                    dataKey="incomeAmount"
-                    name={getIncomeLineLabel(trendScale)}
-                    stroke="var(--chart-income)"
-                    strokeWidth={1.9}
-                    dot={{ r: 3 }}
-                    connectNulls={false}
-                  />
-                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </section>
+
+        <section className="dash-section dashboard-trend" data-testid="income-trend-panel">
+          <div className="chart-section-head">
+            <h3 className="section-title">收入走势</h3>
+            <div className="trend-scale-control segmented-control" aria-label="收入走势图尺度">
+              {TREND_SCALE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`trend-scale-btn ${incomeTrendScale === option.value ? 'active' : ''}`}
+                  aria-pressed={incomeTrendScale === option.value}
+                  onClick={() => setIncomeTrendScale(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={incomeChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
+                <XAxis dataKey="periodLabel" tick={{ fontSize: 11 }} />
+                <YAxis
+                  yAxisId="income"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) =>
+                    v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)
+                  }
+                />
+                <Tooltip content={<TrendTooltip />} />
+                <Line
+                  yAxisId="income"
+                  type="monotone"
+                  dataKey="incomeAmount"
+                  name={getIncomeLineLabel(incomeTrendScale)}
+                  stroke="var(--chart-income)"
+                  strokeWidth={2.4}
+                  dot={{ r: 3 }}
+                  connectNulls={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
         </div>
       )}
 
@@ -590,16 +476,8 @@ export default function DashboardPage() {
           </div>
           <div className="income-section-actions">
             <Link className="btn-link" to="/income">
-              收入管理
+              查看收入明细
             </Link>
-            {latestIncomeRecord && (
-              <button type="button" className="btn-link" onClick={() => openIncomeForm(latestIncomeRecord)}>
-                编辑最近一笔
-              </button>
-            )}
-            <button type="button" className="btn-secondary" onClick={() => openIncomeForm()}>
-              记录收入
-            </button>
           </div>
         </div>
         <div className="income-summary-grid">
@@ -675,96 +553,6 @@ export default function DashboardPage() {
         )}
       </section>
       </div>
-
-      {incomeFormOpen && (
-        <div className="modal-overlay" onClick={() => setIncomeFormOpen(false)}>
-          <form
-            className="modal income-modal"
-            onSubmit={handleSaveIncome}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="income-modal-head">
-              <h2>{incomeForm.id ? '编辑收入' : '记录收入'}</h2>
-              <button type="button" className="btn-link" onClick={() => setIncomeFormOpen(false)}>
-                关闭
-              </button>
-            </div>
-            <div className="income-form-grid">
-              <label className="income-form-field" htmlFor="income-date">
-                <span>发生日期</span>
-                <input
-                  id="income-date"
-                  type="date"
-                  value={incomeForm.occurredAt}
-                  onChange={(e) => updateIncomeFormField('occurredAt', e.target.value)}
-                  required
-                />
-              </label>
-              <label className="income-form-field" htmlFor="income-category">
-                <span>分类</span>
-                <select
-                  id="income-category"
-                  value={incomeForm.category}
-                  onChange={(e) => updateIncomeFormField('category', e.target.value as IncomeCategory)}
-                >
-                  {INCOME_CATEGORY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="income-form-field" htmlFor="income-amount">
-                <span>金额</span>
-                <input
-                  id="income-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={incomeForm.amount}
-                  onChange={(e) => updateIncomeFormField('amount', e.target.value)}
-                />
-              </label>
-              <label className="income-form-field" htmlFor="income-source">
-                <span>来源</span>
-                <input
-                  id="income-source"
-                  type="text"
-                  value={incomeForm.sourceName}
-                  onChange={(e) => updateIncomeFormField('sourceName', e.target.value)}
-                />
-              </label>
-              <label className="income-form-field income-form-field-full" htmlFor="income-note">
-                <span>备注</span>
-                <input
-                  id="income-note"
-                  type="text"
-                  value={incomeForm.note}
-                  onChange={(e) => updateIncomeFormField('note', e.target.value)}
-                />
-              </label>
-            </div>
-            <div className="income-modal-actions">
-              {incomeForm.id && (
-                <button
-                  type="button"
-                  className="btn-danger"
-                  onClick={handleDeleteIncome}
-                  disabled={incomeDeleting || incomeSaving}
-                >
-                  {incomeDeleting ? '删除中...' : '删除收入'}
-                </button>
-              )}
-              <button type="button" className="btn-secondary" onClick={() => setIncomeFormOpen(false)}>
-                取消
-              </button>
-              <button type="submit" className="btn-primary" disabled={incomeSaving}>
-                {incomeSaving ? '保存中...' : '保存收入'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* Snapshot History */}
       <div className="dashboard-paired-row dashboard-activity-row" data-testid="snapshot-change-row">

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import MoneyDisplay from '../components/MoneyDisplay'
-import { ASSET_TYPE_LABELS, isInvestmentType } from '../domain/assets'
+import { ASSET_TYPE_LABELS, isAssetEntryNormal, isInvestmentType } from '../domain/assets'
 import {
   DCA_FREQUENCY_LABELS,
   estimateDcaMonthlyContribution,
@@ -54,7 +54,7 @@ export default function DcaManagementPage() {
   }
 
   const dcaAssets = useMemo(
-    () => assets.filter((asset) => asset.isActive && isInvestmentType(asset.type) && asset.dcaPlan?.enabled),
+    () => assets.filter((asset) => isAssetEntryNormal(asset) && isInvestmentType(asset.type) && asset.dcaPlan?.enabled),
     [assets],
   )
   const filteredAssets = useMemo(

@@ -41,11 +41,21 @@ test('calculateSnapshotTotal converts currencies and separates investment from b
   assert.equal(total.totalProfitCNY, 9.8)
 })
 
-test('buildEntryRows keeps active assets and pre-fills the latest snapshot values', () => {
+test('calculateSnapshotTotal keeps paused assets in the ledger total', () => {
+  const total = finance.calculateSnapshotTotal(
+    [{ assetId: 'paused', amount: 500 }],
+    [{ id: 'paused', type: 'cash', currency: 'CNY', entryStatus: 'paused' }],
+  )
+
+  assert.equal(total.totalAmountCNY, 500)
+})
+
+test('buildEntryRows keeps normal assets and pre-fills the latest snapshot values', () => {
   const assets = [
-    { id: 'inactive', name: '旧账户', type: 'cash', currency: 'CNY', isActive: false },
+    { id: 'paused', name: '暂停账户', type: 'cash', currency: 'CNY', entryStatus: 'paused' },
+    { id: 'legacy-paused', name: '旧停用账户', type: 'cash', currency: 'CNY', isActive: false },
     { id: 'cash', name: '现金', type: 'cash', currency: 'CNY', isActive: true },
-    { id: 'fund', name: '基金', type: 'fund', currency: 'CNY', isActive: true },
+    { id: 'fund', name: '基金', type: 'fund', currency: 'CNY', entryStatus: 'normal' },
   ]
   const latestData = {
     snapshot: { id: 's1' },

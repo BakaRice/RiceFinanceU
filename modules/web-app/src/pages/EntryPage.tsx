@@ -10,7 +10,7 @@ export default function EntryPage() {
     <div className="entry-page">
       <TableWorkspace
         title="录入"
-        description="全部启用资产已预填；只修改发生变化的单元格"
+        description="全部可录入资产已预填；只修改发生变化的单元格"
       >
         <SnapshotForm
           onSuccess={() => undefined}

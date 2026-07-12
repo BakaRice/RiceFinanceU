@@ -25,7 +25,103 @@
 }
 
 .assets-table {
-  min-width: 1380px;
+  min-width: 100%;
+}
+
+.asset-field-settings {
+  position: relative;
+}
+
+.asset-field-settings-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 220px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+  text-align: left;
+}
+
+.asset-field-settings-title {
+  padding: 3px 4px 5px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.asset-field-setting-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 20px 20px;
+  min-height: 26px;
+  align-items: center;
+  justify-items: start;
+  gap: 2px;
+  padding: 0 2px;
+  text-align: left;
+}
+
+.asset-field-setting-row label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.asset-field-setting-row input[type='checkbox'] {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+}
+
+.asset-field-setting-row .asset-field-move-button {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.asset-field-setting-row .asset-field-move-button:hover:not(:disabled) {
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.asset-field-move-icon {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.asset-field-order {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-align: left;
+}
+
+.assets-table-excel th,
+.assets-table-excel td {
+  text-align: left;
+}
+
+.assets-table-excel .sort-icon {
+  width: 8px;
+  margin-left: 1px;
+  font-size: 7px;
+  vertical-align: 1px;
 }
 
 .assets-table td {
@@ -70,7 +166,7 @@
   top: 50%;
   right: 8px;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 9px;
   text-decoration: none;
   transform: translateY(-50%);
 }
@@ -83,13 +179,13 @@
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
-.assets-table .row-inactive td {
+.assets-table .row-paused td {
   color: var(--color-text-muted);
   background-color: color-mix(in srgb, var(--color-surface-muted) 72%, transparent);
 }
 
-.assets-table .row-inactive input,
-.assets-table .row-inactive select {
+.assets-table .row-paused input,
+.assets-table .row-paused select {
   color: var(--color-text-muted);
 }
 
@@ -171,7 +267,7 @@
 }
 
 .asset-actions {
-  width: 112px;
+  width: 190px;
   white-space: nowrap;
 }
 

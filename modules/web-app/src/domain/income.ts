@@ -5,6 +5,39 @@ import type { TrendScale } from './snapshots'
 const MONTH_KEY_PATTERN = /^(\d{4})-(\d{2})$/
 const DATE_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 
+export function normalizeIncomeDateInput(value: string): string | null {
+  const input = value.trim()
+  let match: RegExpExecArray | null = null
+
+  if (/^\d{8}$/.test(input)) {
+    match = /^(\d{4})(\d{2})(\d{2})$/.exec(input)
+  } else if (input.includes('年')) {
+    match = /^(\d{4})年(\d{1,2})月(\d{1,2})日$/.exec(input)
+  } else {
+    match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(input)
+  }
+
+  if (!match) return null
+
+  const year = Number(match[1])
+  const monthIndex = Number(match[2]) - 1
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, monthIndex, day))
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== monthIndex ||
+    date.getUTCDate() !== day
+  ) {
+    return null
+  }
+
+  return [
+    String(year).padStart(4, '0'),
+    String(monthIndex + 1).padStart(2, '0'),
+    String(day).padStart(2, '0'),
+  ].join('-')
+}
+
 export const INCOME_CATEGORY_LABELS: Record<IncomeCategory, string> = {
   salary: '工资',
   bonus: '奖金',
@@ -37,7 +70,12 @@ function parseMonthKey(month: string): { year: string; monthNumber: number } | n
   return { year: match[1], monthNumber }
 }
 
-function parseDateKey(dateKey: string): { year: string; monthNumber: number; monthKey: string } | null {
+function parseDateKey(dateKey: string): {
+  year: string
+  monthNumber: number
+  monthKey: string
+  date: Date
+} | null {
   const match = DATE_KEY_PATTERN.exec(dateKey)
   if (!match) return null
 
@@ -53,7 +91,20 @@ function parseDateKey(dateKey: string): { year: string; monthNumber: number; mon
     return null
   }
 
-  return { year: match[1], monthNumber: monthIndex + 1, monthKey: `${match[1]}-${match[2]}` }
+  return {
+    year: match[1],
+    monthNumber: monthIndex + 1,
+    monthKey: `${match[1]}-${match[2]}`,
+    date,
+  }
+}
+
+function formatUtcDateKey(date: Date): string {
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0'),
+  ].join('-')
 }
 
 function addToSeries(series: Map<string, number>, key: string, amount: number) {
@@ -93,13 +144,24 @@ export function buildIncomeSeriesByScale(
 ): Map<string, number> {
   const series = new Map<string, number>()
 
-  if (scale === 'day' || scale === 'week') return series
-
   for (const income of incomes) {
     const parsed = parseDateKey(income.occurredAt)
     if (!parsed) continue
 
     const amount = roundMoney(income.amount)
+    if (scale === 'day') {
+      addToSeries(series, income.occurredAt, amount)
+      continue
+    }
+
+    if (scale === 'week') {
+      const weekStart = new Date(parsed.date)
+      const daysSinceMonday = (weekStart.getUTCDay() + 6) % 7
+      weekStart.setUTCDate(weekStart.getUTCDate() - daysSinceMonday)
+      addToSeries(series, formatUtcDateKey(weekStart), amount)
+      continue
+    }
+
     if (scale === 'month') {
       addToSeries(series, parsed.monthKey, amount)
       continue
@@ -120,6 +182,8 @@ export function buildIncomeSeriesByScale(
 }
 
 export function getIncomeLineLabel(scale: TrendScale): string {
+  if (scale === 'day') return '日收入'
+  if (scale === 'week') return '周收入'
   if (scale === 'quarter') return '季度收入'
   if (scale === 'year') return '年度收入'
   return '月收入'

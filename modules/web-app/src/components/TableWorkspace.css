@@ -11,6 +11,12 @@
   padding: 4px 0 12px;
 }
 
+.table-workspace-toolbar.is-heading-hidden {
+  justify-content: flex-end;
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+
 .table-workspace-heading h1,
 .table-workspace-heading p {
   margin: 0;

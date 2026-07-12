@@ -157,7 +157,7 @@ test('没有 session 时不能访问受保护接口', async () => {
   assert.deepEqual(await response.json(), { error: '请先登录' })
 })
 
-test('可以创建资产并软删除资产', async () => {
+test('只有无历史且名称确认匹配的资产可以永久删除', async () => {
   const env = createEnv()
   const token = await login(env)
 
@@ -175,22 +175,144 @@ test('可以创建资产并软删除资产', async () => {
   assert.equal(createResponse.status, 201)
   const asset = await createResponse.json()
   assert.equal(asset.name, '招商银行现金')
-  assert.equal(asset.isActive, true)
+  assert.equal(asset.entryStatus, 'normal')
 
   const listResponse = await authedRequest(env, '/api/assets', { token })
   assert.equal(listResponse.status, 200)
   assert.equal((await listResponse.json()).length, 1)
 
+  const wrongNameResponse = await authedRequest(env, `/api/assets/${asset.id}`, {
+    token,
+    method: 'DELETE',
+    body: JSON.stringify({ confirmName: '错误名称' }),
+  })
+  assert.equal(wrongNameResponse.status, 400)
+
   const deleteResponse = await authedRequest(env, `/api/assets/${asset.id}`, {
     token,
     method: 'DELETE',
+    body: JSON.stringify({ confirmName: asset.name }),
   })
   assert.equal(deleteResponse.status, 200)
   assert.deepEqual(await deleteResponse.json(), { success: true })
 
   const afterDeleteResponse = await authedRequest(env, '/api/assets', { token })
   const assets = await afterDeleteResponse.json()
-  assert.equal(assets[0].isActive, false)
+  assert.deepEqual(assets, [])
+})
+
+test('存在历史快照引用的资产不能永久删除', async () => {
+  const env = createEnv()
+  const token = await login(env)
+  const createResponse = await authedRequest(env, '/api/assets', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({ name: '历史黄金', type: 'gold', currency: 'CNY' }),
+  })
+  const asset = await createResponse.json()
+
+  const snapshotResponse = await authedRequest(env, '/api/snapshots', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      recordedAt: '2026-07-01T00:00:00.000Z',
+      values: [{ assetId: asset.id, amount: 1000, profit: 0, profitRate: 0 }],
+    }),
+  })
+  assert.equal(snapshotResponse.status, 201)
+
+  const deleteResponse = await authedRequest(env, `/api/assets/${asset.id}`, {
+    token,
+    method: 'DELETE',
+    body: JSON.stringify({ confirmName: asset.name }),
+  })
+
+  assert.equal(deleteResponse.status, 409)
+  assert.deepEqual(await deleteResponse.json(), {
+    error: '该资产已有历史快照，只能暂停录入',
+    code: 'ASSET_HAS_SNAPSHOT_HISTORY',
+  })
+  const assetsResponse = await authedRequest(env, '/api/assets', { token })
+  assert.equal((await assetsResponse.json()).length, 1)
+})
+
+test('旧 isActive 资产会迁移为 entryStatus', async () => {
+  const env = createEnv()
+  const token = await login(env)
+  await env.FINANCE_KV.put('finance:data:v2', JSON.stringify({
+    assets: [
+      { id: 'active', name: '正常资产', type: 'cash', currency: 'CNY', isActive: true },
+      { id: 'inactive', name: '旧停用资产', type: 'gold', currency: 'CNY', isActive: false },
+    ],
+    snapshots: [],
+    snapshotValues: [],
+  }))
+
+  const response = await authedRequest(env, '/api/assets', { token })
+  const assets = await response.json()
+
+  assert.deepEqual(assets.map(({ id, entryStatus, isActive }) => ({ id, entryStatus, isActive })), [
+    { id: 'active', entryStatus: 'normal', isActive: undefined },
+    { id: 'inactive', entryStatus: 'paused', isActive: undefined },
+  ])
+})
+
+test('暂停录入资产不能显式提交，但会沿用上一份快照值', async () => {
+  const env = createEnv()
+  const token = await login(env)
+  const create = async (name) => {
+    const response = await authedRequest(env, '/api/assets', {
+      token,
+      method: 'POST',
+      body: JSON.stringify({ name, type: 'cash', currency: 'CNY' }),
+    })
+    return response.json()
+  }
+  const pausedAsset = await create('暂停资产')
+  const normalAsset = await create('正常资产')
+
+  const firstSnapshot = await authedRequest(env, '/api/snapshots', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      recordedAt: '2026-07-01T00:00:00.000Z',
+      values: [
+        { assetId: pausedAsset.id, amount: 100 },
+        { assetId: normalAsset.id, amount: 200 },
+      ],
+    }),
+  })
+  assert.equal(firstSnapshot.status, 201)
+
+  const pauseResponse = await authedRequest(env, `/api/assets/${pausedAsset.id}`, {
+    token,
+    method: 'PATCH',
+    body: JSON.stringify({ entryStatus: 'paused' }),
+  })
+  assert.equal(pauseResponse.status, 200)
+
+  const explicitPausedValue = await authedRequest(env, '/api/snapshots', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      recordedAt: '2026-07-02T00:00:00.000Z',
+      values: [{ assetId: pausedAsset.id, amount: 110 }],
+    }),
+  })
+  assert.equal(explicitPausedValue.status, 400)
+
+  const secondSnapshot = await authedRequest(env, '/api/snapshots', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      recordedAt: '2026-07-02T00:00:00.000Z',
+      values: [{ assetId: normalAsset.id, amount: 250 }],
+    }),
+  })
+  assert.equal(secondSnapshot.status, 201)
+  const body = await secondSnapshot.json()
+  const pausedValue = body.values.find((value) => value.assetId === pausedAsset.id)
+  assert.equal(pausedValue.amount, 100)
 })
 
 test('资产接口会清理并保存类型档案字段', async () => {
@@ -332,6 +454,37 @@ test('导入导出会保留投资类资产的结构化定投计划', async () =>
     targetAmount: 20000,
     targetDate: '2026-12-31',
   })
+})
+
+test('导入接受旧 isActive 并拒绝未知 entryStatus', async () => {
+  const env = createEnv()
+  const token = await login(env)
+  const base = {
+    meta: { schemaVersion: 2, updatedAt: '2026-07-01T00:00:00.000Z' },
+    snapshots: [],
+    snapshotValues: [],
+  }
+
+  const legacyResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      ...base,
+      assets: [{ id: 'legacy', name: '旧资产', type: 'cash', currency: 'CNY', isActive: false }],
+    }),
+  })
+  assert.equal(legacyResponse.status, 200)
+
+  const invalidResponse = await authedRequest(env, '/api/import', {
+    token,
+    method: 'POST',
+    body: JSON.stringify({
+      ...base,
+      assets: [{ id: 'invalid', name: '非法资产', type: 'cash', currency: 'CNY', entryStatus: 'archived' }],
+    }),
+  })
+  assert.equal(invalidResponse.status, 400)
+  assert.match((await invalidResponse.json()).error, /entryStatus/)
 })
 
 test('导入会拒绝非法定投计划并保持原账本不变', async () => {

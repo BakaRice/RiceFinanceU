@@ -1,38 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { api } from '../api/client'
+import TableWorkspace from '../components/TableWorkspace'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
-import MoneyDisplay from '../components/MoneyDisplay'
 import {
-  calculateIncomeRecordTotal,
-  calculateRestrictedIncomeRecordTotal,
-  calculateSpendableIncomeRecordTotal,
   INCOME_CATEGORY_LABELS,
   isRestrictedIncomeCategory,
+  normalizeIncomeDateInput,
 } from '../domain/income'
 import type { IncomeCategory, IncomeRecord } from '../types/finance'
 import './IncomeManagementPage.css'
 
-type IncomeFormState = {
+type IncomeDraft = {
+  localId: string
   id?: string
+  rowLabel: string
   occurredAt: string
   amount: string
   category: IncomeCategory
   sourceName: string
   note: string
-}
-
-type MonthlyIncomePoint = {
-  month: string
-  amount: number
+  pendingDelete: boolean
 }
 
 const CATEGORY_OPTIONS: Array<{ value: IncomeCategory; label: string }> = [
@@ -44,6 +31,8 @@ const CATEGORY_OPTIONS: Array<{ value: IncomeCategory; label: string }> = [
   { value: 'other', label: INCOME_CATEGORY_LABELS.other },
 ]
 
+let newRowCounter = 0
+
 function pad2(value: number): string {
   return String(value).padStart(2, '0')
 }
@@ -52,43 +41,31 @@ function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
 }
 
-function monthKeyOf(dateKey: string): string {
-  return dateKey.slice(0, 7)
-}
-
-function shiftMonthKey(monthKey: string, offset: number): string {
-  const [yearText, monthText] = monthKey.split('-')
-  const date = new Date(Date.UTC(Number(yearText), Number(monthText) - 1, 1))
-  date.setUTCMonth(date.getUTCMonth() + offset)
-  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}`
-}
-
-function filterRollingTwelveMonthRecords(records: IncomeRecord[], latestMonth: string): IncomeRecord[] {
-  const startMonth = shiftMonthKey(latestMonth, -11)
-  return records.filter((record) => {
-    const month = monthKeyOf(record.occurredAt)
-    return month >= startMonth && month <= latestMonth
-  })
-}
-
-function createEmptyForm(): IncomeFormState {
+function recordToDraft(record: IncomeRecord): IncomeDraft {
   return {
-    occurredAt: formatDateKey(new Date()),
-    amount: '',
-    category: 'salary',
-    sourceName: '',
-    note: '',
-  }
-}
-
-function incomeToForm(record: IncomeRecord): IncomeFormState {
-  return {
+    localId: record.id,
     id: record.id,
+    rowLabel: `${record.occurredAt} ${INCOME_CATEGORY_LABELS[record.category]}`,
     occurredAt: record.occurredAt,
     amount: String(record.amount),
     category: record.category,
     sourceName: record.sourceName || '',
     note: record.note || '',
+    pendingDelete: false,
+  }
+}
+
+function createNewDraft(): IncomeDraft {
+  newRowCounter += 1
+  return {
+    localId: `new-income-${newRowCounter}`,
+    rowLabel: `新增收入 ${newRowCounter}`,
+    occurredAt: formatDateKey(new Date()),
+    amount: '',
+    category: 'salary',
+    sourceName: '',
+    note: '',
+    pendingDelete: false,
   }
 }
 
@@ -99,59 +76,43 @@ function parseAmount(value: string): number | null {
   return Math.round(amount * 100) / 100
 }
 
-function buildMonthlyPoints(records: IncomeRecord[]): MonthlyIncomePoint[] {
-  const totals = new Map<string, number>()
-  for (const record of records) {
-    const month = monthKeyOf(record.occurredAt)
-    totals.set(month, Math.round(((totals.get(month) || 0) + record.amount) * 100) / 100)
-  }
-  return [...totals.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .slice(-12)
-    .map(([month, amount]) => ({ month, amount }))
-}
-
-function calculateRecordedMonthAverage(records: IncomeRecord[]): number {
-  const recordedMonthCount = new Set(records.map((record) => monthKeyOf(record.occurredAt))).size
-  if (recordedMonthCount === 0) return 0
-  return Math.round((calculateIncomeRecordTotal(records) / recordedMonthCount) * 100) / 100
-}
-
-function formatChartMoney(value: unknown): string {
-  const amount = Number(value)
-  if (!Number.isFinite(amount)) return '-'
-  return amount >= 10000 ? `${(amount / 10000).toFixed(1)}万` : amount.toFixed(0)
-}
-
-function IncomeChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload || payload.length === 0) return null
+function isExistingDraftChanged(draft: IncomeDraft, record: IncomeRecord | undefined): boolean {
+  if (!record) return true
   return (
-    <div className="trend-tooltip">
-      <div className="trend-tooltip-row">
-        <span>月份</span>
-        <strong>{label}</strong>
-      </div>
-      <div className="trend-tooltip-row">
-        <span>收入</span>
-        <strong>
-          {Number(payload[0].value).toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </strong>
-      </div>
-    </div>
+    draft.occurredAt !== record.occurredAt ||
+    parseAmount(draft.amount) !== record.amount ||
+    draft.category !== record.category ||
+    draft.sourceName !== (record.sourceName || '') ||
+    draft.note !== (record.note || '')
   )
 }
 
+function buildPayload(draft: IncomeDraft) {
+  const amount = parseAmount(draft.amount)
+  const occurredAt = normalizeIncomeDateInput(draft.occurredAt)
+  if (!occurredAt) throw new Error(`${draft.rowLabel}的发生日期格式无效`)
+  if (amount === null) throw new Error(`${draft.rowLabel}的金额必须是大于等于 0 的数字`)
+
+  return {
+    occurredAt,
+    category: draft.category,
+    amount,
+    ...(draft.sourceName.trim() ? { sourceName: draft.sourceName.trim() } : {}),
+    ...(draft.note.trim() ? { note: draft.note.trim() } : {}),
+  }
+}
+
 export default function IncomeManagementPage() {
-  const { toast, confirm } = useFeedback()
+  const { toast } = useFeedback()
   const [records, setRecords] = useState<IncomeRecord[]>([])
+  const [drafts, setDrafts] = useState<IncomeDraft[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState<IncomeFormState>(() => createEmptyForm())
+  const [error, setError] = useState<string | null>(null)
+  const [filterStart, setFilterStart] = useState('')
+  const [filterEnd, setFilterEnd] = useState('')
+  const [filterCategory, setFilterCategory] = useState<IncomeCategory | 'all'>('all')
+  const [filterSource, setFilterSource] = useState('')
 
   useEffect(() => {
     load()
@@ -161,8 +122,10 @@ export default function IncomeManagementPage() {
     setLoading(true)
     setError(null)
     try {
-      const incomeRecords = await api.getIncomeRecords()
-      setRecords(incomeRecords)
+      const loaded = await api.getIncomeRecords()
+      const sorted = [...loaded].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+      setRecords(sorted)
+      setDrafts(sorted.map(recordToDraft))
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -170,101 +133,115 @@ export default function IncomeManagementPage() {
     }
   }
 
-  const sortedRecords = useMemo(
-    () => [...records].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
+  const recordById = useMemo(
+    () => new Map(records.map((record) => [record.id, record])),
     [records],
   )
-  const latestMonth = sortedRecords[0] ? monthKeyOf(sortedRecords[0].occurredAt) : formatDateKey(new Date()).slice(0, 7)
-  const rollingTwelveMonthRecords = useMemo(
-    () => filterRollingTwelveMonthRecords(records, latestMonth),
-    [records, latestMonth],
+
+  const dirtyDrafts = useMemo(
+    () => drafts.filter((draft) => (
+      !draft.id || draft.pendingDelete || isExistingDraftChanged(draft, recordById.get(draft.id))
+    )),
+    [drafts, recordById],
   )
-  const rollingTwelveMonthTotal = calculateIncomeRecordTotal(rollingTwelveMonthRecords)
-  const rollingTwelveMonthSpendableTotal = calculateSpendableIncomeRecordTotal(rollingTwelveMonthRecords)
-  const rollingTwelveMonthRestrictedTotal = calculateRestrictedIncomeRecordTotal(rollingTwelveMonthRecords)
-  const recordedMonthAverage = calculateRecordedMonthAverage(rollingTwelveMonthRecords)
-  const monthlyPoints = useMemo(() => buildMonthlyPoints(rollingTwelveMonthRecords), [rollingTwelveMonthRecords])
-  const categoryTotals = useMemo(() => {
-    const totals = new Map<IncomeCategory, number>()
-    for (const record of rollingTwelveMonthRecords) {
-      totals.set(record.category, (totals.get(record.category) || 0) + record.amount)
-    }
-    return CATEGORY_OPTIONS.map((item) => ({
-      ...item,
-      amount: Math.round((totals.get(item.value) || 0) * 100) / 100,
-      restricted: isRestrictedIncomeCategory(item.value),
-    })).filter((item) => item.amount > 0)
-  }, [rollingTwelveMonthRecords])
-  const allIncomeTotal = calculateIncomeRecordTotal(rollingTwelveMonthRecords)
-  const primaryCategory = categoryTotals.length > 0
-    ? [...categoryTotals].sort((a, b) => b.amount - a.amount)[0]
+
+  const normalizedFilterStart = filterStart.trim()
+    ? normalizeIncomeDateInput(filterStart)
     : undefined
+  const normalizedFilterEnd = filterEnd.trim()
+    ? normalizeIncomeDateInput(filterEnd)
+    : undefined
+  const filterStartInvalid = filterStart.trim() !== '' && !normalizedFilterStart
+  const filterEndInvalid = filterEnd.trim() !== '' && !normalizedFilterEnd
+  const normalizedSourceFilter = filterSource.trim().toLocaleLowerCase('zh-CN')
 
-  function updateFormField<K extends keyof IncomeFormState>(key: K, value: IncomeFormState[K]) {
-    setForm((current) => ({ ...current, [key]: value }))
+  const visibleDrafts = useMemo(() => drafts.filter((draft) => {
+    const occurredAt = normalizeIncomeDateInput(draft.occurredAt)
+    if (normalizedFilterStart && (!occurredAt || occurredAt < normalizedFilterStart)) return false
+    if (normalizedFilterEnd && (!occurredAt || occurredAt > normalizedFilterEnd)) return false
+    if (filterCategory !== 'all' && draft.category !== filterCategory) return false
+    if (
+      normalizedSourceFilter &&
+      !draft.sourceName.toLocaleLowerCase('zh-CN').includes(normalizedSourceFilter)
+    ) return false
+    return true
+  }), [
+    drafts,
+    filterCategory,
+    normalizedFilterEnd,
+    normalizedFilterStart,
+    normalizedSourceFilter,
+  ])
+
+  function updateDraft<K extends keyof IncomeDraft>(localId: string, key: K, value: IncomeDraft[K]) {
+    setDrafts((current) => current.map((draft) => (
+      draft.localId === localId ? { ...draft, [key]: value } : draft
+    )))
   }
 
-  function openCreateForm() {
-    setForm(createEmptyForm())
-    setFormOpen(true)
+  function addRow() {
+    setDrafts((current) => [...current, createNewDraft()])
   }
 
-  function openEditForm(record: IncomeRecord) {
-    setForm(incomeToForm(record))
-    setFormOpen(true)
+  function toggleDelete(draft: IncomeDraft) {
+    if (!draft.id) {
+      setDrafts((current) => current.filter((item) => item.localId !== draft.localId))
+      return
+    }
+    updateDraft(draft.localId, 'pendingDelete', !draft.pendingDelete)
   }
 
-  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const amount = parseAmount(form.amount)
-    if (amount === null) {
-      toast('收入金额必须是大于等于 0 的数字', 'error')
+  function discardChanges() {
+    setDrafts(records.map(recordToDraft))
+  }
+
+  function normalizeDraftDate(draft: IncomeDraft) {
+    const normalized = normalizeIncomeDateInput(draft.occurredAt)
+    if (normalized) updateDraft(draft.localId, 'occurredAt', normalized)
+  }
+
+  function normalizeFilterDate(value: string, setter: (next: string) => void) {
+    if (!value.trim()) return
+    const normalized = normalizeIncomeDateInput(value)
+    if (normalized) setter(normalized)
+  }
+
+  function clearFilters() {
+    setFilterStart('')
+    setFilterEnd('')
+    setFilterCategory('all')
+    setFilterSource('')
+  }
+
+  async function saveChanges() {
+    const changedRows = dirtyDrafts.filter((draft) => !draft.pendingDelete)
+    let payloads: Array<{ draft: IncomeDraft; payload: ReturnType<typeof buildPayload> }>
+
+    try {
+      payloads = changedRows.map((draft) => ({ draft, payload: buildPayload(draft) }))
+    } catch (e: any) {
+      toast(e.message, 'error')
       return
     }
 
     setSaving(true)
     try {
-      const payload = {
-        occurredAt: form.occurredAt,
-        amount,
-        category: form.category,
-        ...(form.sourceName.trim() ? { sourceName: form.sourceName.trim() } : {}),
-        ...(form.note.trim() ? { note: form.note.trim() } : {}),
+      for (const { draft, payload } of payloads) {
+        if (draft.id) {
+          await api.updateIncomeRecord(draft.id, payload)
+        } else {
+          await api.createIncomeRecord(payload)
+        }
       }
-
-      if (form.id) {
-        await api.updateIncomeRecord(form.id, payload)
-        toast('收入已更新')
-      } else {
-        await api.createIncomeRecord(payload)
-        toast('收入已记录')
+      for (const draft of dirtyDrafts.filter((item) => item.id && item.pendingDelete)) {
+        await api.deleteIncomeRecord(draft.id!)
       }
-
-      setFormOpen(false)
+      toast(`已保存 ${dirtyDrafts.length} 条收入变更`)
       await load()
     } catch (e: any) {
       toast('保存收入失败: ' + e.message, 'error')
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleDelete(record: IncomeRecord) {
-    const ok = await confirm({
-      title: '删除收入',
-      message: `确定删除 ${record.occurredAt} 的 ${INCOME_CATEGORY_LABELS[record.category]} 收入 ${record.amount.toFixed(2)} 吗？`,
-      confirmLabel: '删除',
-      cancelLabel: '取消',
-      variant: 'danger',
-    })
-    if (!ok) return
-
-    try {
-      await api.deleteIncomeRecord(record.id)
-      toast('收入已删除')
-      await load()
-    } catch (e: any) {
-      toast('删除收入失败: ' + e.message, 'error')
     }
   }
 
@@ -280,263 +257,213 @@ export default function IncomeManagementPage() {
 
   return (
     <div className="income-management-page">
-      <header className="page-header">
-        <div className="page-heading">
-          <h1 className="page-title">收入管理</h1>
-          <p className="page-subtitle">集中查看和修正收入流入记录</p>
-          <div className="page-stats">
-            <span>税后收入 · 公积金按受限流入追踪 · CNY 口径</span>
-          </div>
-        </div>
-        <button className="btn-primary" type="button" onClick={openCreateForm}>
-          记录收入
-        </button>
-      </header>
-
-      <div className="income-summary-strip section-panel">
-        <div className="income-summary-stat income-summary-primary">
-          <span className="income-summary-label">近 12 个月可支配收入</span>
-          <MoneyDisplay value={rollingTwelveMonthSpendableTotal} currency="CNY" />
-        </div>
-        <div className="income-summary-stat">
-          <span className="income-summary-label">近 12 个月受限收入</span>
-          <MoneyDisplay value={rollingTwelveMonthRestrictedTotal} currency="CNY" />
-          <span className="income-summary-note">不可支配</span>
-        </div>
-        <div className="income-summary-stat">
-          <span className="income-summary-label">近 12 个月总流入</span>
-          <MoneyDisplay value={rollingTwelveMonthTotal} currency="CNY" />
-        </div>
-        <div className="income-summary-stat">
-          <span className="income-summary-label">有记录月均</span>
-          <MoneyDisplay value={recordedMonthAverage} currency="CNY" />
-        </div>
-        <div className="income-summary-stat">
-          <span className="income-summary-label">主要类别</span>
-          <strong>{primaryCategory ? primaryCategory.label : '-'}</strong>
-        </div>
-      </div>
-
-      <div className="income-analysis-grid">
-        <section className="section-panel income-trend-panel">
-          <div className="section-head-row">
-            <h3 className="section-title">月度收入趋势</h3>
-            <span className="income-section-note">最近 12 个月</span>
-          </div>
-          {monthlyPoints.length === 0 ? (
-            <p className="income-empty-inline">暂无收入记录</p>
-          ) : (
-            <div className="income-chart-container">
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={monthlyPoints}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={formatChartMoney} />
-                  <Tooltip content={<IncomeChartTooltip />} />
-                  <Line
-                    type="monotone"
-                    dataKey="amount"
-                    name="月度收入"
-                    stroke="var(--chart-income)"
-                    strokeWidth={2.4}
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </section>
-
-        <section className="section-panel income-category-panel">
-          <div className="section-head-row">
-            <h3 className="section-title">分类结构</h3>
-            <span className="income-section-note">近 12 个月</span>
-          </div>
-          {categoryTotals.length === 0 ? (
-            <p className="income-empty-inline">暂无分类数据</p>
-          ) : (
-            <div className="income-category-list">
-              {categoryTotals.map((item) => (
-                <div
-                  className={`income-category-row ${item.restricted ? 'is-restricted' : ''}`}
-                  key={item.value}
-                >
-                  <div className="income-category-main">
-                    <span className="income-category-name">
-                      <span>{item.label}</span>
-                      {item.restricted && <span className="income-availability-badge">不可支配</span>}
-                    </span>
-                    <MoneyDisplay value={item.amount} currency="CNY" showCurrency={false} />
-                  </div>
-                  <div className="income-category-track">
-                    <div
-                      className="income-category-fill"
-                      style={{ width: `${allIncomeTotal > 0 ? (item.amount / allIncomeTotal) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <span className="income-category-percent">
-                    {allIncomeTotal > 0 ? Math.round((item.amount / allIncomeTotal) * 100) : 0}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      <section className="section-panel income-history-panel">
-        <div className="section-head-row">
-          <h3 className="section-title">收入历史</h3>
-          <span className="income-section-note">{records.length} 条记录</span>
-        </div>
-        {sortedRecords.length === 0 ? (
-          <div className="empty-state income-empty-state">
-            <p>还没有收入记录</p>
-            <button className="btn-primary" type="button" onClick={openCreateForm}>
-              记录收入
+      <TableWorkspace
+        title="收入"
+        description="收入事件表｜一行一笔流入，修改后统一保存"
+        dirtyCount={dirtyDrafts.length}
+        saving={saving}
+        primaryActionLabel={saving ? '保存中...' : '保存收入'}
+        onPrimaryAction={saveChanges}
+        secondaryActions={(
+          <>
+            <span className="income-record-count">{records.length} 条已保存</span>
+            <button className="btn-secondary" type="button" onClick={addRow}>
+              新增行
             </button>
-          </div>
-        ) : (
-          <div className="table-container">
-            <table className="fin-table income-history-table">
-              <thead>
+            <button
+              className="btn-secondary"
+              type="button"
+              disabled={dirtyDrafts.length === 0 || saving}
+              onClick={discardChanges}
+            >
+              放弃修改
+            </button>
+          </>
+        )}
+      >
+        <div className="income-filter-bar" aria-label="收入筛选">
+          <label className="income-filter-field">
+            <span>开始日期</span>
+            <input
+              aria-label="开始日期"
+              className={filterStartInvalid ? 'is-invalid' : ''}
+              type="text"
+              inputMode="numeric"
+              placeholder="YYYY-MM-DD"
+              value={filterStart}
+              aria-invalid={filterStartInvalid}
+              onChange={(event) => setFilterStart(event.target.value)}
+              onBlur={() => normalizeFilterDate(filterStart, setFilterStart)}
+            />
+          </label>
+          <label className="income-filter-field">
+            <span>结束日期</span>
+            <input
+              aria-label="结束日期"
+              className={filterEndInvalid ? 'is-invalid' : ''}
+              type="text"
+              inputMode="numeric"
+              placeholder="YYYY-MM-DD"
+              value={filterEnd}
+              aria-invalid={filterEndInvalid}
+              onChange={(event) => setFilterEnd(event.target.value)}
+              onBlur={() => normalizeFilterDate(filterEnd, setFilterEnd)}
+            />
+          </label>
+          <label className="income-filter-field">
+            <span>分类</span>
+            <select
+              aria-label="收入分类"
+              value={filterCategory}
+              onChange={(event) => setFilterCategory(event.target.value as IncomeCategory | 'all')}
+            >
+              <option value="all">全部分类</option>
+              {CATEGORY_OPTIONS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="income-filter-field income-filter-source">
+            <span>来源</span>
+            <input
+              aria-label="来源关键词"
+              type="search"
+              placeholder="输入来源关键词"
+              value={filterSource}
+              onChange={(event) => setFilterSource(event.target.value)}
+            />
+          </label>
+          <span className="income-filter-result">显示 {visibleDrafts.length} / {drafts.length} 条</span>
+          <button className="btn-link" type="button" onClick={clearFilters}>
+            清除筛选
+          </button>
+        </div>
+        <div className="income-table-scroll">
+          <table className="fin-table income-workbook-table" aria-label="收入记录">
+            <thead>
+              <tr>
+                <th>发生日期</th>
+                <th>分类</th>
+                <th className="align-right">金额</th>
+                <th>来源</th>
+                <th>备注</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleDrafts.length === 0 ? (
                 <tr>
-                  <th>发生日期</th>
-                  <th>分类</th>
-                  <th className="align-right">金额</th>
-                  <th>来源</th>
-                  <th>备注</th>
-                  <th>操作</th>
+                  <td className="income-table-empty" colSpan={7}>
+                    {drafts.length === 0
+                      ? '暂无收入记录，点击“新增行”开始录入。'
+                      : '没有符合当前筛选条件的收入。'}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {sortedRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td className="income-date-cell">{record.occurredAt}</td>
+              ) : visibleDrafts.map((draft) => {
+                const changed = Boolean(draft.id && isExistingDraftChanged(draft, recordById.get(draft.id)))
+                const dateInvalid = normalizeIncomeDateInput(draft.occurredAt) === null
+                const status = draft.pendingDelete
+                  ? '待删除'
+                  : dateInvalid
+                    ? '日期错误'
+                    : !draft.id
+                      ? '新增'
+                      : changed
+                        ? '已修改'
+                        : '-'
+                const restricted = isRestrictedIncomeCategory(draft.category)
+
+                return (
+                  <tr
+                    className={`${draft.pendingDelete ? 'is-pending-delete' : ''} ${!draft.id ? 'is-new-row' : ''}`.trim()}
+                    key={draft.localId}
+                  >
                     <td>
-                      <span
-                        className={`income-category-chip ${
-                          isRestrictedIncomeCategory(record.category) ? 'is-restricted' : ''
-                        }`}
-                      >
-                        <span>{INCOME_CATEGORY_LABELS[record.category]}</span>
-                        {isRestrictedIncomeCategory(record.category) && (
-                          <span className="income-availability-badge">不可支配</span>
+                      <input
+                        aria-label={`${draft.rowLabel} 日期`}
+                        className={dateInvalid ? 'is-invalid' : ''}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="YYYY-MM-DD"
+                        value={draft.occurredAt}
+                        aria-invalid={dateInvalid}
+                        disabled={draft.pendingDelete}
+                        onChange={(event) => updateDraft(draft.localId, 'occurredAt', event.target.value)}
+                        onBlur={() => normalizeDraftDate(draft)}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        aria-label={`${draft.rowLabel} 分类`}
+                        value={draft.category}
+                        disabled={draft.pendingDelete}
+                        onChange={(event) => updateDraft(
+                          draft.localId,
+                          'category',
+                          event.target.value as IncomeCategory,
                         )}
+                      >
+                        {CATEGORY_OPTIONS.map((item) => (
+                          <option key={item.value} value={item.value}>{item.label}</option>
+                        ))}
+                      </select>
+                      {restricted && <span className="income-restricted-mark">受限</span>}
+                    </td>
+                    <td>
+                      <input
+                        className="income-amount-input"
+                        aria-label={`${draft.rowLabel} 金额`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={draft.amount}
+                        disabled={draft.pendingDelete}
+                        onChange={(event) => updateDraft(draft.localId, 'amount', event.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        aria-label={`${draft.rowLabel} 来源`}
+                        type="text"
+                        value={draft.sourceName}
+                        disabled={draft.pendingDelete}
+                        placeholder="可选"
+                        onChange={(event) => updateDraft(draft.localId, 'sourceName', event.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        aria-label={`${draft.rowLabel} 备注`}
+                        type="text"
+                        value={draft.note}
+                        disabled={draft.pendingDelete}
+                        placeholder="可选"
+                        onChange={(event) => updateDraft(draft.localId, 'note', event.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <span className={`income-row-status status-${status === '-' ? 'clean' : 'dirty'}`}>
+                        {status}
                       </span>
                     </td>
-                    <td className="align-right">
-                      <MoneyDisplay value={record.amount} currency="CNY" showCurrency={false} />
-                    </td>
-                    <td>{record.sourceName || '-'}</td>
-                    <td className="income-note-cell" title={record.note || undefined}>
-                      {record.note || '-'}
-                    </td>
-                    <td className="income-row-actions">
+                    <td>
                       <button
-                        className="btn-link"
+                        className={`btn-link ${draft.pendingDelete ? '' : 'danger-link'}`}
                         type="button"
-                        aria-label={`编辑 ${record.occurredAt} ${INCOME_CATEGORY_LABELS[record.category]}`}
-                        onClick={() => openEditForm(record)}
+                        aria-label={`${draft.pendingDelete ? '撤销删除' : '标记删除'} ${draft.rowLabel}`}
+                        onClick={() => toggleDelete(draft)}
                       >
-                        编辑
-                      </button>
-                      <button
-                        className="btn-link danger-link"
-                        type="button"
-                        aria-label={`删除 ${record.occurredAt} ${INCOME_CATEGORY_LABELS[record.category]}`}
-                        onClick={() => handleDelete(record)}
-                      >
-                        删除
+                        {draft.pendingDelete ? '撤销' : !draft.id ? '移除' : '删除'}
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {formOpen && (
-        <div className="modal-overlay" onClick={() => setFormOpen(false)}>
-          <form
-            className="modal income-record-modal"
-            onSubmit={handleSave}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="income-record-modal-head">
-              <h2>{form.id ? '编辑收入' : '记录收入'}</h2>
-              <button type="button" className="btn-link" onClick={() => setFormOpen(false)}>
-                关闭
-              </button>
-            </div>
-            <div className="income-record-form-grid">
-              <label className="income-record-field" htmlFor="income-page-date">
-                <span>发生日期</span>
-                <input
-                  id="income-page-date"
-                  type="date"
-                  required
-                  value={form.occurredAt}
-                  onChange={(e) => updateFormField('occurredAt', e.target.value)}
-                />
-              </label>
-              <label className="income-record-field" htmlFor="income-page-category">
-                <span>分类</span>
-                <select
-                  id="income-page-category"
-                  value={form.category}
-                  onChange={(e) => updateFormField('category', e.target.value as IncomeCategory)}
-                >
-                  {CATEGORY_OPTIONS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="income-record-field" htmlFor="income-page-amount">
-                <span>金额</span>
-                <input
-                  id="income-page-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.amount}
-                  onChange={(e) => updateFormField('amount', e.target.value)}
-                />
-              </label>
-              <label className="income-record-field" htmlFor="income-page-source">
-                <span>来源</span>
-                <input
-                  id="income-page-source"
-                  type="text"
-                  value={form.sourceName}
-                  onChange={(e) => updateFormField('sourceName', e.target.value)}
-                />
-              </label>
-              <label className="income-record-field income-record-field-full" htmlFor="income-page-note">
-                <span>备注</span>
-                <input
-                  id="income-page-note"
-                  type="text"
-                  value={form.note}
-                  onChange={(e) => updateFormField('note', e.target.value)}
-                />
-              </label>
-            </div>
-            <div className="income-record-modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setFormOpen(false)}>
-                取消
-              </button>
-              <button type="submit" className="btn-primary" disabled={saving}>
-                {saving ? '保存中...' : '保存收入'}
-              </button>
-            </div>
-          </form>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
+      </TableWorkspace>
     </div>
   )
 }

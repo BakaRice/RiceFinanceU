@@ -31,6 +31,45 @@ function investmentAsset(dcaPlan?: Record<string, unknown>) {
   }
 }
 
+describe('DataManagementPage preValidate asset entry status', () => {
+  it('keeps legacy isActive backups compatible', () => {
+    const result = preValidate(backup({ assets: [investmentAsset()] }))
+
+    expect(result.hasCriticalIssues).toBe(false)
+    expect(result.issues.some((issue) => issue.includes('entryStatus'))).toBe(false)
+  })
+
+  it('accepts canonical paused entry status without isActive', () => {
+    const result = preValidate(backup({
+      assets: [{
+        id: 'gold-1',
+        name: '黄金',
+        type: 'gold',
+        currency: 'CNY',
+        entryStatus: 'paused',
+      }],
+    }))
+
+    expect(result.hasCriticalIssues).toBe(false)
+    expect(result.issues.some((issue) => issue.includes('isActive'))).toBe(false)
+  })
+
+  it('rejects an unknown entry status', () => {
+    const result = preValidate(backup({
+      assets: [{
+        id: 'gold-1',
+        name: '黄金',
+        type: 'gold',
+        currency: 'CNY',
+        entryStatus: 'archived',
+      }],
+    }))
+
+    expect(result.issues).toContain('资产[0] "黄金": entryStatus 无效 "archived"')
+    expect(result.hasCriticalIssues).toBe(true)
+  })
+})
+
 describe('DataManagementPage preValidate income records', () => {
   it('treats missing incomeRecords as an empty compatible list', () => {
     const result = preValidate(backup())

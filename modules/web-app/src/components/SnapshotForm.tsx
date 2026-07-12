@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../api/client'
 import type { AssetType, SnapshotValue } from '../types/finance'
-import { isInvestmentType } from '../domain/assets'
+import { filterEntryNormalAssets, isInvestmentType } from '../domain/assets'
 import {
   isValidCurrencyAmount,
   isValidPercentInput,
@@ -79,7 +79,7 @@ export default function SnapshotForm({ onSuccess, onManageAssets }: SnapshotForm
         api.getLatestSnapshot(),
       ])
 
-      const activeAssets = allAssets.filter((a) => a.isActive)
+      const activeAssets = filterEntryNormalAssets(allAssets)
       const prevMap = new Map<string, SnapshotValue>()
       if (latestData && latestData.values) {
         for (const v of latestData.values) {

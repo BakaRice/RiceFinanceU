@@ -86,6 +86,21 @@ describe('DcaManagementPage', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       },
+      {
+        id: 'paused-fund',
+        name: '暂停定投基金',
+        type: 'fund',
+        currency: 'CNY',
+        entryStatus: 'paused',
+        isActive: true,
+        dcaPlan: {
+          enabled: true,
+          frequency: 'monthly',
+          plannedContribution: 500,
+        },
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
     ] as any)
 
     const { container } = renderDcaManagementPage()
@@ -98,6 +113,7 @@ describe('DcaManagementPage', () => {
     expect(screen.getByText('沪深300')).toBeTruthy()
     expect(screen.getByText('纳指100')).toBeTruthy()
     expect(screen.queryByText('现金')).toBeNull()
+    expect(screen.queryByText('暂停定投基金')).toBeNull()
     expect(screen.getByText('工资到账后投入')).toBeTruthy()
   })
 

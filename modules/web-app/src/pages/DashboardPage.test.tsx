@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -83,7 +83,8 @@ describe('DashboardPage trend scale controls', () => {
         name: '现金',
         type: 'cash',
         currency: 'CNY',
-        isActive: true,
+        isActive: false,
+        entryStatus: 'paused',
         createdAt: '2026-01-01T00:00:00',
         updatedAt: '2026-01-01T00:00:00',
       },
@@ -152,80 +153,81 @@ describe('DashboardPage trend scale controls', () => {
     renderDashboard()
 
     await screen.findByText('总资产走势')
+    const assetPanel = screen.getByTestId('asset-trend-panel')
 
-    expect(screen.getByRole('button', { name: '日' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '周' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '月' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '季' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '年' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '日' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByTestId('x-axis').textContent).toBe('periodLabel')
+    expect(within(assetPanel).getByRole('button', { name: '日' })).toBeTruthy()
+    expect(within(assetPanel).getByRole('button', { name: '周' })).toBeTruthy()
+    expect(within(assetPanel).getByRole('button', { name: '月' })).toBeTruthy()
+    expect(within(assetPanel).getByRole('button', { name: '季' })).toBeTruthy()
+    expect(within(assetPanel).getByRole('button', { name: '年' })).toBeTruthy()
+    expect(within(assetPanel).getByRole('button', { name: '日' }).getAttribute('aria-pressed')).toBe('true')
+    expect(within(assetPanel).getByTestId('x-axis').textContent).toBe('periodLabel')
+  })
+
+  it('keeps paused-entry assets in the current total', async () => {
+    renderDashboard()
+
+    const totalLabel = await screen.findByText('总资产 (CNY)')
+    expect(totalLabel.parentElement?.textContent).toContain('350.00')
   })
 
   it('switches chart data to the selected scale without reloading api data', async () => {
     renderDashboard()
 
     await screen.findByText('总资产走势')
+    const assetPanel = screen.getByTestId('asset-trend-panel')
 
-    expect(screen.getByTestId('line-chart').getAttribute('data-point-count')).toBe('3')
-    expect(screen.getByTestId('line-chart').getAttribute('data-point-labels')).toBe(
+    expect(within(assetPanel).getByTestId('line-chart').getAttribute('data-point-count')).toBe('3')
+    expect(within(assetPanel).getByTestId('line-chart').getAttribute('data-point-labels')).toBe(
       '2026-07-05|2026-07-08|2026-10-02',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: '月' }))
+    fireEvent.click(within(assetPanel).getByRole('button', { name: '月' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('line-chart').getAttribute('data-point-count')).toBe('2')
+      expect(within(assetPanel).getByTestId('line-chart').getAttribute('data-point-count')).toBe('2')
     })
-    expect(screen.getByTestId('line-chart').getAttribute('data-point-labels')).toBe('2026-07|2026-10')
-    expect(screen.getByRole('button', { name: '月' }).getAttribute('aria-pressed')).toBe('true')
+    expect(within(assetPanel).getByTestId('line-chart').getAttribute('data-point-labels')).toBe('2026-07|2026-10')
+    expect(within(assetPanel).getByRole('button', { name: '月' }).getAttribute('aria-pressed')).toBe('true')
     expect(mockedApi.getSnapshots).toHaveBeenCalledTimes(1)
     expect(mockedApi.getSnapshotValues).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the income line on monthly scale with a separate y axis', async () => {
+  it('shows asset and income trends side by side with independent scales', async () => {
     renderDashboard()
 
     await screen.findByText('总资产走势')
+    const trendRow = screen.getByTestId('dashboard-trend-row')
+    const assetPanel = within(trendRow).getByTestId('asset-trend-panel')
+    const incomePanel = within(trendRow).getByTestId('income-trend-panel')
 
-    expect(screen.queryByTestId('line-incomeAmount')).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: '月' }))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('line-incomeAmount').textContent).toBe('月收入')
-    })
-    expect(screen.getByTestId('line-incomeAmount').getAttribute('data-y-axis-id')).toBe('income')
+    expect(within(assetPanel).queryByTestId('line-incomeAmount')).toBeNull()
+    expect(within(incomePanel).getByTestId('line-incomeAmount').textContent).toBe('月收入')
+    expect(within(incomePanel).getByRole('button', { name: '月' }).getAttribute('aria-pressed')).toBe('true')
+    expect(within(incomePanel).getByRole('button', { name: '日' })).toBeTruthy()
+    expect(within(incomePanel).getByRole('button', { name: '周' })).toBeTruthy()
+    expect(within(incomePanel).getByRole('button', { name: '季' })).toBeTruthy()
+    expect(within(incomePanel).getByRole('button', { name: '年' })).toBeTruthy()
   })
 
-  it('creates an income record from the dashboard panel', async () => {
+  it('keeps dashboard income read-only and links to the income sheet', async () => {
     const { container } = renderDashboard()
 
     await screen.findByText('收入流入')
-    expect(screen.getByRole('link', { name: '收入管理' }).getAttribute('href')).toBe('/income')
+    expect(screen.getByRole('link', { name: '查看收入明细' }).getAttribute('href')).toBe('/income')
     expect(screen.getByText('最近月可支配')).toBeTruthy()
     expect(container.textContent).toContain('10,000.00')
     expect(screen.getByText('受限流入')).toBeTruthy()
     expect(container.textContent).toContain('2,500.00')
     expect(screen.getByText('不可支配')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '记录收入' }))
-    fireEvent.change(screen.getByLabelText('发生日期'), { target: { value: '2026-11-05' } })
-    fireEvent.change(screen.getByLabelText('分类'), { target: { value: 'bonus' } })
-    fireEvent.change(screen.getByLabelText('金额'), { target: { value: '100' } })
-    fireEvent.change(screen.getByLabelText('来源'), { target: { value: '奖金' } })
-    fireEvent.change(screen.getByLabelText('备注'), { target: { value: '本月补录' } })
-    fireEvent.click(screen.getByRole('button', { name: '保存收入' }))
-
-    await waitFor(() => {
-      expect(mockedApi.createIncomeRecord).toHaveBeenCalledWith(expect.objectContaining({
-        occurredAt: '2026-11-05',
-        category: 'bonus',
-        amount: 100,
-        sourceName: '奖金',
-        note: '本月补录',
-      }))
-    })
+    expect(screen.queryByRole('button', { name: '记录收入' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '编辑最近一笔' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '保存收入' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '删除收入' })).toBeNull()
+    expect(mockedApi.createIncomeRecord).not.toHaveBeenCalled()
+    expect(mockedApi.updateIncomeRecord).not.toHaveBeenCalled()
+    expect(mockedApi.deleteIncomeRecord).not.toHaveBeenCalled()
   })
 
   it('groups related dashboard panels into two semantic rows', async () => {

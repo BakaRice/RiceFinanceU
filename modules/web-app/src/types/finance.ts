@@ -68,13 +68,17 @@ export type ExchangeRates = {
   updatedAt: string
 }
 
+export type AssetEntryStatus = 'normal' | 'paused'
+
 export type Asset = {
   id: string
   name: string
   type: AssetType
   institution?: string
   currency: Currency
-  isActive: boolean
+  entryStatus?: AssetEntryStatus
+  /** 仅用于兼容尚未规范化的旧备份和旧测试数据。 */
+  isActive?: boolean
   note?: string
   // Optional type-specific asset dossier. Kept out of snapshot calculations by design.
   profile?: AssetProfile

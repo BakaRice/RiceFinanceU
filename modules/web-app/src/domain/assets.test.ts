@@ -6,7 +6,8 @@ import {
   isRestrictedAssetType,
   isInvestmentType,
   isBalanceType,
-  filterActiveAssets,
+  filterEntryNormalAssets,
+  isAssetEntryNormal,
   groupAssetsByType,
   sanitizeAssetProfile,
 } from './assets'
@@ -17,7 +18,7 @@ const makeAsset = (overrides: Partial<Asset> = {}): Asset => ({
   name: '测试资产',
   type: 'fund',
   currency: 'CNY',
-  isActive: true,
+  entryStatus: 'normal',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   ...overrides,
@@ -46,16 +47,18 @@ describe('isRestrictedAssetType', () => {
   })
 })
 
-describe('filterActiveAssets', () => {
-  it('filters out inactive assets', () => {
-    const assets = [makeAsset({ id: '1', isActive: true }), makeAsset({ id: '2', isActive: false })]
-    expect(filterActiveAssets(assets)).toHaveLength(1)
-    expect(filterActiveAssets(assets)[0].id).toBe('1')
+describe('asset entry status', () => {
+  it('recognizes normal and paused entry states', () => {
+    expect(isAssetEntryNormal(makeAsset({ entryStatus: 'normal' }))).toBe(true)
+    expect(isAssetEntryNormal(makeAsset({ entryStatus: 'paused' }))).toBe(false)
   })
 
-  it('returns all when all active', () => {
-    const assets = [makeAsset({ id: '1' }), makeAsset({ id: '2' })]
-    expect(filterActiveAssets(assets)).toHaveLength(2)
+  it('filters paused assets out of entry without removing them from the ledger', () => {
+    const assets = [
+      makeAsset({ id: '1', entryStatus: 'normal' }),
+      makeAsset({ id: '2', entryStatus: 'paused' }),
+    ]
+    expect(filterEntryNormalAssets(assets).map((asset) => asset.id)).toEqual(['1'])
   })
 })
 

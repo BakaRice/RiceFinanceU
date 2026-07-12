@@ -66,8 +66,20 @@ export function isRestrictedAssetType(type: AssetType): boolean {
   return type === 'housing_fund'
 }
 
-export function filterActiveAssets(assets: Asset[]): Asset[] {
-  return assets.filter((a) => a.isActive)
+export function getAssetEntryStatus(
+  asset: Pick<Asset, 'entryStatus' | 'isActive'>,
+): 'normal' | 'paused' {
+  if (asset.entryStatus === 'paused') return 'paused'
+  if (asset.entryStatus === 'normal') return 'normal'
+  return asset.isActive === false ? 'paused' : 'normal'
+}
+
+export function isAssetEntryNormal(asset: Pick<Asset, 'entryStatus' | 'isActive'>): boolean {
+  return getAssetEntryStatus(asset) === 'normal'
+}
+
+export function filterEntryNormalAssets(assets: Asset[]): Asset[] {
+  return assets.filter(isAssetEntryNormal)
 }
 
 export function groupAssetsByType(assets: Asset[]): Record<AssetType, Asset[]> {

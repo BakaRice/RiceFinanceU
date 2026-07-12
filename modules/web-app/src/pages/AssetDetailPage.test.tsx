@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -13,6 +13,7 @@ vi.mock('../api/client', () => ({
     getAssets: vi.fn(),
     getSnapshots: vi.fn(),
     getSnapshotValues: vi.fn(),
+    updateAsset: vi.fn(),
     deleteAsset: vi.fn(),
   },
 }))
@@ -206,5 +207,63 @@ describe('AssetDetailPage asset profile', () => {
     )
     expect(chart.getAttribute('data-point-amounts')).toBe('10000|12000')
     expect(screen.getByTestId('line-amount').textContent).toBe('资产金额')
+  })
+
+  it('shows paused entry status and can restore entry', async () => {
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'deposit-1',
+        name: '招商定存',
+        type: 'deposit',
+        currency: 'CNY',
+        entryStatus: 'paused',
+      },
+    ] as any)
+    mockedApi.updateAsset.mockResolvedValue({
+      id: 'deposit-1',
+      name: '招商定存',
+      type: 'deposit',
+      currency: 'CNY',
+      entryStatus: 'normal',
+    } as any)
+
+    renderAssetDetail()
+
+    expect(await screen.findByText('暂停录入')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '恢复录入' }))
+
+    await waitFor(() => {
+      expect(mockedApi.updateAsset).toHaveBeenCalledWith('deposit-1', { entryStatus: 'normal' })
+    })
+  })
+
+  it('requires two confirmations and the exact asset name before permanent deletion', async () => {
+    mockedApi.getAssets.mockResolvedValue([
+      {
+        id: 'deposit-1',
+        name: '招商定存',
+        type: 'deposit',
+        currency: 'CNY',
+        entryStatus: 'normal',
+      },
+    ] as any)
+    mockedApi.deleteAsset.mockResolvedValue({ success: true })
+
+    renderAssetDetail()
+
+    fireEvent.click(await screen.findByRole('button', { name: '永久删除' }))
+    expect(screen.getByRole('heading', { name: '永久删除资产' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '继续删除' }))
+
+    expect(await screen.findByRole('heading', { name: '输入资产名称确认' })).toBeTruthy()
+    const deleteButton = screen.getByRole('button', { name: '确认永久删除' }) as HTMLButtonElement
+    expect(deleteButton.disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('输入资产名称'), { target: { value: '招商定存' } })
+    expect(deleteButton.disabled).toBe(false)
+    fireEvent.click(deleteButton)
+
+    await waitFor(() => {
+      expect(mockedApi.deleteAsset).toHaveBeenCalledWith('deposit-1', '招商定存')
+    })
   })
 })

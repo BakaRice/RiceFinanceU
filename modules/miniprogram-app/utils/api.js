@@ -84,9 +84,10 @@ module.exports = {
       data,
     })
   },
-  deleteAsset(id) {
+  deleteAsset(id, confirmName) {
     return request(`/assets/${id}`, {
       method: 'DELETE',
+      data: { confirmName },
     })
   },
   exportData() {

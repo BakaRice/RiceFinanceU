@@ -201,76 +201,19 @@
   white-space: nowrap;
 }
 
-.income-modal {
-  width: min(560px, calc(100vw - 32px));
-}
-
-.income-modal-head,
-.income-modal-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.income-modal-head {
-  margin-bottom: var(--space-lg);
-}
-
-.income-modal-head h2 {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-}
-
-.income-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
-}
-
-.income-form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.income-form-field input,
-.income-form-field select {
-  height: 34px;
-  min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
-  background: var(--color-surface);
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.income-form-field input:focus,
-.income-form-field select:focus {
-  outline: none;
-  border-color: var(--color-border-focus);
-}
-
-.income-form-field-full {
-  grid-column: 1 / -1;
-}
-
-.income-modal-actions {
-  justify-content: flex-end;
-  margin-top: var(--space-lg);
-}
-
 /* Paired data rows */
+.dashboard-trend-row,
 .dashboard-paired-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 14px;
+}
+
+.dashboard-trend-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-paired-row {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
 }
 
 .dashboard-activity-row {
@@ -282,6 +225,10 @@
   min-width: 0;
 }
 
+.dashboard-trend-row > .dash-section {
+  min-width: 0;
+}
+
 .dash-section {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -290,7 +237,7 @@
 }
 
 .dashboard-trend {
-  min-height: 340px;
+  min-height: 310px;
   padding: 16px 18px 8px;
 }
 
@@ -564,6 +511,7 @@
 }
 
 @media (max-width: 1100px) {
+  .dashboard-trend-row,
   .dashboard-paired-row {
     grid-template-columns: 1fr;
   }
@@ -588,8 +536,7 @@
   .income-section-head {
     flex-direction: column;
   }
-  .income-summary-grid,
-  .income-form-grid {
+  .income-summary-grid {
     grid-template-columns: 1fr;
   }
   .history-item-header {

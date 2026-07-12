@@ -14,6 +14,7 @@ import type { Asset, SnapshotValue } from '../types/finance'
 import { CURRENCY_SYMBOLS } from '../types/finance'
 import {
   ASSET_TYPE_LABELS,
+  getAssetEntryStatus,
   getAssetProfileFields,
   isInvestmentType,
   isRestrictedAssetType,
@@ -50,7 +51,7 @@ function formatTrendDate(value: number): string {
 export default function AssetDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { confirm } = useFeedback()
+  const { confirm, toast } = useFeedback()
 
   const [asset, setAsset] = useState<Asset | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,6 +59,9 @@ export default function AssetDetailPage() {
   const [latestValue, setLatestValue] = useState<SnapshotValue | null>(null)
   const [history, setHistory] = useState<AssetSnapshotRecord[]>([])
   const [latestSnapshotTime, setLatestSnapshotTime] = useState<string>('')
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     load()
@@ -120,21 +124,43 @@ export default function AssetDetailPage() {
     }
   }
 
-  async function handleDeactivate() {
+  async function handleRequestDelete() {
     if (!asset) return
     const ok = await confirm({
-      title: '停用资产',
-      message: `确定要停用 "${asset.name}" 吗？停用后仍可在历史快照中查看。`,
-      confirmLabel: '停用',
+      title: '永久删除资产',
+      message: `即将永久删除 "${asset.name}"。此操作不可恢复。`,
+      detail: '只有从未进入任何快照的错误资产可以永久删除；已有历史的资产只能暂停录入。',
+      confirmLabel: '继续删除',
       cancelLabel: '取消',
       variant: 'danger',
     })
     if (!ok) return
+    setDeleteConfirmation('')
+    setShowDeleteConfirmation(true)
+  }
+
+  async function handlePermanentDelete() {
+    if (!asset || deleteConfirmation !== asset.name) return
+    setDeleting(true)
     try {
-      await api.deleteAsset(asset.id)
+      await api.deleteAsset(asset.id, deleteConfirmation)
       navigate('/assets')
     } catch (e: any) {
-      // Error handling via toast would go here
+      toast('删除失败: ' + e.message, 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleEntryStatusChange() {
+    if (!asset) return
+    const nextStatus = getAssetEntryStatus(asset) === 'normal' ? 'paused' : 'normal'
+    try {
+      const updated = await api.updateAsset(asset.id, { entryStatus: nextStatus })
+      setAsset(updated)
+      toast(nextStatus === 'paused' ? `已暂停录入 "${asset.name}"` : `已恢复录入 "${asset.name}"`)
+    } catch (e: any) {
+      toast('操作失败: ' + e.message, 'error')
     }
   }
 
@@ -147,6 +173,7 @@ export default function AssetDetailPage() {
   )
   if (!asset) return null
 
+  const entryStatus = getAssetEntryStatus(asset)
   const isInvestment = isInvestmentType(asset.type)
   const profileRows = getAssetProfileFields(asset.type)
     .map((field) => ({
@@ -191,8 +218,8 @@ export default function AssetDetailPage() {
         <div className="detail-header-left">
           <h1 className="detail-name">{asset.name}</h1>
           <div className="detail-meta">
-            <span className={`status-badge ${asset.isActive ? 'status-active' : 'status-inactive'}`}>
-              {asset.isActive ? '启用' : '停用'}
+            <span className={`status-badge ${entryStatus === 'normal' ? 'status-active' : 'status-inactive'}`}>
+              {entryStatus === 'normal' ? '正常录入' : '暂停录入'}
             </span>
             <span className={`type-badge type-${asset.type}`}>
               {ASSET_TYPE_LABELS[asset.type as keyof typeof ASSET_TYPE_LABELS] || asset.type}
@@ -210,11 +237,10 @@ export default function AssetDetailPage() {
           <button className="btn-secondary" aria-label={`编辑 ${asset.name}`} onClick={() => navigate('/assets', { state: { editId: asset.id } })}>
             编辑
           </button>
-          {asset.isActive && (
-            <button className="btn-danger" onClick={handleDeactivate}>
-              停用
-            </button>
-          )}
+          <button className="btn-secondary" onClick={handleEntryStatusChange}>
+            {entryStatus === 'normal' ? '暂停录入' : '恢复录入'}
+          </button>
+          <button className="btn-danger" onClick={handleRequestDelete}>永久删除</button>
         </div>
       </div>
 
@@ -489,6 +515,38 @@ export default function AssetDetailPage() {
           )}
         </div>
       </div>
+
+      {showDeleteConfirmation && (
+        <div className="modal-overlay" onClick={() => !deleting && setShowDeleteConfirmation(false)}>
+          <div
+            className="modal asset-delete-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="asset-detail-delete-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="asset-detail-delete-confirm-title">输入资产名称确认</h2>
+            <p className="confirm-body">请输入 <strong>{asset.name}</strong>，确认永久删除该资产。</p>
+            <label className="form-label" htmlFor="asset-detail-delete-confirm-name">输入资产名称</label>
+            <input
+              id="asset-detail-delete-confirm-name"
+              className="form-input"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              autoFocus
+            />
+            <div className="form-buttons">
+              <button type="button" className="btn-secondary" disabled={deleting} onClick={() => setShowDeleteConfirmation(false)}>取消</button>
+              <button
+                type="button"
+                className="btn-danger"
+                disabled={deleting || deleteConfirmation !== asset.name}
+                onClick={handlePermanentDelete}
+              >{deleting ? '删除中…' : '确认永久删除'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

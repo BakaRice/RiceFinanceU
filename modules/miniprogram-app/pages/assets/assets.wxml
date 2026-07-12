@@ -13,25 +13,25 @@
       <view>
         <view class="page-title">资产管理</view>
         <view class="assets-meta">
-          <text>启用 {{activeCount}}</text>
-          <text wx:if="{{inactiveCount > 0}}">停用 {{inactiveCount}}</text>
+          <text>正常录入 {{normalCount}}</text>
+          <text wx:if="{{pausedCount > 0}}">暂停录入 {{pausedCount}}</text>
           <text>{{currencyLabel}}</text>
         </view>
       </view>
       <button class="topbar-action" bindtap="openCreate">新增</button>
     </view>
 
-    <view wx:if="{{activeRows.length === 0 && inactiveRows.length === 0}}" class="empty-text">
+    <view wx:if="{{normalRows.length === 0 && pausedRows.length === 0}}" class="empty-text">
       暂无资产
     </view>
 
     <block wx:else>
-      <view wx:if="{{activeRows.length > 0}}" class="section-header">
-        <text class="section-title">已启用</text>
-        <text class="muted-text">{{activeRows.length}} 项</text>
+      <view wx:if="{{normalRows.length > 0}}" class="section-header">
+        <text class="section-title">正常录入</text>
+        <text class="muted-text">{{normalRows.length}} 项</text>
       </view>
-      <view wx:if="{{activeRows.length > 0}}" class="asset-list">
-        <view wx:for="{{activeRows}}" wx:key="id" class="asset-item">
+      <view wx:if="{{normalRows.length > 0}}" class="asset-list">
+        <view wx:for="{{normalRows}}" wx:key="id" class="asset-item">
           <view class="asset-head">
             <view class="asset-title">
               <text class="asset-name">{{item.name}}</text>
@@ -55,17 +55,18 @@
 
           <view class="row-actions">
             <button class="row-button" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
-            <button class="row-button danger-row-button" data-id="{{item.id}}" bindtap="handleDeactivate">停用</button>
+            <button class="row-button" data-id="{{item.id}}" bindtap="handleEntryStatusChange">暂停录入</button>
+            <button class="row-button danger-row-button" data-id="{{item.id}}" bindtap="handlePermanentDelete">永久删除</button>
           </view>
         </view>
       </view>
 
-      <view wx:if="{{inactiveRows.length > 0}}" class="section-header">
-        <text class="section-title">已停用</text>
-        <text class="muted-text">{{inactiveRows.length}} 项</text>
+      <view wx:if="{{pausedRows.length > 0}}" class="section-header">
+        <text class="section-title">暂停录入</text>
+        <text class="muted-text">{{pausedRows.length}} 项</text>
       </view>
-      <view wx:if="{{inactiveRows.length > 0}}" class="asset-list">
-        <view wx:for="{{inactiveRows}}" wx:key="id" class="asset-item asset-item-muted">
+      <view wx:if="{{pausedRows.length > 0}}" class="asset-list">
+        <view wx:for="{{pausedRows}}" wx:key="id" class="asset-item asset-item-muted">
           <view class="asset-head">
             <view class="asset-title">
               <text class="asset-name">{{item.name}}</text>
@@ -75,6 +76,8 @@
           </view>
           <view class="row-actions">
             <button class="row-button" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
+            <button class="row-button" data-id="{{item.id}}" bindtap="handleEntryStatusChange">恢复录入</button>
+            <button class="row-button danger-row-button" data-id="{{item.id}}" bindtap="handlePermanentDelete">永久删除</button>
           </view>
         </view>
       </view>
