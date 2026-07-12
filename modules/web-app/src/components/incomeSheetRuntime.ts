@@ -19,6 +19,11 @@ import sheetsSortZhCN from '@univerjs/preset-sheets-sort/locales/zh-CN'
 import type { IncomeSheetColumn, IncomeSheetRow } from '../pages/incomeSheetAdapter'
 import type { IncomeRecord } from '../types/finance'
 import {
+  INCOME_SHEET_UI_CONFIG,
+  isBlockedIncomeSheetHeaderEdit,
+  isBlockedIncomeSheetStructureCommand,
+} from './incomeSheetPolicy'
+import {
   buildIncomeWorkbookData,
   INCOME_SHEET_HEADERS,
   INCOME_WORKBOOK_ID,
@@ -73,6 +78,7 @@ export function createIncomeSheetRuntime({
         formulaBar: false,
         footer: false,
         contextMenu: true,
+        sheets: INCOME_SHEET_UI_CONFIG,
       }),
       UniverSheetsDataValidationPreset({
         showEditOnDropdown: false,
@@ -115,6 +121,14 @@ export function createIncomeSheetRuntime({
     univerAPI.Event.CommandExecuted,
     scheduleEmit,
   )
+  const structureSubscription: IDisposable = univerAPI.onBeforeCommandExecute((command) => {
+    if (isBlockedIncomeSheetStructureCommand(command.id)) {
+      throw new Error('收入工作表的业务列固定，不能增删或移动列')
+    }
+    if (isBlockedIncomeSheetHeaderEdit(command.id, command.params)) {
+      throw new Error('收入工作表表头固定，不能修改')
+    }
+  })
 
   function configureSheet() {
     const worksheet = getActiveSheet()
@@ -156,16 +170,6 @@ export function createIncomeSheetRuntime({
     worksheet.getRange(1, 3, lastRow - 1, 1).setDataValidation(amountRule)
 
     worksheet.getRange(0, 0, lastRow, INCOME_SHEET_HEADERS.length).createFilter()
-
-    const permission = worksheet.getWorksheetPermission()
-    void permission.protect({ name: '收入表结构保护' }).then(async () => {
-      await permission.setPoint(univerAPI.Enum.WorksheetPermissionPoint.InsertColumn, false)
-      await permission.setPoint(univerAPI.Enum.WorksheetPermissionPoint.DeleteColumn, false)
-    })
-    void worksheet.getRange(0, 0, 1, INCOME_SHEET_HEADERS.length)
-      .getRangePermission()
-      .protect({ name: '收入表头' })
-      .then((rule) => rule.setPoint(univerAPI.Enum.RangePermissionPoint.Edit, false))
   }
 
   return {
@@ -193,6 +197,7 @@ export function createIncomeSheetRuntime({
     dispose() {
       disposed = true
       commandSubscription.dispose()
+      structureSubscription.dispose()
       univer.dispose()
     },
   }
