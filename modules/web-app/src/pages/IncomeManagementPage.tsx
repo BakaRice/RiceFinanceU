@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import IncomeSheet, { type IncomeSheetHandle } from '../components/IncomeSheet'
 import { useFeedback } from '../components/Feedback/FeedbackContext'
 import TableWorkspace from '../components/TableWorkspace'
+import { useUnsavedChangesWarning } from '../components/useUnsavedChangesWarning'
 import type { IncomeRecord } from '../types/finance'
 import {
   buildIncomeBatch,
@@ -49,6 +50,10 @@ export default function IncomeManagementPage() {
     () => countIncomeChanges(records, sheetRows),
     [records, sheetRows],
   )
+  useUnsavedChangesWarning(
+    dirtyCount > 0,
+    '收入修改尚未保存，离开后会丢失。确定要离开吗？',
+  )
 
   function discardChanges() {
     const baseline = recordsToIncomeSheetRows(records)
@@ -70,6 +75,7 @@ export default function IncomeManagementPage() {
     }
 
     if (dirtyCount === 0) return
+    sheetRef.current?.setEditable(false)
     setSaving(true)
     try {
       await api.saveIncomeRecords(batch)
@@ -78,6 +84,7 @@ export default function IncomeManagementPage() {
     } catch (saveError: any) {
       toast('保存收入失败: ' + saveError.message, 'error')
     } finally {
+      sheetRef.current?.setEditable(true)
       setSaving(false)
     }
   }

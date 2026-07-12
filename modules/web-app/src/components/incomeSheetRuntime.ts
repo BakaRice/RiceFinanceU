@@ -21,7 +21,7 @@ import type { IncomeRecord } from '../types/finance'
 import {
   buildIncomeWorkbookData,
   INCOME_SHEET_HEADERS,
-  recordsToWorksheetValues,
+  INCOME_WORKBOOK_ID,
   worksheetValuesToIncomeRows,
 } from './incomeSheetWorkbook'
 
@@ -41,6 +41,7 @@ const COLUMN_INDEX: Record<IncomeSheetColumn, number> = {
 export type IncomeSheetRuntime = {
   setRecords(records: IncomeRecord[]): void
   setDarkMode(enabled: boolean): void
+  setEditable(enabled: boolean): void
   focusCell(row: number, column: IncomeSheetColumn): void
   dispose(): void
 }
@@ -83,6 +84,7 @@ export function createIncomeSheetRuntime({
   })
 
   let disposed = false
+  let editable = true
   let suppressEvents = false
   let emitScheduled = false
 
@@ -125,6 +127,13 @@ export function createIncomeSheetRuntime({
       .setFontWeight('bold')
     worksheet.getRange(1, 3, lastRow - 1, 1).setNumberFormat('#,##0.00')
 
+    const dateRule = univerAPI.newDataValidation()
+      .requireDateBetween(new Date('1900-01-01'), new Date('9999-12-31'))
+      .setAllowBlank(true)
+      .setOptions({ showErrorMessage: true, error: '请输入有效日期' })
+      .build()
+    worksheet.getRange(1, 1, lastRow - 1, 1).setDataValidation(dateRule)
+
     const categoryRule = univerAPI.newDataValidation()
       .requireValueInList([
         'salary',
@@ -147,25 +156,34 @@ export function createIncomeSheetRuntime({
     worksheet.getRange(1, 3, lastRow - 1, 1).setDataValidation(amountRule)
 
     worksheet.getRange(0, 0, lastRow, INCOME_SHEET_HEADERS.length).createFilter()
+
+    const permission = worksheet.getWorksheetPermission()
+    void permission.protect({ name: '收入表结构保护' }).then(async () => {
+      await permission.setPoint(univerAPI.Enum.WorksheetPermissionPoint.InsertColumn, false)
+      await permission.setPoint(univerAPI.Enum.WorksheetPermissionPoint.DeleteColumn, false)
+    })
+    void worksheet.getRange(0, 0, 1, INCOME_SHEET_HEADERS.length)
+      .getRangePermission()
+      .protect({ name: '收入表头' })
+      .then((rule) => rule.setPoint(univerAPI.Enum.RangePermissionPoint.Edit, false))
   }
 
   return {
     setRecords(records) {
       suppressEvents = true
-      const worksheet = getActiveSheet()
-      if (worksheet) {
-        worksheet
-          .getRange(1, 0, worksheet.getMaxRows() - 1, INCOME_SHEET_HEADERS.length)
-          .setValues(recordsToWorksheetValues(records, worksheet.getMaxRows() - 1))
-      } else {
-        univerAPI.createWorkbook(buildIncomeWorkbookData(records))
-        configureSheet()
-      }
+      univerAPI.disposeUnit(INCOME_WORKBOOK_ID)
+      const workbook = univerAPI.createWorkbook(buildIncomeWorkbookData(records))
+      workbook.setEditable(editable)
+      configureSheet()
       suppressEvents = false
       emitRows()
     },
     setDarkMode(enabled) {
       univerAPI.toggleDarkMode(enabled)
+    },
+    setEditable(enabled) {
+      editable = enabled
+      univerAPI.getActiveWorkbook()?.setEditable(enabled)
     },
     focusCell(row, column) {
       const worksheet = getActiveSheet()

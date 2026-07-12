@@ -14,6 +14,7 @@ import IncomeManagementPage from './IncomeManagementPage'
 const sheetHandle = {
   reset: vi.fn(),
   focusCell: vi.fn(),
+  setEditable: vi.fn(),
 }
 
 vi.mock('../components/IncomeSheet', () => ({
@@ -122,6 +123,8 @@ describe('IncomeManagementPage', () => {
     }))
     expect(mockedApi.saveIncomeRecords).toHaveBeenCalledTimes(1)
     expect(mockedApi.getIncomeRecords).toHaveBeenCalledTimes(2)
+    expect(sheetHandle.setEditable).toHaveBeenNthCalledWith(1, false)
+    expect(sheetHandle.setEditable).toHaveBeenLastCalledWith(true)
   })
 
   it('focuses the invalid cell and does not call the API', async () => {

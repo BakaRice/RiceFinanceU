@@ -890,6 +890,14 @@ test('收入批量接口任一操作非法时会整批拒绝并保持账本不�
         deletes: [existingId],
       },
     },
+    {
+      expectedStatus: 400,
+      body: {
+        creates: [],
+        updates: [{ id: existingId }],
+        deletes: [],
+      },
+    },
   ]
 
   for (const scenario of invalidBodies('placeholder')) {

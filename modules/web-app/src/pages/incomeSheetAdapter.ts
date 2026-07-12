@@ -63,7 +63,9 @@ function isBlankRow(row: IncomeSheetRow): boolean {
 }
 
 function parseAmountValue(value: string): number {
-  return Number(value.replace(/,/g, '').trim())
+  const normalized = value.trim()
+  const validNumber = /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(normalized)
+  return validNumber ? Number(normalized.replace(/,/g, '')) : Number.NaN
 }
 
 function parseRow(row: IncomeSheetRow, rowIndex: number): IncomeRecordInput {
@@ -103,11 +105,39 @@ function payloadMatchesRecord(payload: IncomeRecordInput, record: IncomeRecord):
   )
 }
 
+function rowMatchesRecord(row: IncomeSheetRow, record: IncomeRecord): boolean {
+  try {
+    return payloadMatchesRecord(parseRow(row, 0), record)
+  } catch {
+    return false
+  }
+}
+
+function selectIdentityRows(
+  originalById: Map<string, IncomeRecord>,
+  rows: IncomeSheetRow[],
+): Map<string, number> {
+  const candidates = new Map<string, number[]>()
+  rows.forEach((row, index) => {
+    if (isBlankRow(row) || !originalById.has(row.rowKey)) return
+    const indexes = candidates.get(row.rowKey) || []
+    indexes.push(index)
+    candidates.set(row.rowKey, indexes)
+  })
+
+  return new Map([...candidates].map(([id, indexes]) => {
+    const original = originalById.get(id)!
+    const unchangedIndex = indexes.find((index) => rowMatchesRecord(rows[index], original))
+    return [id, unchangedIndex ?? indexes[0]]
+  }))
+}
+
 export function buildIncomeBatch(
   original: IncomeRecord[],
   rows: IncomeSheetRow[],
 ): IncomeBatch {
   const originalById = new Map(original.map((record) => [record.id, record]))
+  const identityRows = selectIdentityRows(originalById, rows)
   const consumedIds = new Set<string>()
   const creates: IncomeRecordInput[] = []
   const updates: Array<IncomeRecordInput & { id: string }> = []
@@ -117,7 +147,7 @@ export function buildIncomeBatch(
     const payload = parseRow(row, rowIndex)
     const originalRecord = originalById.get(row.rowKey)
 
-    if (!originalRecord || consumedIds.has(row.rowKey)) {
+    if (!originalRecord || identityRows.get(row.rowKey) !== rowIndex) {
       creates.push(payload)
       return
     }
@@ -140,25 +170,20 @@ export function countIncomeChanges(
   rows: IncomeSheetRow[],
 ): number {
   const originalById = new Map(original.map((record) => [record.id, record]))
+  const identityRows = selectIdentityRows(originalById, rows)
   const consumedIds = new Set<string>()
   let changes = 0
 
-  for (const row of rows) {
+  for (const [rowIndex, row] of rows.entries()) {
     if (isBlankRow(row)) continue
     const originalRecord = originalById.get(row.rowKey)
-    if (!originalRecord || consumedIds.has(row.rowKey)) {
+    if (!originalRecord || identityRows.get(row.rowKey) !== rowIndex) {
       changes += 1
       continue
     }
 
     consumedIds.add(row.rowKey)
-    if (
-      row.occurredAt !== originalRecord.occurredAt ||
-      row.category !== originalRecord.category ||
-      parseAmountValue(row.amount) !== originalRecord.amount ||
-      row.sourceName !== (originalRecord.sourceName || '') ||
-      row.note !== (originalRecord.note || '')
-    ) {
+    if (!rowMatchesRecord(row, originalRecord)) {
       changes += 1
     }
   }

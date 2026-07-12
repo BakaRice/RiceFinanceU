@@ -28,6 +28,7 @@ describe('IncomeSheet', () => {
   const runtime = {
     setRecords: vi.fn(),
     setDarkMode: vi.fn(),
+    setEditable: vi.fn(),
     focusCell: vi.fn(),
     dispose: vi.fn(),
   }
@@ -87,5 +88,8 @@ describe('IncomeSheet', () => {
 
     act(() => ref.current?.focusCell(2, 'amount'))
     expect(runtime.focusCell).toHaveBeenCalledWith(2, 'amount')
+
+    act(() => ref.current?.setEditable(false))
+    expect(runtime.setEditable).toHaveBeenCalledWith(false)
   })
 })

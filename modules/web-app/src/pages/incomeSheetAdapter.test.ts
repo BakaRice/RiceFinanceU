@@ -141,6 +141,25 @@ describe('incomeSheetAdapter', () => {
     })
   })
 
+  it('keeps the unchanged source identity when an edited copy sorts above it', () => {
+    const source = recordsToIncomeSheetRows(original)[0]
+
+    expect(buildIncomeBatch(original, [
+      { ...source, amount: '20,000.00' },
+      source,
+      recordsToIncomeSheetRows(original)[1],
+    ])).toEqual({
+      creates: [{
+        occurredAt: '2026-07-01',
+        category: 'salary',
+        amount: 20000,
+        sourceName: '公司',
+      }],
+      updates: [],
+      deletes: [],
+    })
+  })
+
   it.each([
     {
       value: row({ occurredAt: '2026-02-30', category: 'salary', amount: '1' }),
@@ -154,6 +173,11 @@ describe('incomeSheetAdapter', () => {
     },
     {
       value: row({ occurredAt: '2026-07-01', category: 'salary', amount: '-1' }),
+      column: 'amount',
+      message: '金额必须是大于等于 0 的数字',
+    },
+    {
+      value: row({ occurredAt: '2026-07-01', category: 'salary', amount: '1,2' }),
       column: 'amount',
       message: '金额必须是大于等于 0 的数字',
     },

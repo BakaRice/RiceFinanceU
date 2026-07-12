@@ -1041,6 +1041,13 @@ async function handleIncomeRecords(request, env, segments) {
 
     const sanitizedUpdates = []
     for (const input of updates) {
+      if (
+        !Object.prototype.hasOwnProperty.call(input || {}, 'occurredAt') ||
+        !Object.prototype.hasOwnProperty.call(input || {}, 'category') ||
+        !Object.prototype.hasOwnProperty.call(input || {}, 'amount')
+      ) {
+        return badRequest('income batch updates require occurredAt, category and amount')
+      }
       const existing = existingById.get(input.id)
       const sanitized = sanitizeIncomeRecordInput(input, existing)
       if (sanitized.error) return badRequest(sanitized.error)

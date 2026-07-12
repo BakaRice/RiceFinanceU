@@ -7,6 +7,7 @@ import './IncomeSheet.css'
 export type IncomeSheetHandle = {
   reset(records: IncomeRecord[]): void
   focusCell(row: number, column: IncomeSheetColumn): void
+  setEditable(enabled: boolean): void
 }
 
 type IncomeSheetProps = {
@@ -30,6 +31,9 @@ const IncomeSheet = forwardRef<IncomeSheetHandle, IncomeSheetProps>(function Inc
     },
     focusCell(row, column) {
       runtimeRef.current?.focusCell(row, column)
+    },
+    setEditable(enabled) {
+      runtimeRef.current?.setEditable(enabled)
     },
   }), [])
 
