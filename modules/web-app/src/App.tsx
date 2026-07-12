@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { api } from './api/client'
 import { getSessionToken } from './api/session'
@@ -7,11 +7,12 @@ import DashboardPage from './pages/DashboardPage'
 import AssetsPage from './pages/AssetsPage'
 import AssetDetailPage from './pages/AssetDetailPage'
 import DcaManagementPage from './pages/DcaManagementPage'
-import IncomeManagementPage from './pages/IncomeManagementPage'
 import EntryPage from './pages/EntryPage'
 import DataManagementPage from './pages/DataManagementPage'
 import ExchangeRatesPage from './pages/ExchangeRatesPage'
 import LoginPage from './pages/LoginPage'
+
+const IncomeManagementPage = lazy(() => import('./pages/IncomeManagementPage'))
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getSessionToken()))
@@ -35,7 +36,14 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/assets" element={<AssetsPage />} />
         <Route path="/assets/:id" element={<AssetDetailPage />} />
-        <Route path="/income" element={<IncomeManagementPage />} />
+        <Route
+          path="/income"
+          element={(
+            <Suspense fallback={<div className="page-loading">正在加载收入工作表...</div>}>
+              <IncomeManagementPage />
+            </Suspense>
+          )}
+        />
         <Route path="/dca" element={<DcaManagementPage />} />
         <Route path="/entry" element={<EntryPage />} />
         <Route path="/data" element={<DataManagementPage />} />
