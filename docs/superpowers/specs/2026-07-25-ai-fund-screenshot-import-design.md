@@ -139,7 +139,19 @@ Worker 负责：
 
 ### R2、Queues 和 Workflows
 
-第一期不使用。图片只存在于本次 HTTP 请求和调用豆包所需的内存中，请求结束后不保留。
+第一期不使用。火山方舟视觉模型支持以 Base64 形式接收图片，因此不需要先把截图上传到 OSS、TOS、R2 或其他能生成公网 URL 的对象存储。
+
+具体传输链路为：
+
+```text
+浏览器
+  -> multipart/form-data 原始图片
+  -> Cloudflare Worker
+  -> 在内存中转换为 data:<mime>;base64,<content>
+  -> 豆包 Chat Completions 的 image_url.url
+```
+
+浏览器到 Worker 仍使用原始文件，而不先转 Base64。这样可以避免浏览器到 Worker 这一段约三分之一的 Base64 体积膨胀，也不会把模型调用细节放进前端。Worker 使用分块安全的方式完成编码，图片和 Base64 字符串只存在于本次请求内存中，请求结束后不保留。
 
 ### AI Gateway
 
@@ -184,6 +196,7 @@ DEEPSEEK_MODEL
 豆包使用火山方舟 Chat Completions 多模态接口，图片作为视觉内容传入：
 
 - [火山方舟 ChatCompletions API](https://api.volcengine.com/api-docs/view?action=ChatCompletions&serviceCode=ark&version=2024-01-01)
+- [豆包视觉模型接入介绍（含 Base64 图片输入）](https://console.volcengine.com/ark/region:cn-beijing/docs/82379/1494384?lang=zh)
 
 本地开发继续使用未提交到 Git 的 `.dev.vars`。
 
@@ -214,6 +227,14 @@ image: File
 10 MiB 是本产品主动设置的上限，远低于 Cloudflare 常见账户的请求体限制，也能避免单个请求在 Worker 中占用过多内存。Cloudflare Workers 当前内存上限为 128 MB，上传体限制取决于 Cloudflare 账户套餐：
 
 - [Cloudflare Workers Limits](https://developers.cloudflare.com/workers/platform/limits/)
+
+Worker 校验图片后读取二进制内容，按照实际 MIME 类型生成：
+
+```text
+data:image/png;base64,<base64-content>
+```
+
+然后把该值放入豆包多模态消息的 `image_url.url`。不创建临时对象、不生成外部下载地址，也不需要图片清理任务。
 
 ### 成功响应
 
@@ -456,11 +477,12 @@ modules/web-app/src/
 1. 接口必须使用现有 Session 认证。
 2. API Key 只存放在 Cloudflare Secrets。
 3. 图片不写入 KV、R2、Cache API 或 Worker 日志。
-4. 不记录提示词、图片 Base64、基金名称、金额、收益或模型原始响应。
-5. 日志只允许记录 `requestId`、阶段、耗时、项目数量、供应商状态码和错误类别。
-6. AI Gateway 若启用，必须禁用缓存并关闭 payload 日志。
-7. 前端不把导入草稿写入 `localStorage` 或其他持久化浏览器存储。
-8. 用于自动化测试的图片必须是合成或脱敏样本，不提交真实个人金融截图。
+4. 图片原始字节和 Base64/Data URL 只在当前 Worker 请求内存中存在，不传给 DeepSeek。
+5. 不记录提示词、图片 Base64、基金名称、金额、收益或模型原始响应。
+6. 日志只允许记录 `requestId`、阶段、耗时、项目数量、供应商状态码和错误类别。
+7. AI Gateway 若启用，必须禁用缓存并关闭 payload 日志。
+8. 前端不把导入草稿写入 `localStorage` 或其他持久化浏览器存储。
+9. 用于自动化测试的图片必须是合成或脱敏样本，不提交真实个人金融截图。
 
 页面应在上传入口附近说明：截图会发送给豆包用于识别，提取后的基金名称会发送给 DeepSeek 用于匹配。
 
@@ -544,7 +566,8 @@ errorCode
 10. AI 导入不会创建资产、修改资产主数据或直接保存快照。
 11. 最终保存继续使用现有快照校验、复核和 `POST /api/snapshots`。
 12. 图片、模型原始响应和导入草稿不会被持久化。
-13. 新增逻辑有 Worker 和前端自动化测试覆盖，现有测试继续通过。
+13. 豆包图片输入使用请求内 Base64/Data URL，不依赖 OSS、TOS、R2 或临时公网 URL。
+14. 新增逻辑有 Worker 和前端自动化测试覆盖，现有测试继续通过。
 
 ## 后续演进方向
 
