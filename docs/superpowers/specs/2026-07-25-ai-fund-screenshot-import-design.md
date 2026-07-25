@@ -184,14 +184,55 @@ DEEPSEEK_API_KEY
 ```text
 DOUBAO_API_BASE
 DOUBAO_MODEL
-DEEPSEEK_API_BASE
-DEEPSEEK_MODEL
+DEEPSEEK_API_BASE=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
 ```
 
-模型名称不写死在业务代码中，以便供应商升级模型时只调整配置。DeepSeek 当前官方 API 使用 OpenAI 兼容格式；实施时选择仍受支持的非思考模型，因为名称映射不需要复杂推理。模型返回使用 JSON Output，官方要求同时设置 `response_format: {"type":"json_object"}`，并在提示词中明确 JSON 和目标示例：
+模型名称不写死在业务代码中，以便供应商升级模型时只调整配置。
 
-- [DeepSeek API 快速开始](https://api-docs.deepseek.com/)
-- [DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode/)
+DeepSeek 当前官方 API 使用 OpenAI 兼容格式。第一期默认使用 `deepseek-v4-flash`；名称映射是短文本分类任务，不需要 `deepseek-v4-pro` 的额外能力。`deepseek-chat` 和 `deepseek-reasoner` 已于北京时间 2026-07-24 23:59 弃用，代码和配置中不得继续使用这两个旧名称。
+
+DeepSeek V4 默认开启思考模式。本任务必须显式发送 `thinking: {"type":"disabled"}`，避免为简单名称映射增加不必要的延迟和 Token。模型返回使用 JSON Output，官方要求同时设置 `response_format: {"type":"json_object"}`，在提示词中包含 `json` 字样和目标 JSON 示例，并合理设置 `max_tokens`：
+
+- [DeepSeek API 中文快速开始](https://api-docs.deepseek.com/zh-cn/)
+- [DeepSeek 模型与价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)
+- [DeepSeek 思考模式](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/)
+- [DeepSeek JSON Output](https://api-docs.deepseek.com/zh-cn/guides/json_mode/)
+- [DeepSeek 错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes/)
+
+第一期 DeepSeek 请求固定为非流式 Chat Completions：
+
+```http
+POST https://api.deepseek.com/chat/completions
+Authorization: Bearer <DEEPSEEK_API_KEY>
+Content-Type: application/json
+```
+
+```json
+{
+  "model": "deepseek-v4-flash",
+  "messages": [
+    {
+      "role": "system",
+      "content": "返回符合指定结构的 json，不要输出其他内容。"
+    },
+    {
+      "role": "user",
+      "content": "包含提取项、候选资产和 JSON 输出示例的映射请求"
+    }
+  ],
+  "thinking": {
+    "type": "disabled"
+  },
+  "response_format": {
+    "type": "json_object"
+  },
+  "max_tokens": 1024,
+  "stream": false
+}
+```
+
+若模型返回空 `content`、被 `max_tokens` 截断或输出无法通过 JSON 与运行时 Schema 校验，本次匹配视为失败，不使用不完整结果。
 
 豆包使用火山方舟 Chat Completions 多模态接口，图片作为视觉内容传入：
 
@@ -463,6 +504,7 @@ modules/web-app/src/
 | 豆包输出无法解析 | `422` | 未能从截图中识别出有效基金数据 |
 | 没有完整基金项目 | `422` | 截图中没有可导入的基金持仓 |
 | DeepSeek 调用失败或超时 | `502` | 基金匹配失败，请稍后重试 |
+| DeepSeek 返回空内容、截断内容或非法 JSON | `502` | 基金匹配结果格式异常，请重试 |
 | 部分项目无法映射 | `200` | 返回草稿并逐项标记未匹配 |
 | 前端确认时目标资产已不在表格 | 本地跳过 | 部分资产状态已变化，请刷新后重试 |
 
@@ -524,6 +566,8 @@ errorCode
 - 文件缺失、文件类型错误、伪造 MIME 和超过大小限制。
 - 豆包成功、DeepSeek 成功的完整链路。
 - 两家供应商分别失败、超时和返回坏 JSON。
+- DeepSeek 请求使用 `deepseek-v4-flash`、关闭思考模式并启用 JSON Output。
+- DeepSeek 空 `content` 和被截断输出不会进入映射合并。
 - 部分匹配成功仍返回 `200` 草稿。
 - AI 请求不会写入 KV。
 - API 响应和日志不泄露模型密钥或原始图片。
@@ -567,7 +611,8 @@ errorCode
 11. 最终保存继续使用现有快照校验、复核和 `POST /api/snapshots`。
 12. 图片、模型原始响应和导入草稿不会被持久化。
 13. 豆包图片输入使用请求内 Base64/Data URL，不依赖 OSS、TOS、R2 或临时公网 URL。
-14. 新增逻辑有 Worker 和前端自动化测试覆盖，现有测试继续通过。
+14. DeepSeek 默认使用 `deepseek-v4-flash` 非思考模式和 JSON Output，不使用已弃用的旧模型别名。
+15. 新增逻辑有 Worker 和前端自动化测试覆盖，现有测试继续通过。
 
 ## 后续演进方向
 
